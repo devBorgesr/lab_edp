@@ -20,8 +20,8 @@ import re
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
-from . import exp001
-from .prontuario import get_prontuario
+import exp001
+from prontuario import get_prontuario
 
 logger = logging.getLogger("edp.lab.scorer")
 

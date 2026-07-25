@@ -103,7 +103,7 @@ def purge_lab_session(session_id: str) -> dict:
     removed_dirs = []
     # 1) registry (em memoria) — best-effort; remove _runtimes e _memories.
     try:
-        from ..runtime.registry import reset_session
+        from edp.runtime.registry import reset_session
         reset_session(session_id)
     except Exception as e:
         logger.debug("[isolation] reset_session(%s) falhou: %s", session_id, e)
@@ -149,7 +149,7 @@ def experimental_session(
     sid = new_lab_session_id()
     mem = None
     try:
-        from ..runtime.registry import get_memory
+        from edp.runtime.registry import get_memory
         mem = get_memory(sid)
         try:
             mem.set_scope(scope)

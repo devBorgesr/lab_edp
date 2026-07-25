@@ -42,22 +42,35 @@ import json
 import logging
 import os
 import threading
+import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterator, Optional, Protocol
-
-from ..clock import now as _now
+from typing import Callable, Iterator, Optional, Protocol
 
 logger = logging.getLogger("edp.lab.prontuario")
 
+# ── Relogio injetavel: a bancada nao conhece edp.clock. Quem monta o sujeito
+#    (ex.: o adaptador EDP) injeta o relogio real via set_clock(). Sem injecao,
+#    usa time.time() e nao verifica (grava ts_verified=None). Padrao da casa:
+#    relogio injetavel. ──────────────────────────────────────────────────────
+_now: Callable[[], float] = time.time
+_clock_verified_fn: Optional[Callable[[], bool]] = None
 
-# ── Relogio: estado de verificacao (Bug 5). Defensivo — se a casa nao expoe
-#    is_verified(), grava None em vez de quebrar. ──────────────────────────────
+
+def set_clock(fn: Callable[[], float], verified_fn: Optional[Callable[[], bool]] = None) -> None:
+    """Injeta relogio externo (ex.: edp.clock.now) e verificador opcional
+    (ex.: edp.clock.is_verified). Padrao da casa: clock injetavel."""
+    global _now, _clock_verified_fn
+    _now = fn
+    _clock_verified_fn = verified_fn
+
+
 def _clock_verified() -> Optional[bool]:
+    if _clock_verified_fn is None:
+        return None
     try:
-        from ..clock import is_verified  # type: ignore
-        return bool(is_verified())
+        return bool(_clock_verified_fn())
     except Exception:
         return None
 
@@ -330,12 +343,22 @@ class FileProntuarioStore:
 
 
 # ── run_id e shards ───────────────────────────────────────────────────────────
+# Getter injetavel de correlation_id (ex.: edp.runtime.pareto_store.get_current_
+# correlation_id). Default generico: sem correlation_id, gera run_id proprio.
+_get_correlation_id: Callable[[], Optional[str]] = lambda: None
+
+
+def set_correlation_id_getter(fn: Callable[[], Optional[str]]) -> None:
+    """Injeta getter externo de correlation_id. Padrao da casa: costura injetavel."""
+    global _get_correlation_id
+    _get_correlation_id = fn
+
+
 def _new_run_id() -> str:
     """run_id reusa o correlation_id do turno (pareto_store) se houver — para
     amarrar o run aos eventos do mesmo turno. Senao, gera proprio."""
     try:
-        from ..runtime.pareto_store import get_current_correlation_id
-        cid = get_current_correlation_id()
+        cid = _get_correlation_id()
         if cid:
             return f"run_{cid}"
     except Exception:

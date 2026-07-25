@@ -258,7 +258,7 @@ def load_cognitive_clone(prod_session: str = "default") -> List[dict]:
         logger.warning("[exp008] clone do disco falhou (%s); tentando registry", e)
     # 2) registry (fallback; instancia em RAM, shape com embeddings)
     try:
-        from ..runtime.registry import get_memory, is_valid
+        from edp.runtime.registry import get_memory, is_valid
         mem = get_memory(prod_session)
         if is_valid(mem):
             cog = getattr(mem, "_cognitive_view", None)

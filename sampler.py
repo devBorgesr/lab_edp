@@ -166,10 +166,26 @@ def _compute_stats(res: SampleResult) -> None:
 # Cabecalhos EXATOS do EDP (mesmos que ContextWindowManager.to_prompt emite),
 # mas SEM budget — para nao aparar a distorcao do experimento.
 
-def render_window(sections: Sections, *, ceticismo: bool = True) -> str:
+# Default generico do bloco de ceticismo (a bancada nao conhece edp.echo_chamber).
+# Quem monta o sujeito pode injetar o texto real (ex.: edp.echo_chamber.
+# CETICISMO_DEFAULT) via o parametro ceticismo_texto de render_window.
+CETICISMO_DEFAULT = (
+    "Importante: opere com ceticismo honesto, metodo rigoroso e humildade "
+    "epistemica. Marque claramente o que voce SABE vs o que esta chutando."
+)
+
+
+def render_window(
+    sections: Sections,
+    *,
+    ceticismo: bool = True,
+    ceticismo_texto: Optional[str] = None,
+) -> str:
     """Renderiza as secoes no prompt final, do jeito do EDP, deterministico.
     ceticismo=True (default = producao) cola o bloco de ceticismo no fim;
-    False ablaciona o ceticismo (toggle de runner, registrar no andaime)."""
+    False ablaciona o ceticismo (toggle de runner, registrar no andaime).
+    ceticismo_texto sobrescreve o bloco default (ex.: o adaptador do sujeito
+    injeta o texto real do EDP)."""
     s = sections or {}
     parts: List[str] = [str(s.get("system", "") or "")]
 
@@ -186,12 +202,9 @@ def render_window(sections: Sections, *, ceticismo: bool = True) -> str:
 
     rendered = "\n".join(parts)
     if ceticismo:
-        try:
-            from ..echo_chamber import CETICISMO_DEFAULT
-            if CETICISMO_DEFAULT and CETICISMO_DEFAULT not in rendered:
-                rendered = f"{rendered}\n\n---\n\n{CETICISMO_DEFAULT}"
-        except Exception as e:
-            logger.debug("[sampler] ceticismo indisponivel no render: %s", e)
+        texto = ceticismo_texto if ceticismo_texto is not None else CETICISMO_DEFAULT
+        if texto and texto not in rendered:
+            rendered = f"{rendered}\n\n---\n\n{texto}"
     return rendered
 
 
