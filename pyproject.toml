@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lab-edp"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = ["edp @ git+https://github.com/devBorgesr/edp_v5@exp017/fase1-dedup"]
+
+[tool.setuptools]
+py-modules = []
