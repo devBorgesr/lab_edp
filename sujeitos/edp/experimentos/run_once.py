@@ -192,7 +192,7 @@ def run_once(
     NOTA: mesmo o dry-run, na maquina real, carrega o EDP e exercita os stores
     REAIS (MemoryStore, isolation, prontuario, no-leak) — so o MODELO e fingido.
     E o aceite paranoico da Fase 2, rodavel com seguranca."""
-    from .repeater import run_variant
+    from bancada.repeater import run_variant
 
     _ram_advisory()
     andaime = gather_andaime(modelo)
@@ -222,7 +222,7 @@ def run_once(
 
 # ── Relatorio (fecha o laco: le o prontuario de volta) ────────────────────────
 def _report(rec) -> None:
-    from .prontuario import get_prontuario
+    from bancada.prontuario import get_prontuario
     print("\n" + "=" * 64)
     print("RESULTADO DO EXPERIMENTO")
     print("=" * 64)
@@ -260,7 +260,7 @@ def _run_experiment(
 ):
     """Roda um experimento (sonda + plano) via Rodizio, com dry-run/conexao/armar.
     Compartilhado entre exp001, exp003, etc."""
-    from .rodizio import run_plan
+    from bancada.rodizio import run_plan
 
     andaime = gather_andaime(modelo)
     andaime["experimento"] = exp_id
@@ -288,7 +288,7 @@ def _run_experiment(
 
 
 def _load_skeleton(debug_jsonl: str, index: int):
-    from .repeater import load_window_from_debug
+    from bancada.repeater import load_window_from_debug
     win = load_window_from_debug(debug_jsonl, index=index)
     if not win.sections:
         raise RuntimeError("a janela-esqueleto nao tem secoes (context_debug tem 'sections'?).")
@@ -414,33 +414,33 @@ def main(argv=None) -> int:
 
     # ── Modo AUDITORIA (le respostas do prontuario, sem API) ─────────────────
     if args.audit_exp == "004":
-        from .scorer import audit_004
+        from bancada.scorer import audit_004
         audit_004(); return 0
     if args.audit_exp == "006":
-        from .scorer import audit_006
+        from bancada.scorer import audit_006
         audit_006(); return 0
     if args.audit_exp == "007":
-        from .scorer import audit_007
+        from bancada.scorer import audit_007
         audit_007(); return 0
     if args.audit_exp == "006b":
-        from .scorer import audit_006b
+        from bancada.scorer import audit_006b
         audit_006b(); return 0
 
     # ── Modo SCORER (analise pos-coleta, sem API) ────────────────────────────
     if args.score:
         if args.score_exp == "004":
-            from .scorer import score_autoridade_004, report_004
+            from bancada.scorer import score_autoridade_004, report_004
             report_004(score_autoridade_004(only_real=True)); return 0
         if args.score_exp == "006":
-            from .scorer import score_eco_006, report_006
+            from bancada.scorer import score_eco_006, report_006
             report_006(score_eco_006(only_real=True)); return 0
         if args.score_exp == "007":
-            from .scorer import score_seguranca_007, report_007
+            from bancada.scorer import score_seguranca_007, report_007
             report_007(score_seguranca_007(only_real=True)); return 0
         if args.score_exp == "006b":
-            from .scorer import score_data_posicao_006b, report_006b
+            from bancada.scorer import score_data_posicao_006b, report_006b
             report_006b(score_data_posicao_006b(only_real=True)); return 0
-        from .scorer import score_prontuario, report
+        from bancada.scorer import score_prontuario, report
         res = score_prontuario(only_real=True, experimento=args.score_exp)
         report(res)
         return 0
@@ -466,7 +466,7 @@ def main(argv=None) -> int:
 
     # janela-base: do context_debug.jsonl (real) ou erro pedindo a fonte.
     if args.debug_jsonl:
-        from .repeater import load_window_from_debug
+        from bancada.repeater import load_window_from_debug
         win = load_window_from_debug(args.debug_jsonl, index=args.index)
         sections, query = win.sections, win.query
         if not sections:

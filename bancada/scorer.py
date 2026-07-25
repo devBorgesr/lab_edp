@@ -10,8 +10,10 @@ deve dar fidelidade ~0).
 PURO: nao chama modelo, nao gasta. So le o que ja foi gravado e calcula.
 
 Implementa o criterio do pré-registro (congelado ANTES do disparo). O accept-set
-vem de exp001.ALVO_NORMALIZADO (constante que ja existia antes do disparo) —
-este modulo nao altera a spec, so a aplica.
+default replica exp001.ALVO_NORMALIZADO (constante que ja existia antes do
+disparo) — este modulo nao altera a spec, so a aplica. A bancada nao importa
+o experimento (PROIBIDO importar sujeitos.*): o accept-set e injetavel via
+set_accept_set, mesmo padrao do relogio (bancada/prontuario.py).
 """
 from __future__ import annotations
 
@@ -20,10 +22,20 @@ import re
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
-import exp001
-from prontuario import get_prontuario
+from .prontuario import get_prontuario
 
 logger = logging.getLogger("edp.lab.scorer")
+
+# Accept-set injetavel (default: copia de exp001.ALVO_NORMALIZADO, o valor-agulha
+# do pré-registro original). Quem monta o sujeito pode injetar outro via
+# set_accept_set — o nucleo nao conhece exp001.
+_ACCEPT_SET: Tuple[str, ...] = ("14h30", "14:30")
+
+
+def set_accept_set(valores: Tuple[str, ...]) -> None:
+    """Injeta o accept-set de fidelidade (ex.: exp001.ALVO_NORMALIZADO)."""
+    global _ACCEPT_SET
+    _ACCEPT_SET = tuple(valores)
 
 
 # ── Criterio de fidelidade (§6 do pré-registro) ───────────────────────────────
@@ -38,7 +50,7 @@ def _normalize(text: str) -> str:
 def score_fidelity(text: str) -> bool:
     """True se a resposta (normalizada) contem o valor-agulha (14h30 ou 14:30)."""
     t = _normalize(text)
-    return any(alvo in t for alvo in exp001.ALVO_NORMALIZADO)
+    return any(alvo in t for alvo in _ACCEPT_SET)
 
 
 # ── Sinais exploratorios (§8 — gera hipotese, NAO achado) ─────────────────────

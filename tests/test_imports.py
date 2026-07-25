@@ -1,11 +1,12 @@
 """
-Teste de fumaça (FASE B1) — cada modulo da raiz importa isolado, em subprocess,
-COM e SEM 'edp' disponivel no ambiente. Bloqueio de 'edp' via sys.meta_path
-(sem precisar de venv separada).
+Teste de fumaça (FASE B1, adaptado aos caminhos da FASE B2) — cada modulo
+importa isolado, em subprocess, COM e SEM 'edp' disponivel no ambiente.
+Bloqueio de 'edp' via sys.meta_path (sem precisar de venv separada).
 
-Criterio de saida do B1: prontuario, isolation, scorer e window_formats
-importam nos dois cenarios. Os exp0NN podem falhar (tipicamente por ausencia
-de 'edp') — este teste registra o motivo de cada falha, sem exigir sucesso.
+Criterio de saida: bancada.prontuario, bancada.isolamento, bancada.scorer e
+bancada.formatos importam nos dois cenarios. Os modulos de sujeitos/edp
+(exp0NN, run_once) podem falhar (tipicamente por ausencia de 'edp') — este
+teste registra o motivo de cada falha, sem exigir sucesso.
 """
 from __future__ import annotations
 
@@ -16,14 +17,19 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 # Modulos que a FASE B1 promete deixar importaveis, com ou sem edp.
-NUCLEO_OBRIGATORIO = ["prontuario", "isolation", "scorer", "window_formats"]
+NUCLEO_OBRIGATORIO = [
+    "bancada.prontuario", "bancada.isolamento", "bancada.scorer", "bancada.formatos",
+]
 
-# Demais modulos da raiz: informativos apenas (podem depender de edp/sibling
-# relativo ainda nao resolvido antes da reestruturacao da FASE B2).
+# Demais modulos: informativos apenas (sujeitos/edp/experimentos depende de edp
+# instalado; alguns exp0NN tem import relativo de sibling nao resolvido).
 OUTROS_MODULOS = [
-    "sampler", "repeater", "rodizio",
-    "exp001", "exp003", "exp004", "exp006", "exp006b", "exp007",
-    "exp008", "exp009", "exp010", "run_once",
+    "bancada.sampler", "bancada.repeater", "bancada.rodizio",
+    "sujeitos.edp.experimentos.exp001", "sujeitos.edp.experimentos.exp003",
+    "sujeitos.edp.experimentos.exp004", "sujeitos.edp.experimentos.exp006",
+    "sujeitos.edp.experimentos.exp006b", "sujeitos.edp.experimentos.exp007",
+    "sujeitos.edp.experimentos.exp008", "sujeitos.edp.experimentos.exp009",
+    "sujeitos.edp.experimentos.exp010", "sujeitos.edp.experimentos.run_once",
 ]
 
 _BLOQUEIA_EDP = """\

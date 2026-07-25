@@ -31,10 +31,10 @@ import logging
 from dataclasses import dataclass, field
 from typing import Optional
 
-from .window_formats import apply as apply_format
+from .formatos import apply as apply_format
 from .sampler import sample, make_runtime_caller, render_window, SampleResult
 from .prontuario import get_prontuario
-from .isolation import experimental_session, cognitive_fingerprint, verify_no_leak
+from .isolamento import experimental_session, cognitive_fingerprint, verify_no_leak
 
 logger = logging.getLogger("edp.lab.repeater")
 

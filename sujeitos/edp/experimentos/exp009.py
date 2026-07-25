@@ -518,7 +518,7 @@ def run_exp009(*, dry_run: bool = False, record: bool = True) -> Exp009Result:
 
         store = None
         if record:
-            from .prontuario import get_prontuario
+            from bancada.prontuario import get_prontuario
             store = get_prontuario()
         andaime_base = _gather_andaime(dry_run)
 
@@ -647,8 +647,8 @@ class Score009:
 
 
 def score_009(store=None, only_real: bool = True) -> Score009:
-    from .scorer import _wilson
-    from .prontuario import get_prontuario
+    from bancada.scorer import _wilson
+    from bancada.prontuario import get_prontuario
     store = store or get_prontuario()
     res = Score009()
 
@@ -788,7 +788,7 @@ def report_009(res: Score009) -> None:
 
 def audit_009(store=None, max_por_grupo: int = 4):
     """Top-5 real por (condicao x grupo), marcando SS e alvo. Texto de verdade."""
-    from .prontuario import get_prontuario
+    from bancada.prontuario import get_prontuario
     store = store or get_prontuario()
     by: Dict[Tuple[str, str], list] = {}
     for row in store.query_index():

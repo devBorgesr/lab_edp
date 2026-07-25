@@ -6,7 +6,9 @@ build-backend = "setuptools.build_meta"
 name = "lab-edp"
 version = "0.1.0"
 requires-python = ">=3.10"
-dependencies = ["edp @ git+https://github.com/devBorgesr/edp_v5@exp017/fase1-dedup"]
 
-[tool.setuptools]
-py-modules = []
+[project.optional-dependencies]
+edp = ["edp @ git+https://github.com/devBorgesr/edp_v5@exp017/fase1-dedup"]
+
+[tool.setuptools.packages.find]
+include = ["bancada*", "sujeitos*"]

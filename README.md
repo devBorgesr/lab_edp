@@ -7,15 +7,17 @@ via git subtree split -P edp/lab.
 
 ## Estrutura
 
-- raiz — bancada: expNNN.py, repeater, rodizio, scorer, sampler, isolation, prontuario, window_formats
-- experimentos/ — scripts de calibração, backfill e medição
-- relatorios/ — pré-registros, estados e relatórios de fase
+- `bancada/` — núcleo agnóstico de sujeito (prontuário, isolamento, scorer, sampler, repeater, rodízio, formatos); proibido importar `edp.*`
+- `sujeitos/edp/` — adaptador que ensina a bancada a falar EDP + `experimentos/` (exp001-010, run_once, calibrações)
+- `docs_edp_v5/` — pré-registros, estados e relatórios de fase
+- `tests/` — smoke tests e invariante de fronteira bancada/sujeito
 
 ## Dependência
 
-O runtime edp é dependência externa. Instalação:
+O runtime edp é dependência opcional do adaptador. Instalação:
 
-    pip install "git+https://github.com/devBorgesr/edp_v5@exp017/fase1-dedup"
+    pip install .            # telescópio puro, sem edp
+    pip install ".[edp]"     # com o adaptador EDP
 
 A ref muda para main quando o PR do empacotamento entrar.
 

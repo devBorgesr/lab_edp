@@ -406,7 +406,7 @@ def run_exp010(*, dry_run: bool = False, record: bool = True) -> Exp010Result:
 
         store = None
         if record:
-            from .prontuario import get_prontuario
+            from bancada.prontuario import get_prontuario
             store = get_prontuario()
         andaime_base = _gather_andaime(dry_run)
 
@@ -553,8 +553,8 @@ class Score010:
 
 
 def score_010(store=None, only_real: bool = True) -> Score010:
-    from .scorer import _wilson
-    from .prontuario import get_prontuario
+    from bancada.scorer import _wilson
+    from bancada.prontuario import get_prontuario
     store = store or get_prontuario()
     res = Score010()
 
@@ -710,7 +710,7 @@ def report_010(res: Score010) -> None:
 def audit_010(store=None, max_por_grupo: int = 3):
     """Top-5 real por condicao para as queries-chave (redis/especificas), com
     bm25/vec scores no hibrido — para VER de onde veio o ganho (léxico?)."""
-    from .prontuario import get_prontuario
+    from bancada.prontuario import get_prontuario
     store = store or get_prontuario()
     by: Dict[Tuple[str, str], list] = {}
     for row in store.query_index():

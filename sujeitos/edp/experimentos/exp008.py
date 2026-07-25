@@ -246,7 +246,7 @@ def load_cognitive_clone(prod_session: str = "default") -> List[dict]:
     # 1) DISCO — read-only, nao-mutante (path de cognitive_fingerprint)
     try:
         import json
-        from .isolation import _sessions_root
+        from bancada.isolamento import _sessions_root
         p = _sessions_root() / f"{prod_session}_cognitive" / "episodic.json"
         if p.exists():
             data = json.loads(p.read_text(encoding="utf-8"))
@@ -302,7 +302,7 @@ def run_exp008(
     Isolamento (§7): clone read-only -> sessao __lab__ dedicada -> retrieve no
     clone -> purga. fingerprint antes/depois prova no-leak (INV-5).
     """
-    from .isolation import experimental_session, cognitive_fingerprint, verify_no_leak
+    from bancada.isolamento import experimental_session, cognitive_fingerprint, verify_no_leak
 
     res = Exp008Result(dry_run=dry_run)
 
@@ -335,7 +335,7 @@ def run_exp008(
 
     store = None
     if record:
-        from .prontuario import get_prontuario
+        from bancada.prontuario import get_prontuario
         store = get_prontuario()
 
     andaime_base = _gather_andaime(dry_run)
@@ -485,7 +485,7 @@ class Retrieval008:
 def _por_condicao(store, only_real: bool):
     """Le o prontuario (exp 008), agrega por condicao e guarda, por query, a
     posicao do alvo em baseline e tratamento (para o sinal pareado)."""
-    from .scorer import _wilson  # reuso da regua de Wilson da Bancada
+    from bancada.scorer import _wilson  # reuso da regua de Wilson da Bancada
 
     tot = dry = reais = 0
     agg: Dict[str, dict] = {}
@@ -529,7 +529,7 @@ def score_retrieval_008(store=None, only_real: bool = True) -> Retrieval008:
     """Analise do Exp 008: Recall@3/@5 (Wilson) e MRR por condicao; sinal pareado
     tratamento vs baseline; veredito travado (§5): validade pelo controle shuffle,
     depois H1 por Recall@5 com ICs separados."""
-    from .prontuario import get_prontuario
+    from bancada.prontuario import get_prontuario
     store = store or get_prontuario()
     res = Retrieval008()
 
@@ -631,7 +631,7 @@ def report_008(res: Retrieval008) -> None:
 def audit_008(store=None, n_por_query: int = 5):
     """Mostra, por query (reais), o top-K de baseline vs tratamento, marcando o
     alvo. Texto/dominio integrais — para VER se o tratamento trouxe a memoria certa."""
-    from .prontuario import get_prontuario
+    from bancada.prontuario import get_prontuario
     store = store or get_prontuario()
     # agrupa por query_idx -> condicao -> exemplos
     por_query: Dict[int, dict] = {}
