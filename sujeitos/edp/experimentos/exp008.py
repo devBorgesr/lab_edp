@@ -24,7 +24,6 @@ PURO em relacao a producao: edp/lab importa de edp/, nunca o contrario (INV-5).
 """
 from __future__ import annotations
 
-import copy
 import logging
 import os
 import re
@@ -230,45 +229,6 @@ def _metricas_da_lista(topk: List[dict], target_id: str) -> dict:
     }
 
 
-# ── Carregamento das memorias reais (clone READ-ONLY) ─────────────────────────
-def load_cognitive_clone(prod_session: str = "default") -> List[dict]:
-    """Clone READ-ONLY das entries do scope cognitive de producao — SEM chamar
-    retrieve, SEM mutar, SEM salvar.
-
-    DISCO PRIMEIRO (verdade da casa): le episodic.json direto — garantidamente
-    nao-mutante e o mesmo source que health_index e a rota /cognitive_decisions
-    consultam (entries persistidas, com embedding + cognitive_decisions). Evita
-    de proposito construir get_memory(), cujo __init__ roda _migrate_legacy_
-    session_files (memory.py:1386) — um possivel WRITE em producao.
-
-    Fallback (so se o disco falhar): registry em RAM.
-    """
-    # 1) DISCO — read-only, nao-mutante (path de cognitive_fingerprint)
-    try:
-        import json
-        from bancada.isolamento import _sessions_root
-        p = _sessions_root() / f"{prod_session}_cognitive" / "episodic.json"
-        if p.exists():
-            data = json.loads(p.read_text(encoding="utf-8"))
-            if isinstance(data, dict):
-                data = data.get("entries", [])
-            if isinstance(data, list) and data:
-                return copy.deepcopy(data)
-    except Exception as e:
-        logger.warning("[exp008] clone do disco falhou (%s); tentando registry", e)
-    # 2) registry (fallback; instancia em RAM, shape com embeddings)
-    try:
-        from edp.runtime.registry import get_memory, is_valid
-        mem = get_memory(prod_session)
-        if is_valid(mem):
-            cog = getattr(mem, "_cognitive_view", None)
-            if cog is not None:
-                return copy.deepcopy(list(cog.episodic.entries))
-    except Exception as e:
-        logger.warning("[exp008] registry clone falhou: %s", e)
-    return []
-
-
 # ── Runner do experimento (categoria retrieval — runner proprio) ──────────────
 @dataclass
 class Exp008Result:
@@ -302,9 +262,11 @@ def run_exp008(
     Isolamento (§7): clone read-only -> sessao __lab__ dedicada -> retrieve no
     clone -> purga. fingerprint antes/depois prova no-leak (INV-5).
     """
-    from bancada.isolamento import experimental_session, cognitive_fingerprint, verify_no_leak
+    from bancada.isolamento import experimental_session, verify_no_leak
+    from sujeitos.edp.adaptador import SujeitoEDP
 
     res = Exp008Result(dry_run=dry_run)
+    sujeito = SujeitoEDP(prod_session=prod_session, scope="cognitive")
 
     # Gate de armado (so o disparo REAL).
     armed = os.environ.get("EDP_LAB_ARMED", "0").strip().lower() in ("1", "true", "yes", "on")
@@ -316,10 +278,10 @@ def run_exp008(
         )
 
     # Fingerprint ANTES (INV-5).
-    res.fingerprint_before = cognitive_fingerprint(prod_session)
+    res.fingerprint_before = sujeito.fingerprint_producao()
 
     # Clone read-only das memorias reais + dataset por regra congelada.
-    entries = load_cognitive_clone(prod_session)
+    entries = sujeito.exportar_producao()
     pares = build_dataset(entries)
     res.pares = pares
     res.n_pares = len(pares)
@@ -328,7 +290,7 @@ def run_exp008(
             f"decisions insuficientes: {len(pares)} pares < MIN_PAIRS={MIN_PAIRS}. "
             f"Rode o cognitive_decisions extractor mais antes do 008."
         )
-        res.fingerprint_after = cognitive_fingerprint(prod_session)
+        res.fingerprint_after = sujeito.fingerprint_producao()
         res.leak_ok = verify_no_leak(res.fingerprint_before, res.fingerprint_after)
         logger.warning("[exp008] ABORTADO: %s", res.aborted)
         return res
@@ -343,27 +305,15 @@ def run_exp008(
     # resumo em memoria (sanity; analise canonica e o scorer pos-coleta)
     acc = {c["rotulo"]: {"r3": 0, "r5": 0, "rr": 0.0, "n": 0} for c in CONDICOES}
 
-    with experimental_session(scope="cognitive", purge=True) as lab:
-        mem = lab.memory
-        try:
-            mem.set_scope("cognitive")
-        except Exception:
-            pass
+    with experimental_session(sujeito, purge=True) as session_id:
         # injeta o clone na sessao isolada — toda mutacao do retrieve cai aqui.
-        # Fix A: o retrieve lê de mem._episodic.entries, não de mem.entries.
-        # Injetamos nos dois para garantir que o retrieve REAL veja os dados
-        # com cognitive_decisions. (Descoberto via inspect_cognitive.py)
-        _clone = copy.deepcopy(entries)
-        mem.entries = _clone
-        # Injeta na estrutura interna onde o retrieve busca:
-        if hasattr(mem, "_episodic") and hasattr(mem._episodic, "entries"):
-            mem._episodic.entries = _clone
-        elif hasattr(mem, "_cognitive") and hasattr(mem._cognitive, "episodic"):
-            mem._cognitive.episodic.entries = _clone
+        # (o hack mem._episodic.entries etc. agora mora no adaptador, unico
+        # lugar que pode conhecer atributos privados do MemoryStore.)
+        sujeito.carregar_snapshot(session_id, entries)
 
         for qi, par in enumerate(pares):
             # POOL via retrieve REAL (sobre o clone). min_score=0.0 -> ranking puro.
-            pool = mem.retrieve(par.query, top_k=POOL_SIZE, min_score=MIN_SCORE_POOL, layers=LAYERS)
+            pool = sujeito.consultar(session_id, par.query, POOL_SIZE)
 
             # Fix B: session_summary tem embedding próximo de qualquer query de
             # "continuação de conversa" — domina o pool e empurra alvos reais
@@ -419,7 +369,7 @@ def run_exp008(
                         logger.warning("[exp008] record_run falhou (q%d/%s): %s", qi, rot, e)
 
     # Fingerprint DEPOIS + veredito de no-leak (INV-5).
-    res.fingerprint_after = cognitive_fingerprint(prod_session)
+    res.fingerprint_after = sujeito.fingerprint_producao()
     res.leak_ok = verify_no_leak(res.fingerprint_before, res.fingerprint_after)
 
     for rot, a in acc.items():

@@ -34,7 +34,8 @@ from typing import Optional
 from .formatos import apply as apply_format
 from .sampler import sample, make_runtime_caller, render_window, SampleResult
 from .prontuario import get_prontuario
-from .isolamento import experimental_session, cognitive_fingerprint, verify_no_leak
+from .isolamento import experimental_session, verify_no_leak
+from .sujeito import Sujeito
 
 logger = logging.getLogger("edp.lab.repeater")
 
@@ -64,15 +65,14 @@ def run_variant(
     client,
     modelo: str,
     andaime_base: dict,
+    sujeito: Sujeito,
     formato_params: Optional[dict] = None,
     n: int = 5,
     n_max: int = 50,
     cost_max_usd: float = 1.0,
     ceticismo: bool = True,
     store=None,
-    prod_session: str = "default",
     verify_isolation: bool = True,
-    scope: str = "sprint",
     purge: bool = True,
     require_armed: bool = True,
 ) -> VariantRecord:
@@ -82,14 +82,16 @@ def run_variant(
     formato/formato_params — qual distorcao do catalogo e seus parametros.
     client — LLMClient CONECTADO (ex.: get_runtime(lab.session_id)._client).
     modelo — nome do modelo-alvo (para o registro).
+    sujeito — o sistema-sob-inspecao (Protocol Sujeito); abre/fecha a sessao
+              isolada e da o fingerprint de producao para o veredito de no-leak.
     andaime_base — campos de comensurabilidade (code_sha, embedding_version,
                    prompt_version, model_version, policy_layers, skills_loaded,
                    tools_available). O patch do formato + ceticismo sao mesclados.
     """
     store = store or get_prontuario()
 
-    # 1) paranoico: estado da cognitive de producao ANTES.
-    before = cognitive_fingerprint(prod_session) if verify_isolation else None
+    # 1) paranoico: estado da producao ANTES.
+    before = sujeito.fingerprint_producao() if verify_isolation else None
 
     fr = apply_format(formato, sections, **(formato_params or {}))
     janela = render_window(fr.sections, ceticismo=ceticismo)  # verdade gravada == enviada
@@ -103,7 +105,7 @@ def run_variant(
     rec = VariantRecord(run_id="", formato_id=fr.formato_id, andaime=andaime, janela_enviada=janela)
 
     # 2) sessao de lab isolada (escopo do registro + blindagem de futuro).
-    with experimental_session(scope=scope, purge=purge) as lab:
+    with experimental_session(sujeito, purge=purge) as session_id:
         # 5) caller fiado no client conectado, MESMO ceticismo do render (garante
         #    que o enviado == o gravado, pois render_window e deterministico).
         caller = make_runtime_caller(client, ceticismo=ceticismo)
@@ -120,19 +122,19 @@ def run_variant(
             janela_enviada=janela,
             secoes=fr.sections,
             respostas=sr.responses,
-            scope=lab.session_id,
+            scope=session_id,
             metricas=sr.as_dict(),
         )
 
-    # 7) NAO-VAZAMENTO: cognitive de producao inalterada? (aceite da Fase 2)
+    # 7) NAO-VAZAMENTO: producao inalterada? (aceite da Fase 2)
     if verify_isolation:
-        after = cognitive_fingerprint(prod_session)
+        after = sujeito.fingerprint_producao()
         rec.leak_ok = verify_no_leak(before, after)
         if not rec.leak_ok:
             logger.warning(
-                "[repeater] VAZAMENTO detectado! cognitive de '%s' mudou durante o "
-                "experimento (run_id=%s). Investigue antes de confiar no registro.",
-                prod_session, run_id,
+                "[repeater] VAZAMENTO detectado! producao do sujeito '%s' mudou "
+                "durante o experimento (run_id=%s). Investigue antes de confiar no registro.",
+                sujeito.nome, run_id,
             )
 
     rec.run_id = run_id

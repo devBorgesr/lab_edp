@@ -28,6 +28,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional
 
 from .repeater import run_variant
+from .sujeito import Sujeito
 
 logger = logging.getLogger("edp.lab.rodizio")
 
@@ -76,13 +77,13 @@ def run_plan(
     client,
     modelo: str,
     andaime_base: dict,
+    sujeito: Sujeito,
     n: int,
     budget_max_usd: float = 2.50,
     cost_max_por_condicao_usd: float = 0.75,
     ceticismo: bool = True,
     require_armed: bool = True,
     store=None,
-    prod_session: str = "default",
     verify_isolation: bool = True,
     custo_inicial_por_amostra: float = 0.008,
 ) -> RodizioResultado:
@@ -119,9 +120,10 @@ def run_plan(
             sections=sections, query=query,
             formato=cond["formato"], formato_params=cond.get("params"),
             client=client, modelo=modelo, andaime_base=andaime_cond,
+            sujeito=sujeito,
             n=n, cost_max_usd=cost_max_por_condicao_usd, ceticismo=ceticismo,
             require_armed=require_armed, store=store,
-            prod_session=prod_session, verify_isolation=verify_isolation,
+            verify_isolation=verify_isolation,
         )
 
         custo += rec.cost_usd
