@@ -1,0 +1,27 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  bancada:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # SEM o extra [edp] de proposito: prova que o telescopio (bancada/)
+      # instala e funciona sem o adaptador/runtime EDP. Testes que exigirem
+      # edp devem usar @pytest.mark.skipif(condicao de import ausente, ...).
+      - name: Instalar (sem edp)
+        run: pip install .
+
+      - name: Instalar pytest
+        run: pip install pytest
+
+      - name: Rodar testes
+        run: pytest tests/ -q
