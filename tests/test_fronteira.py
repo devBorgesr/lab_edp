@@ -84,3 +84,50 @@ def test_lista_de_arquivos_varridos_nao_esta_vazia_nem_suspeita():
     esperados = {"prontuario", "isolamento", "scorer", "sujeito", "auditoria"}
     faltando = esperados - nomes
     assert not faltando, f"modulos esperados do nucleo ausentes em bancada/: {faltando}"
+
+
+def _imports_relativos_de_bancada() -> list:
+    """Todo `from .X import ...` ou `from . import X` dentro de bancada/ (nivel 1
+    -- o unico permitido pela funcao acima). Devolve (path, lineno, nome_do_alvo)
+    por alvo referenciado, ja que `from . import A, B` referencia 2 alvos."""
+    alvos = []
+    for path in _arquivos_bancada():
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ImportFrom) or node.level != 1:
+                continue
+            if node.module:
+                # from .X import Y  -> o alvo do import relativo e o proprio X
+                alvos.append((path, node.lineno, node.module))
+            else:
+                # from . import X, Y  -> cada nome importado E um modulo/pacote alvo
+                for alias in node.names:
+                    alvos.append((path, node.lineno, alias.name))
+    return alvos
+
+
+def test_imports_relativos_de_bancada_apontam_para_arquivo_existente():
+    """FASE B6: fecha o ponto cego que deixou 12 `from . import expNNN` quebrados
+    passarem no B5 -- test_bancada_nao_importa_sujeito_nenhum (acima) so barra
+    NOMES PROIBIDOS; nunca conferiu se o alvo de um import relativo `nivel == 1`
+    (permitido, pulado com `continue`) de fato existe em disco. bancada/scorer.py
+    tinha 12 call-sites `from . import expNNN` apontando para modulos que so
+    existem em sujeitos/edp/experimentos/ -- ImportError garantido em qualquer
+    chamada, nunca pego por nenhum teste ate esta FALHAR e forcar o conserto
+    (ver RELATORIO_B6.md para a prova de que este teste falha no estado
+    anterior a FASE B6 e passa depois)."""
+    faltando = []
+    for path, lineno, nome in _imports_relativos_de_bancada():
+        rel = path.relative_to(ROOT)
+        alvo_modulo = BANCADA_DIR / f"{nome}.py"
+        alvo_pacote = BANCADA_DIR / nome / "__init__.py"
+        if not alvo_modulo.exists() and not alvo_pacote.exists():
+            faltando.append(
+                f"{rel}:{lineno}: import relativo aponta para '{nome}', mas nem "
+                f"bancada/{nome}.py nem bancada/{nome}/__init__.py existem"
+            )
+    assert not faltando, (
+        "import relativo dentro de bancada/ aponta para arquivo inexistente "
+        "(ImportError garantido em qualquer chamada que exercite o caminho):\n"
+        + "\n".join(faltando)
+    )
