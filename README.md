@@ -25,3 +25,8 @@ A ref muda para main quando o PR do empacotamento entrar.
 
 Todo experimento tem pré-registro antes da execução. Hipótese, métricas e
 critério de decisão são congelados antes de qualquer dado.
+
+## License
+
+MIT — see [LICENSE](LICENSE). The `bancada/` ↔ `sujeitos/` boundary (bancada
+never imports `edp.*` or `sujeitos.*`) is enforced by `tests/test_fronteira.py`.
