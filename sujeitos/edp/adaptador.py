@@ -17,7 +17,6 @@ import logging
 import os
 import shutil
 from pathlib import Path
-from typing import Optional
 
 from bancada.isolamento import LAB_PREFIX, is_lab_session, new_lab_session_id
 

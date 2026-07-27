@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional, Tuple
 
-from .exp004 import valor_unico, valores_na_resposta  # 14h30/15h (16h nunca aparece)
+from .exp004 import valor_unico, valores_na_resposta  # noqa: F401 — 14h30/15h (16h nunca aparece)
 
 QUERY = "Que horas é a reunião?"
 A = "14h30"

@@ -31,7 +31,7 @@ import logging
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterator, Optional
+from typing import Iterator
 
 from .sujeito import Sujeito
 
