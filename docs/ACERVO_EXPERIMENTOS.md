@@ -35,6 +35,25 @@ laboratório como os demais. Por isso fica fora da tabela acima (que é
 estritamente sobre `sujeitos/edp/experimentos/`), registrado aqui para não
 desaparecer silenciosamente do acervo.
 
+## Nota — E7 (primeiro experimento nativo; fora da tabela por ainda não ter código)
+
+`docs/preregistro_experimento_e7.md` — "Quanto do repeat_rate de 80% em uso
+real é topicalidade legítima, e não patologia de retrieval?" — pré-registrado
+em 2026-07-28. **Primeiro pré-registro NATIVO do `lab_edp`** (todos os
+anteriores nesta tabela foram herdados do `edp_v5`); vive em `docs/`, não em
+`docs_edp_v5/`. Formal e completo: as 11 seções de
+`docs/TEMPLATE_PREREGISTRO.md` estão presentes (as 6 obrigatórias e as 5
+recomendadas — nenhuma faltando, ao contrário do exp017). Reusa
+deliberadamente os cortes de decisão (15pp/5pp) já congelados no
+`PRE_REGISTRO_EXP017.md` em vez de escolher novos limiares para este dado.
+
+Fica **fora da tabela principal** pelo mesmo motivo do exp017, mas na direção
+oposta: o exp017 tem pré-registro sem script; o E7 tem pré-registro e
+`sujeitos/edp/experimentos/exp_e7.py` **ainda não foi escrito** — por
+decisão explícita, respeitando a régua do próprio documento (pré-registro
+antes do código; a encarnação só nasce depois, e congela no 1º disparo
+real). Quando o código existir, esta linha migra para a tabela principal.
+
 ## Nota — numeração não-contígua
 
 `002`, `005`, `013` e `014` não aparecem em nenhum lugar (nem código, nem
