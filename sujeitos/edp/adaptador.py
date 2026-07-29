@@ -122,12 +122,16 @@ class SujeitoEDP:
             mem._cognitive.episodic.entries = clone
 
     # ── consulta (ex-exp008.py: mem.retrieve) ───────────────────────────────
-    def consultar(self, session_id: str, query: str, k: int) -> list:
+    def consultar(self, session_id: str, query: str, k: int, min_score: float = 0.0) -> list:
         """Retrieve real sobre a sessao isolada.
 
         layers fixo em ["episodic"]: unico consumidor migrado ate aqui
         (exp008, categoria retrieval-quality sobre o cognitive episodic). v2
-        do Protocol pode expor layers/min_score se outro sujeito precisar.
+        do Protocol pode expor layers se outro sujeito precisar.
+
+        min_score: default 0.0 (ranking puro, comportamento original de
+        exp008). E7 (§7 do pre-registro) passa 0.20 explicitamente — parametro
+        aditivo, backward-compatible com quem chama so com 3 posicionais.
 
         Retorna os dicts originais do EDP (id, text, ranking_score,
         cognitive_decisions, source_type, ...) ACRESCIDOS das chaves do
@@ -138,7 +142,7 @@ class SujeitoEDP:
         """
         from edp.runtime.registry import get_memory
         mem = get_memory(session_id)
-        pool = mem.retrieve(query, top_k=k, min_score=0.0, layers=["episodic"])
+        pool = mem.retrieve(query, top_k=k, min_score=min_score, layers=["episodic"])
         out = []
         for item in pool:
             row = dict(item)
