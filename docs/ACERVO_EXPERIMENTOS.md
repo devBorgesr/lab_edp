@@ -23,6 +23,7 @@ que existe, não uma correção do passado.
 | 011 | **NÃO** (só validação) | `docs_edp_v5/VALIDACAO_EXP011.md` | O relatório referencia "critérios §1.4 congelados no pré-registro da Fase 1" — **esse documento-fonte não foi localizado** em `docs_edp_v5/` nem no clone `edp_v5`. O que existe é o veredito (guardas §1.4/§1.5, binário PASSA/FALHA), não o pré-registro em si. |
 | 012 | **NÃO** (só relatórios de etapa) | `docs_edp_v5/ESTADO_EXP012.md`, `RELATORIO_ETAPA0_EXP012V2.md` | Sem arquivo de pré-registro dedicado, mas com postura equivalente: critério de congelamento declarado inline ("100% ou reavaliar, nunca afrouxar" — §2.3) e a regra v1 tratada como **REFUTADA** (não remendada) quando não bateu na calibração. |
 | 016 | **NÃO** (só relatório de etapa) | `docs_edp_v5/RELATORIO_ETAPA0_EXP016.md` | Sem pré-registro dedicado; disciplina de dry-run-antes-de-aplicar seguida (`exp016_dryrun.py` → autorização do pesquisador registrada por data → `exp016_backfill_apply.py`). |
+| E7 | **SIM** | `docs/preregistro_experimento_e7.md` | Formal e completo (11 seções do template, nenhuma faltando) — **primeiro pré-registro NATIVO do lab_edp**, escrito ANTES do harness. Harness em `sujeitos/edp/experimentos/exp_e7.py` (`docs/RELATORIO_E7_HARNESS.md`), veredito em `docs/VEREDITO_E7.md`: rodada real de 28/07/2026, H1 confirmada (gap +27,6pp), régua não alterada. |
 
 ## Nota — exp017 (fora desta tabela por escopo, citado por completude)
 
@@ -34,25 +35,6 @@ do `edp_v5` (`EDP_RETRIEVE_DEDUP`/`EDP_RETRIEVE_SHUFFLE`), não um harness de
 laboratório como os demais. Por isso fica fora da tabela acima (que é
 estritamente sobre `sujeitos/edp/experimentos/`), registrado aqui para não
 desaparecer silenciosamente do acervo.
-
-## Nota — E7 (primeiro experimento nativo; fora da tabela por ainda não ter código)
-
-`docs/preregistro_experimento_e7.md` — "Quanto do repeat_rate de 80% em uso
-real é topicalidade legítima, e não patologia de retrieval?" — pré-registrado
-em 2026-07-28. **Primeiro pré-registro NATIVO do `lab_edp`** (todos os
-anteriores nesta tabela foram herdados do `edp_v5`); vive em `docs/`, não em
-`docs_edp_v5/`. Formal e completo: as 11 seções de
-`docs/TEMPLATE_PREREGISTRO.md` estão presentes (as 6 obrigatórias e as 5
-recomendadas — nenhuma faltando, ao contrário do exp017). Reusa
-deliberadamente os cortes de decisão (15pp/5pp) já congelados no
-`PRE_REGISTRO_EXP017.md` em vez de escolher novos limiares para este dado.
-
-Fica **fora da tabela principal** pelo mesmo motivo do exp017, mas na direção
-oposta: o exp017 tem pré-registro sem script; o E7 tem pré-registro e
-`sujeitos/edp/experimentos/exp_e7.py` **ainda não foi escrito** — por
-decisão explícita, respeitando a régua do próprio documento (pré-registro
-antes do código; a encarnação só nasce depois, e congela no 1º disparo
-real). Quando o código existir, esta linha migra para a tabela principal.
 
 ## Nota — numeração não-contígua
 
