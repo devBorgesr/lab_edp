@@ -1,0 +1,114 @@
+{
+  "C1/consolidate": {
+    "condicao": "C1",
+    "promovidas_total": 0,
+    "promovidas_por_classe": {
+      "not_found": 0,
+      "disqualification": 0,
+      "normal": 0
+    },
+    "n_semantic_apos": 0,
+    "funcao": "consolidate",
+    "leak_ok": true
+  },
+  "C3/consolidate_promote_only": {
+    "condicao": "C3",
+    "promovidas_total": 0,
+    "promovidas_por_classe": {
+      "not_found": 0,
+      "disqualification": 0,
+      "normal": 0
+    },
+    "n_semantic_apos": 0,
+    "funcao": "consolidate_promote_only",
+    "leak_ok": true
+  },
+  "C5/consolidate": {
+    "condicao": "C5",
+    "promovidas_total": 2,
+    "promovidas_por_classe": {
+      "not_found": 0,
+      "disqualification": 0,
+      "normal": 2
+    },
+    "n_semantic_apos": 2,
+    "funcao": "consolidate",
+    "leak_ok": true
+  },
+  "C5/consolidate_promote_only": {
+    "condicao": "C5",
+    "promovidas_total": 2,
+    "promovidas_por_classe": {
+      "not_found": 0,
+      "disqualification": 0,
+      "normal": 2
+    },
+    "n_semantic_apos": 2,
+    "funcao": "consolidate_promote_only",
+    "leak_ok": true
+  },
+  "C6/consolidate": {
+    "condicao": "C6",
+    "promovidas_total": 0,
+    "promovidas_por_classe": {
+      "not_found": 0,
+      "disqualification": 0,
+      "normal": 0
+    },
+    "n_semantic_apos": 0,
+    "funcao": "consolidate",
+    "leak_ok": true
+  },
+  "C6/consolidate_promote_only": {
+    "condicao": "C6",
+    "promovidas_total": 0,
+    "promovidas_por_classe": {
+      "not_found": 0,
+      "disqualification": 0,
+      "normal": 0
+    },
+    "n_semantic_apos": 0,
+    "funcao": "consolidate_promote_only",
+    "leak_ok": true
+  },
+  "C7/consolidate": {
+    "condicao": "C7",
+    "promovidas_total": 0,
+    "promovidas_por_classe": {
+      "not_found": 0,
+      "disqualification": 0,
+      "normal": 0
+    },
+    "n_semantic_apos": 0,
+    "fundiu": true,
+    "merged_from": 2,
+    "promovida_fundida": false,
+    "answer_class_presente": null,
+    "funcao": "consolidate",
+    "leak_ok": true
+  },
+  "C2/consolidate": {
+    "condicao": "C2",
+    "promovidas_total": 0,
+    "promovidas_por_classe": {
+      "not_found": 0,
+      "disqualification": 0,
+      "normal": 0
+    },
+    "n_semantic_apos": 0,
+    "funcao": "consolidate",
+    "leak_ok": true
+  },
+  "C4/consolidate_promote_only": {
+    "condicao": "C4",
+    "promovidas_total": 0,
+    "promovidas_por_classe": {
+      "not_found": 0,
+      "disqualification": 0,
+      "normal": 0
+    },
+    "n_semantic_apos": 0,
+    "funcao": "consolidate_promote_only",
+    "leak_ok": true
+  }
+}
