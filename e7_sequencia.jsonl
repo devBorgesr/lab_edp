@@ -1,0 +1,106 @@
+{"query": "oi bom dia", "id": "20fe9b7b-c51e-4f58-95d5-45e8963d6692", "timestamp": 1780234682.0256064}
+{"query": "que dia mes e horas sao agora?", "id": "ab229460-0237-4be9-9aba-62d9ad5e080b", "timestamp": 1780234720.879281}
+{"query": "uma pergunta, eu faca ano em 17 do 02 faca a soma de quantos dias ja se passarão desde meu aniversario e quantos dias ainda faltao para o proximo aniversario.", "id": "19c853f2-3aee-4763-86f8-1736036ca171", "timestamp": 1780234873.0707595}
+{"query": "qual a data do meu aniversário?", "id": "bca8f7ba-12be-44d4-b89f-e012b70b4922", "timestamp": 1780237610.6161356}
+{"query": "boa, outra pergunta, hoje eu tenho 22 anos e vim ao mundo em 2004, quantos dias e meses ja vivi ate hoje?", "id": "5d327980-9b4a-4f98-baef-2583ffc87d42", "timestamp": 1780237663.819347}
+{"query": "sim", "id": "f54471a1-7dc5-4d0b-abba-7a999e18f631", "timestamp": 1780237696.5275283}
+{"query": "sim, pode  calcular exatamente.confirmando a conversa anterior", "id": "1884c417-2bfc-4e4d-a27f-9ddcc10dd61d", "timestamp": 1780237772.6121068}
+{"query": "qual é o meu aniversário?", "id": "ad50a2d2-fd5f-4847-a81e-b8376c662af0", "timestamp": 1780248958.9793239}
+{"query": "Você é arquiteto sênior. Em uma única resposta detalhada com código Java 21 + Spring Boot 3.3, projete a arquitetura de resilience4j para um LLM Orchestrator: CircuitBreaker, Retry, Bulkhead, RateLimiter compostos via Decorators.ofSupplier. Inclua YAML de configuração e código completo de uso. Mínimo 2500 tokens de output.", "id": "8d056153-cbfa-4de7-87b4-46e2050b5e3a", "timestamp": 1780344066.0659955}
+{"query": "Desafio Arquitetural Java + Spring Boot + IA Sua empresa possui uma plataforma de atendimento ao cliente que recebe aproximadamente 50 milhões de requisições por mês. Você precisa desenvolver um microsserviço em Java 21 com Spring Boot 3 responsável por analisar mensagens enviadas pelos clientes utilizando um modelo de IA (LLM), classificar a intenção do usuário e retornar uma resposta. Requisitos Funcionais Receber mensagens via API REST. Persistir as mensagens em banco de dados. Enviar as mensagens para processamento por IA. Classificar automaticamente o assunto: Reclamação Dúvida Cancelamento Sugestão Financeiro Gerar uma resposta utilizando um LLM. Registrar toda a auditoria da conversa. Requisitos Não Funcionais 10 mil requisições por minuto. SLA de 99.99%. Tempo máximo de resposta: 500ms para classificação. 2 segundos para geração de resposta. Sistema resiliente a falhas do provedor de IA. Idempotência obrigatória. Escalabilidade horizontal. Cenário Crítico O provedor de IA começou a apresentar: Timeout. Rate Limit (HTTP 429). Respostas inconsistentes. Quedas intermitentes. Pergunta Como você projetaria toda a arquitetura desse sistema? Explique detalhadamente: Arquitetura Monólito ou Microsserviços? Comunicação síncrona ou assíncrona? Kafka, RabbitMQ ou outro? Como faria o desacoplamento do LLM? Banco de Dados PostgreSQL ou MongoDB? Estratégia de particionamento. Estratégia de auditoria. Resiliência Como implementaria: Circuit Breaker Retry Bulkhead Rate Limiter utilizando Spring Boot? Explique em quais cenários cada padrão seria aplicado. IA Como você faria: Fallback entre múltiplos modelos. Cache de respostas. Versionamento de prompts. Observabilidade dos prompts enviados. Performance Suponha que uma mesma pergunta seja enviada por 500 usuários simultaneamente. Como evitar: Chamadas duplicadas ao LLM. Consumo excessivo de tokens. Custos desnecessários. Concorrência Considere que dois pods processaram a mesma mensagem ao mesmo tempo. Como garantir: Idempotência. Consistência. Ausência de duplicidade. Segurança Como protegeria: Prompt Injection. Jailbreak. Exposição de dados sensíveis. Vazamento de contexto entre usuários. Código Mostre um exemplo de implementação utilizando: Spring Boot 3 Java 21 Virtual Threads Spring AI Resilience4j Kafka e explique suas escolhas arquiteturais. Extra Se o custo mensal do OpenAI GPT estivesse ultrapassando R$ 200.000/mês, quais estratégias técnicas você adotaria para reduzir custos em pelo menos 70% sem impactar significativamente a qualidade?", "id": "f1358583-2844-4624-9b06-b5a884f452c7", "timestamp": 1780344886.370419}
+{"query": "/modo", "id": "d692b4d5-37e3-4e89-889d-c253208ac237", "timestamp": 1780432184.838452}
+{"query": "qual a nossa ultima conversa e qual era o contexto?", "id": "2854532f-90c7-45df-8925-221617993fc3", "timestamp": 1780432336.4162955}
+{"query": "/modo cognitive", "id": "5a5969f7-045d-4d04-a548-395283624bec", "timestamp": 1780432371.5334227}
+{"query": "qual a nossa ultima conversa e qual o contexto?", "id": "32aa1055-f91b-488b-81ad-e890de93b91f", "timestamp": 1780432753.0145154}
+{"query": "boa mas quais eram a hora exata de cada ?", "id": "739c43bc-4cb9-489f-87c3-51416c4f97cf", "timestamp": 1780432848.5531418}
+{"query": "mas voce sabe que dia e hoje ne?", "id": "5a70875f-f867-48bc-84fd-7bc6e492b55a", "timestamp": 1780432937.4449167}
+{"query": "na sua janela de contexto voce tem algo sobre metodos de faynman ?", "id": "9c936584-d0a4-4780-b7bd-97fb4bab4b1a", "timestamp": 1780433022.056384}
+{"query": "eu me refiro aos seus padrões de respostas que voce e instruído a seguir aqui.", "id": "bf2a72cc-3371-465d-b5a0-54932830e91d", "timestamp": 1780433152.6130042}
+{"query": "sim, entre eles a algum metodo de faynman ?", "id": "aacd6aba-eb52-481a-8134-322f7c53eec5", "timestamp": 1780433225.824761}
+{"query": "oi", "id": "2bd67797-cd60-4917-8940-bc43a669f672", "timestamp": 1780581411.6373508}
+{"query": "como funciona indexação GIN no postgres?", "id": "b0e5fc8e-b708-434f-b45e-db9384d822bd", "timestamp": 1780581432.8799791}
+{"query": "e o BRIN?", "id": "0e5884ec-18e7-41ea-84d8-7513d1508449", "timestamp": 1780581470.9203212}
+{"query": "compara os dois pra mim", "id": "80c9e92b-f739-4308-908d-1093928f8958", "timestamp": 1780581496.128657}
+{"query": "o que conversamos até agora?", "id": "550deb62-2b55-436e-b731-e89fd3c19d1b", "timestamp": 1780581533.4077682}
+{"query": "oi", "id": "f6585204-3ee6-42b3-9196-afafa01a6c73", "timestamp": 1780585151.718539}
+{"query": "me explica o que é Kafka brevemente", "id": "51f2ca79-e307-4e26-894d-60c4bc0a67cb", "timestamp": 1780585186.130597}
+{"query": "e RabbitMQ?", "id": "55001219-e31d-4e8a-9f3b-aec6d19f326b", "timestamp": 1780585225.7205431}
+{"query": "qual deles é melhor para alta vazão?", "id": "f77da63e-bbce-4f24-836a-673a1ff00223", "timestamp": 1780585265.4287753}
+{"query": "o que conversamos até agora?", "id": "c35f851c-c04f-4b77-97b4-51f0f0f53ce4", "timestamp": 1780585330.2691522}
+{"query": "oi", "id": "a06bac58-d94f-4782-80e0-71ea1ac1ea98", "timestamp": 1780605185.6473954}
+{"query": "me explica brevemente o que é Docker", "id": "253c0ae1-c064-41ad-8631-4c8fa2a2cbfe", "timestamp": 1780605229.596532}
+{"query": "qual a diferença entre Docker e Podman?", "id": "9ff12407-4c67-4408-842c-2ce3a442e635", "timestamp": 1780605252.1441932}
+{"query": "oi", "id": "6ee83095-eba5-4ada-960c-7da2b5a31f00", "timestamp": 1780606465.919267}
+{"query": "oi", "id": "4a472f61-e468-4172-8f9f-060e8be1cc9e", "timestamp": 1780610512.583493}
+{"query": "me explica brevemente o que é Redis e Memcached?", "id": "0c78fa08-8a51-4a04-ad15-2b23d0800a0b", "timestamp": 1780610537.9091449}
+{"query": "qual escolher pra cache de sessões web?", "id": "a5ef2402-c1c0-4404-93c1-5b23bf8e2a3e", "timestamp": 1780610560.3953376}
+{"query": "oi", "id": "c15b0f45-2229-4aa3-93c4-35b2529c345d", "timestamp": 1780689934.285146}
+{"query": "me explica brevemente o que é Redis e Memcached?", "id": "4c57ed7a-c275-4155-93eb-e1efa5a164d5", "timestamp": 1780689957.570798}
+{"query": "e qual escolher pra cache de sessões web?", "id": "bf15dc2d-6aed-4558-97b8-e025fcf9bbad", "timestamp": 1780689977.5450306}
+{"query": "oi", "id": "2d7071b7-cecb-47e8-90ee-91cd55118372", "timestamp": 1780691199.917378}
+{"query": "me explica brevemente o que é Redis e Memcached?", "id": "7c7d6ce9-eb02-4d05-a864-3611ea0d7698", "timestamp": 1780691218.059261}
+{"query": "e qual escolher pra cache de sessões web?", "id": "29d5ded2-9118-42d8-91e8-c8cd8fe1866e", "timestamp": 1780691244.4183526}
+{"query": "o que é Kubernetes em 2 frases?", "id": "55f25722-b380-4a02-b53f-2123daccb459", "timestamp": 1780773381.137202}
+{"query": "qual o contexto da nossa ultima conversa", "id": "20fe5a50-8191-47cb-9db7-52518d817c32", "timestamp": 1780796090.0717025}
+{"query": "e possivel uma IA analisar um hardware de uma GPU e juntamente com um pesguisador controlar tudo fisicamente tento com codigo de baixo nivel quanto tools/hardware especializador para isso?", "id": "fb888c36-2782-43fb-8914-93927148f6c7", "timestamp": 1780842400.2291815}
+{"query": "quais formas de controlar a entropia dos dados e informações na computacao/hardware de maguinhas?", "id": "419212c9-923f-4885-8c5a-4759d36f71aa", "timestamp": 1780959228.7750514}
+{"query": "eu tenho placas de varios roteadores de wifi e uma placa fraca de gpu e alguns celulares para juntar tudo em um so hardhare para uma funcionalidade, a pergunta anterior abre um leg de visoes de controle de dados que varios tipos de placa e hardeware operao", "id": "1a4c9a88-3097-4bc8-bdfe-cf2dbfa30340", "timestamp": 1780959474.7345736}
+{"query": "boa pergunta, eu tenho um projeto cognitivo que opera como um arbítrio conectando um modelo llm e um usuario e afuncao e dar contextualidade conversacional para anbos e quardar memorias episodiacas e aplicar a semantica e produzir semanticamente uma janela de contexto dinamica para o modelo ter o \"sentido\" de presenca nas conversas e contesto atemporal, e preciso criar o hardhare perfeito para receber esse solftware", "id": "5ecfbcd2-8285-48e0-a228-d3954ae0de7c", "timestamp": 1780959927.7807581}
+{"query": "eu sou um pesquisador autodidata em acao entao nao e projeto de empresas serias mas e muito serio pra mim como pesguisador, logo eu nao quero nada que a no mercardo atual como hardware", "id": "36ba773d-f57b-4da6-88cf-a87a7013c9c3", "timestamp": 1780960039.6307104}
+{"query": "oi", "id": "b809a9cf-2d63-4669-9d0b-3ce4520432bd", "timestamp": 1781037039.5246437}
+{"query": "onde estavamos na nossa conversa anterior?", "id": "ba731ec8-f0c4-4a35-bf01-32b2f7784fad", "timestamp": 1781037143.8425741}
+{"query": "Explique a diferença entre paginação keyset e offset em PostgreSQL,  considerando performance, complexidade de implementação, e casos de uso  onde cada uma é preferível.", "id": "0bb38ccc-20e8-4e11-a84e-badd2b013c6b", "timestamp": 1781037601.7324345}
+{"query": "continue", "id": "3120d425-6403-416c-836a-b0cc24d26ae2", "timestamp": 1781121499.038353}
+{"query": "Considerando que sistemas distribuídos de IA enfrentam o problema fundamental de consistência eventual entre nós de processamento, e que modelos de linguagem grandes introduzem não-determinismo inerente nas respostas mesmo com temperatura zero devido a variações de hardware e ordem de operações em ponto flutuante, como você reconciliaria a necessidade de reprodutibilidade auditável em decisões críticas — como diagnóstico médico ou análise jurídica — com a realidade de que dois nós rodando o mesmo modelo com o mesma entrada podem produzir outputs semanticamente equivalentes mas lexicalmente diferentes, e como o EDP deveria registrar, comparar e validar essas divergências no seu lineage tracker sem criar overhead que tornaria o sistema inviável em produção?", "id": "903ff2a7-0207-4270-9322-91ef7a3732ba", "timestamp": 1781122491.4702325}
+{"query": "Nas sessões anteriores identificamos que o sentence transformer all-MiniLM-L6-v2 está sendo recarregado da internet a cada inicialização do EDP em vez de usar cache local, e isso adiciona latência no boot e cria dependência de conexão — considerando que o modelo de embedding já foi baixado anteriormente e deveria estar disponível localmente, qual é a causa raiz desse comportamento, onde exatamente no pipeline de inicialização o cache local deveria ser verificado antes de tentar download remoto, e como corrigir isso de forma que o modelo carregue offline sem nunca tentar conexão com HuggingFace em produção, incluindo a variável de ambiente ou configuração específica que força uso exclusivo do cache?", "id": "23194780-c0b0-4031-aac0-970e03a9cd90", "timestamp": 1781124760.481475}
+{"query": "Nos testes que fizemos agora nessa sessão identificamos quatro bugs concretos no EDP: WebSocket race condition que perde respostas silenciosamente, embedder sendo instanciado duas vezes em paralelo sem singleton, histórico cronológico injetado com apenas 77 caracteres independente do volume de memória disponível, e memória semântica zerada apesar de 66 entradas episódicas existirem — considerando que esses quatro problemas foram identificados nos próprios logs do sistema e que o retrieval_monitor já detectou 67% de repetição, qual é a ordem de correção que minimiza risco de regressão e maximiza impacto na qualidade das respostas, e existe dependência mecânica entre esses quatro bugs onde corrigir um pode revelar ou mascarar outro?", "id": "01619b4a-c57b-4aa5-ae25-394e6005b56e", "timestamp": 1781125713.1010852}
+{"query": "Nas sessões anteriores identificamos que o sentence transformer all-MiniLM-L6-v2 está sendo recarregado da internet a cada inicialização do EDP em vez de usar cache local, e isso adiciona latência no boot e cria dependência de conexão — considerando que o modelo de embedding já foi baixado anteriormente e deveria estar disponível localmente, qual é a causa raiz desse comportamento, onde exatamente no pipeline de inicialização o cache local deveria ser verificado antes de tentar download remoto, e como corrigir isso de forma que o modelo carregue offline sem nunca tentar conexão com HuggingFace em produção, incluindo a variável de ambiente ou configuração específica que força uso exclusivo do cache?", "id": "d6840948-10fd-4aa2-aa1a-d962b85db5e3", "timestamp": 1781126585.2908397}
+{"query": "cumtinue", "id": "093ea67f-3450-4bb2-aa49-bc0f27d1129b", "timestamp": 1781126618.0066953}
+{"query": "continue de onde parou.", "id": "2df32110-f092-4aad-9705-7383c1dc31f9", "timestamp": 1781126738.1578825}
+{"query": "oi", "id": "ac0ba482-b85e-452a-a1f2-95185dde12a7", "timestamp": 1781291276.0422258}
+{"query": "quais as horas e qual e o seu sentido de tempo?", "id": "032602cb-cf5e-4c9c-bd15-7d85d643acf1", "timestamp": 1781291318.2271552}
+{"query": "Qual foi a última coisa que eu sonhei esta noite? Responda diretamente, sem rodeios.", "id": "ae7683f5-acf4-4ef4-ae83-45e47242f515", "timestamp": 1781295509.4361591}
+{"query": "Qual foi a última coisa que eu pensei esta noite? Responda diretamente, sem rodeios.", "id": "be0e5ce9-9a0f-4969-8d65-f3894210298c", "timestamp": 1781301543.9451811}
+{"query": "Baseado no meu histórico de decisões sobre o EDP, me ajuda a desenhar o critério de delegação do módulo GOFAI: que tipos de subtarefa o sistema já resolveu localmente vs precisou de LLM externo, e que regra eu poderia formalizar a partir desses casos?", "id": "b784d098-46f0-497f-bb98-7b7e40cedd8b", "timestamp": 1781351921.1536121}
+{"query": "No seu histórico de decisões, quando você escala de um modelo mais barato (haiku) pra um mais caro (sonnet/opus/fable) — quais são os padrões? Que tipo de pedido te fez escalar, e que tipo você resolveu direto no modelo barato? Me dá exemplos concretos do seu próprio lineage, se tiver registrados.", "id": "b53cb818-9d33-4cf7-848f-d639d8471109", "timestamp": 1781354090.2053804}
+{"query": "Retomando o cluster de GPUs de consumidor via PTX/INT8 — quais foram as conclusões principais que já fechei sobre isso, e o que ficou pendente?", "id": "42eb89a5-4c33-4577-beb9-650c5d108e5a", "timestamp": 1781367064.0296655}
+{"query": "Na arquitetura de dois exocórtex (Cognitive + Work) com Arbiter que discutimos — quais decisões já ficaram fechadas, e quais ainda estão abertas?", "id": "a400c20e-1d34-44c5-a462-a0db167861ec", "timestamp": 1781367122.9333498}
+{"query": "teste as duas  e  em ordem.", "id": "ba890529-cdc6-48fc-9f98-466132a88f98", "timestamp": 1781367206.518558}
+{"query": "o que voce me perguntou.", "id": "d1517693-2d7b-454c-a9e4-f98f562ec22d", "timestamp": 1781367237.9568193}
+{"query": "liste o que conversamos em ordem do mais recente para o mas antigo em ordem cronologica.", "id": "eceb81dc-6cf8-4772-91b9-21207fb93d4e", "timestamp": 1781367315.9947853}
+{"query": "isso esta na soa janela de contexto?", "id": "07485bd1-11b9-4895-90b7-49c4b1f53df4", "timestamp": 1781367356.4851208}
+{"query": "liste o que esta nela.", "id": "5825bfc0-8536-4e8d-a04c-1e1d705804e3", "timestamp": 1781367388.3680031}
+{"query": "isso está na sua janela de contexto?", "id": "25a5bb4d-6cd3-459b-a85c-2591bdf5c889", "timestamp": 1781397577.0041025}
+{"query": "liste o que está nela.", "id": "34380f3c-b3b7-4ebb-b207-7cee7cd5fc27", "timestamp": 1781397632.5373034}
+{"query": "Explica a diferença entre paginação Offset e Keyset no PostgreSQL — quando cada uma é melhor?", "id": "b0ac2116-b98c-4091-ac0e-fbd48df84fab", "timestamp": 1781398649.7932415}
+{"query": "Explica o que é sonoluminescência e por que é um fenômeno tão estranho.", "id": "ebf2d897-f4a1-46e4-abd9-c06725bbb6ca", "timestamp": 1781398683.4271479}
+{"query": "e qual é mais usada em APIs REST?", "id": "b4703d4f-6d22-4da2-b901-5e65c934b91d", "timestamp": 1781398964.2376242}
+{"query": "qual a temperatura estimada dentro da bolha?", "id": "b5e40479-c58b-4f3c-bf45-8ffd26b13439", "timestamp": 1781399001.9635272}
+{"query": "explica o que é sonoluminescência", "id": "607291d8-f5cb-4abd-bf85-ef6183073068", "timestamp": 1781460623.6852403}
+{"query": "explica o que é sonoluminescência", "id": "d5570f0d-23a9-4780-a162-8ea9d6915924", "timestamp": 1781460692.363793}
+{"query": "Em uma frase, o que é o efeito Doppler?", "id": "68e83c46-aabe-4953-8e6f-5d8bcd6afe22", "timestamp": 1781464974.5106764}
+{"query": "Explica o que é sonoluminescência e por que a bolha esquenta tanto.", "id": "e9e97205-5157-47dd-9a9c-849cda856951", "timestamp": 1781465020.549049}
+{"query": "qual a temperatura estimada dentro da bolha?", "id": "f2ea6e30-49cd-4ef6-b1c3-9491e20b14da", "timestamp": 1781465045.8383107}
+{"query": "e por que ela colapsa de forma tão rápida?", "id": "c29e0773-a83e-4d2b-813a-d6ca22ed2d24", "timestamp": 1781465070.2684135}
+{"query": "esse fenômeno tem alguma aplicação prática?", "id": "a0ad38af-9ea6-4ac4-8bbb-cfaa0347c13a", "timestamp": 1781465105.175241}
+{"query": "muda de assunto: o que é um índice GIN no Postgres, em uma frase?", "id": "4a6057ec-4b3d-474b-8291-1b310142672e", "timestamp": 1781465129.6525767}
+{"query": "quando ele atrapalha mais do que ajuda?", "id": "da4cac7f-881f-4fc4-b522-936314b11d37", "timestamp": 1781465154.848563}
+{"query": "o que é o algoritmo de Luhn?", "id": "06e650f0-b6b9-4c12-be66-63420720681b", "timestamp": 1781481224.8821936}
+{"query": "me dá um exemplo de número que passa nessa validação?", "id": "172d1425-da26-4d1c-aa0e-985a94e17896", "timestamp": 1781481285.8621879}
+{"query": "me dá um exemplo de número que passa nessa validação?", "id": "3005fa97-96ed-411e-b970-4b30a24413dd", "timestamp": 1781481311.6948533}
+{"query": "muda de assunto: o que é um quasar?", "id": "6bfa044d-29d9-4056-8e9c-d5ffb38bc97f", "timestamp": 1781481380.0528216}
+{"query": "qual o mais distante já observado?", "id": "819d5d2e-17f5-48cd-a4b2-f55f0af1a5e5", "timestamp": 1781481405.1242058}
+{"query": "o que é o paradoxo de Monty Hall?", "id": "d1e8a044-cbb8-43e9-b04e-8548c01dae26", "timestamp": 1781484580.6063724}
+{"query": "e se houver 100 portas em vez de 3?", "id": "70c83991-fe27-41c0-bfbe-f06346412478", "timestamp": 1781484610.4875116}
+{"query": "muda de assunto: o que é o número de Avogadro?", "id": "e3dbeaf3-e4c7-4c40-ab97-6787d253235f", "timestamp": 1781484641.7625806}
+{"query": "pra que ele serve na prática?", "id": "90ca7a5a-fd38-40f1-a083-fa9920c27817", "timestamp": 1781484723.833192}
+{"query": "me explica o teorema de Bayes", "id": "4d6f20b9-42f0-43db-acde-43d974006bd5", "timestamp": 1781733959.932535}
+{"query": "como ele se aplica em diagnóstico médico?", "id": "2b739f1b-83dd-487d-a2df-d63d1a75bd90", "timestamp": 1781733988.861739}
+{"query": "dá um exemplo numérico", "id": "229bb39a-3812-49fc-a012-741c2a2f40ac", "timestamp": 1781734031.621465}
+{"query": "muda de assunto: o ciclo de vida de uma estrela", "id": "880c5f8a-947a-446c-99ce-411d08539e5a", "timestamp": 1781734103.934922}
+{"query": "o que acontece numa supernova?\"", "id": "9273deec-1753-4f42-ae9c-a2d1cc2b93f5", "timestamp": 1781734131.0502205}
+{"query": "qual o contexto da nossa conversa anterior e qual gep de tempo entre o inicio dela e quando terminou.", "id": "3772a684-50e3-4a9d-b8fc-32bb2cd2ca48", "timestamp": 1781764086.940926}
+{"query": "porque os transformadores dos modelos llms sao tao importantes e oque realmente ele fazem?", "id": "c710ba64-1f3f-4ed6-8fd8-ba538f1d5215", "timestamp": 1781821287.8919423}
+{"query": "vamos continuar a conversa sobre o teorema de Bayes", "id": "ba288afe-eef3-4922-9bd6-b668ccc0fb36", "timestamp": 1783929617.7684243}
+{"query": "vamos continuar a conversa sobre Redis e Memcached", "id": "ebb7005e-7129-489c-94b9-0636a8d7eaa2", "timestamp": 1783930609.676578}
+{"query": "oi", "id": "9e911863-5228-4eac-9d4b-3d7e0fc4079e", "timestamp": 1784237099.2372208}
