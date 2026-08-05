@@ -36,6 +36,25 @@ laboratório como os demais. Por isso fica fora da tabela acima (que é
 estritamente sobre `sujeitos/edp/experimentos/`), registrado aqui para não
 desaparecer silenciosamente do acervo.
 
+## Nota — E8 (planejado, não executado, ID reservado)
+
+`E8` — baseline externa de retrieval (EDP vs. contexto-longo-ingênuo vs.
+padrão LLM Wiki de Karpathy, com zero-contexto como filtro de validade
+das perguntas) — está **planejado em `docs/plano_experimento_e8.md`, mas
+NÃO executado e NÃO pré-registrado**. Segue a nomenclatura por letra do
+E7 (nativo do `lab_edp`, não portado do `edp_v5`), por isso fica fora da
+tabela acima (que é sobre `sujeitos/edp/experimentos/`) e desta nota em
+diante, não da numeração `expNNN`.
+
+**Status: PLANEJADO — NÃO EXECUTADO — bloqueado por `NORTE.md` até
+02/09/2026** (ou antes, se a meta comercial descrita lá for atingida
+primeiro). O documento de plano existe para não perder o desenho e para
+**reservar o ID** — a última rodada de verificação quase colidiu com o
+`exp018` já fechado (`docs/VEREDITO_EXP018.md`, promoção tóxica, assunto
+não relacionado) por falta exatamente deste registro. Ver
+`docs/ACHADO_PREMISSAS_RETRIEVAL.md` para os achados de Passo 0 que
+sobreviveram à interrupção.
+
 ## Nota — numeração não-contígua
 
 `002`, `005`, `013` e `014` não aparecem em nenhum lugar (nem código, nem
