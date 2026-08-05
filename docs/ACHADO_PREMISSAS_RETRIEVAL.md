@@ -113,9 +113,49 @@ esforço no que vem depois. Isto não é desconfiança do autor do prompt —
 experimental, estendida à camada anterior: a descrição do sistema que o
 experimento vai medir.
 
-## (d) Hipótese "retrieval quase aleatório = artefato de escala do RRF" — INDETERMINADO
+## (d) Hipótese "retrieval quase aleatório = artefato de escala do RRF" — REFUTADO
 
-Verificação por leitura (05/08/2026), sem instrumentar retrieval. Checado
+**Correção (05/08/2026), depois do registro original abaixo.** O veredito
+inicial desta seção era INDETERMINADO, por não localizar a citação da
+queixa em nenhum dos 5 candidatos do repositório. Estava certo sobre o
+repositório — e errado em parar aí. O pesquisador localizou a origem: uma
+conversa de 22/06/2026 (fora deste repo, fora de qualquer um dos dois
+git), onde métricas operacionais reais do Chat Cognitivo foram
+compartilhadas — retrieval score médio **0,475**, compressão 0,0%, 5,0
+memory hits, zero erros em 37 requisições. **Tentei buscar essa conversa
+(`WebFetch` na URL fornecida) para conferir por mim mesmo antes de aceitar
+— retornou 403 (URL privada, não recuperável por ferramenta não
+autenticada), então o que segue depende do relato do pesquisador, não de
+verificação direta minha do texto original.** O que pude conferir de
+forma independente, na fonte, corrobora a lógica:
+
+- `edp/config.py` (já citado em §(b)): híbrido promovido a default ON em
+  **08/07/2026** — 22/06 é anterior. **Falsificador 1 dispara.**
+- RRF produz ~0,016 (`edp/retrieval_hybrid.py:236-246`, confirmado em §(d)
+  original abaixo); **0,475 é escala cosseno**, não RRF. **Falsificador 2
+  dispara.** Dois falsificadores bastam; um já derrubaria a hipótese.
+- exp010 (Recall@5 25%→87,5%) é a correção que a promoção de 08/07
+  documenta — motivo independente, já citado em §(b), de que o
+  diagnóstico de 22/06 tinha alvo real e foi endereçado.
+- `promote_threshold=3` (`edp/consolidation.py:173,250,344`, confirmado
+  agora por leitura direta) explica a metade "consolidação episódica
+  ausente" sem precisar de patologia: 37 requisições dificilmente
+  acessam a mesma entry 3× para disparar promoção.
+
+**Veredito: REFUTADO**, não indeterminado. "Quase aleatório" foi
+avaliação interpretativa de um LLM assistente numa conversa — nunca foi
+medição, nunca foi artefato verificável, e o próprio número que a
+sustentava (0,475 em embeddings normalizados) já é bem acima do que um
+par aleatório produziria. A investigação por leitura abaixo (o §(d)
+original) permanece útil como registro do que EXISTE no repositório — só
+o veredito final muda, de "não achei citação, fico indeterminado" para
+"a citação existe, é de fora do repo, e refuta".
+
+---
+
+### Registro original (05/08/2026, antes da correção acima)
+
+Verificação por leitura, sem instrumentar retrieval. Checado
 nos 5 candidatos apontados: `RELATORIO_DOGFOOD.md` (untracked, mtime
 22/07 — gerado pelo script do commit `7ca4ef2`), `FASE0_DIAGNOSTICO_HARDENING.md`
 (16/07), `benchmark_report.json` (único commit, 20/05 — **anterior** à
@@ -173,3 +213,29 @@ mecanismo, **não confirmação** de que foi isto que o diagnóstico
 observou — a origem textual do diagnóstico não foi localizada nestes 5
 arquivos. Se o diagnóstico original for encontrado em outra fonte, checar
 primeiro se ele cita este painel.
+
+## (e) §(c) um nível mais fundo — premissa sem documento nenhum por trás
+
+§(c) trata de linhagem de auditoria **documentada e errada** (branch/SHA,
+contagem de call sites, resultado de teste — algo foi escrito, e o
+escrito não batia com o checkout). O caso de §(d) é mais raso ainda: **não
+havia documento nenhum para verificar.** "Retrieval quase aleatório" era
+uma avaliação interpretativa feita por um assistente LLM dentro de uma
+conversa, a partir de um número real (0,475) que não a sustentava sozinho
+— um cosseno médio de 0,475 em embeddings normalizados fica bem acima do
+que um par aleatório produz. Essa avaliação foi comprimida num resumo de
+memória, endurecida em premissa ao ser recuperada numa sessão posterior,
+e reciclada como base de decisão nesta própria investigação (a motivação
+original do plano E8, a hipótese do RRF) — sem nunca ter existido como
+artefato revisável, versionado ou datado.
+
+**A diferença importa para a regra:** um Passo 0 que só audita "documento
+existe e bate com a fonte" não pega este caso, porque não há documento.
+A verificação tem que se perguntar, antes disso, **se a premissa tem
+qualquer artefato por trás — ou se é só coisa que alguém (humano ou
+modelo) lembra de ter concluído.** Avaliação interpretativa de LLM sobre
+um número real, se vai virar premissa de trabalho futuro, precisa ser
+citada com o número junto (aqui: "0,475, avaliado como baixo") — nunca só
+o rótulo ("quase aleatório") sobrevivendo sozinho, descolado da medição
+que (não) o sustentava. O rótulo generoso é o sintoma: ele fez o trabalho
+que o número, sozinho, não fazia.
