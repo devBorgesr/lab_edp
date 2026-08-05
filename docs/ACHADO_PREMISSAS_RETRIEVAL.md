@@ -112,3 +112,64 @@ esforço no que vem depois. Isto não é desconfiança do autor do prompt —
 é a mesma disciplina que este laboratório já aplica ao próprio dado
 experimental, estendida à camada anterior: a descrição do sistema que o
 experimento vai medir.
+
+## (d) Hipótese "retrieval quase aleatório = artefato de escala do RRF" — INDETERMINADO
+
+Verificação por leitura (05/08/2026), sem instrumentar retrieval. Checado
+nos 5 candidatos apontados: `RELATORIO_DOGFOOD.md` (untracked, mtime
+22/07 — gerado pelo script do commit `7ca4ef2`), `FASE0_DIAGNOSTICO_HARDENING.md`
+(16/07), `benchmark_report.json` (único commit, 20/05 — **anterior** à
+promoção do híbrido em 08/07), `AVALIACAO_ENGENHARIA_EDP.md` (22/07), e o
+próprio script de `7ca4ef2` (`audit/retrieval_audit.py` + `RELATORIO_AUDIT_V1.md`).
+
+**Nenhum dos cinco contém a queixa "retrieval quase aleatório" como
+diagnóstico de patologia.** `RELATORIO_DOGFOOD.md` e o script que o gera
+usam "aleatória"/"aleatoriedade" só como referência estatística neutra
+(baseline sob permutação, mesmo espírito do controle `shuffled` do E7) —
+o texto explicitamente enquadra repetição alta como possivelmente normal,
+não como falha. `FASE0_DIAGNOSTICO_HARDENING.md` não menciona o termo.
+`AVALIACAO_ENGENHARIA_EDP.md` faz uma queixa **diferente**: "força-bruta
+sem índice real" / `RETRIEVAL_BACKEND` "decorativa" — sobre o backend
+vetorial não ser ANN-indexado, não sobre a magnitude do score pós-fusão
+RRF (é a mesma pergunta ainda aberta em §(b) acima, não esta). Sem a
+citação verbatim da queixa original, os falsificadores de confirmação
+(§ "CONFIRMA") não podem ser satisfeitos, e os falsificadores 1/2/3/4 de
+refutação também não — nenhum lado tem citação. **Registro como
+indeterminado, não forçado para nenhum lado**, como a régua deste
+documento manda.
+
+**Falsificador 5 checado e não disparado:** `edp/retrieval_hybrid.py:236-246`
+confirma RRF padrão rank-based (`score(d) = Σ 1/(k+rank(d))`, k=60,
+comentário "padrão da literatura") — não preserva magnitude, a premissa
+de compressão por construção se sustenta tecnicamente.
+
+**Pergunta 5 (limiar fixo vs. escala) resolvida, e tranquilizadora:**
+`min_score=0.20` e `CURRENT_SESSION_TRUST_THRESHOLD=0.30`
+(`edp/memory/store.py:492,617,660`) comparam contra `rank_score`
+calculado **antes** da fusão (cosine puro por camada, dentro do
+`retrieve()` de `EpisodicMemory`/`SemanticMemory`) — nunca contra o score
+pós-RRF. O caminho pós-fusão usa uma constante própria,
+`HYBRID_MIN_SCORE` (`edp/config.py:126`, default `0.0` via
+`EDP_HYBRID_MIN_SCORE`), com comentário explícito do autor original:
+"O RETRIEVAL_MIN_SIM (0.20, escala cosine) zeraria TUDO — escala
+própria" (`config.py:125`) e "min_score do chamador (escala cosine) NÃO
+se aplica ao RRF" (`store.py:1464`). Nenhum gate sempre-rejeitando
+encontrado. Achado lateral descartado: `ANALISE_SATELITES_V32.md:519`
+sugere um corte `ranking_score >= 0.88` para detecção de loop, mas é
+código **proposto, nunca implementado** (`grep` em `.py` não encontra
+`sat_count` nem esse `0.88` fora desta análise) — não é bug vivo.
+
+**Achado colateral, não confirmatório mas relevante para investigação
+futura:** `edp/dashboard/static/dashboard.js:141-142` exibe
+`sm.retrieval_score.mean` truncado a 3 casas num painel operacional
+("r-score"), alimentado diretamente pelo `ranking_score` bruto via
+`M.retrieval_score()` (`edp/memory/store.py:1519,1737` →
+`edp/metrics.py:42-43`) — se o híbrido estiver ON, esse painel mostra a
+escala RRF (~0,016), exatamente o tipo de número que pareceria "quase
+aleatório" a um operador olhando o dashboard. O próprio autor do fix já
+havia avisado disso em `config.py:51`: "dashboards/telemetria
+Gauss/retrieval_score veem a escala nova." Isto é candidato plausível a
+mecanismo, **não confirmação** de que foi isto que o diagnóstico
+observou — a origem textual do diagnóstico não foi localizada nestes 5
+arquivos. Se o diagnóstico original for encontrado em outra fonte, checar
+primeiro se ele cita este painel.
