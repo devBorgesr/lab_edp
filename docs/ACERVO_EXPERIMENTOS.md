@@ -64,3 +64,44 @@ docstring de `exp016_dryrun.py` como "exp015 REFUTADO, 14/07" — um
 experimento real que não deixou artefato rastreável neste acervo. Não
 investigado além disto (fora do escopo desta fase, que é documental, não
 arqueológica).
+
+---
+
+## Adendo — 07/08/2026: frente da wiki (4 pré-registros nativos do kernel)
+
+Quatro pré-registros escritos em `edp_v5_main` em 06–07/08/2026, espelhados
+em `docs_edp_v5/`. **Não seguem o `TEMPLATE_PREREGISTRO.md` deste repo** —
+foram escritos sem que eu soubesse que o template existia aqui, o que é
+falha de Passo 0 minha e fica registrado como tal, não corrigido
+retroativamente. As 6 seções obrigatórias estão presentes em substância
+(pergunta, régua, motivação, hipótese, desenho, critério PASSA/FALHA); a
+numeração e os nomes de seção divergem.
+
+| exp | pré-registro | onde | resultado | disciplina |
+|---|---|---|---|---|
+| Degrau 1 — honeypot | **SIM** | `docs_edp_v5/preregistro_degrau1_honeypot.md` | **H0**, 0/14 (`dd06b87`) | Critério congelado antes do dado. Predição do arquiteto registrada e **refutada**. Achado principal (R1, seletividade invertida) **não previsto**: das 14 queries, as 4 que passariam o gate de similaridade eram todas anafóricas, nenhuma factual. |
+| Gate de especificidade | **SIM** | `docs_edp_v5/preregistro_gate_especificidade.md` | **não executado** | Hipótese livre de limiar (`min([N]) > max([R3])`) para impedir overfitting em 14 pontos. Emenda E1 pré-dado após smoke test. Checagem de sanidade do instrumento congelada (§3-bis.1): >20% de OOV nas [R3] ⇒ INSTRUMENTO INVÁLIDO. Superado pela errata do design. |
+| Wiki — pré-condição | **SIM** | `docs_edp_v5/design_wiki_conversas.md` §11 | **PARAR**, 1/5 (`ad6d8ec`) | Teste de pré-condição assimétrico (pode refutar, não confirmar). Predição refutada. Rodada 2 contra produção: 1/5 de novo (`404429c`), mas varredura de texto cru deu 5/5 — problema de **cobertura da extração**, não ausência de conteúdo. |
+| Wiki — E-2 extração | **SIM** | `docs_edp_v5/design_wiki_conversas.md` E-2/E-2.1 | **FALHA**, 2/5 (`366e337`) | Amostragem estratificada (emenda E-2.1 pré-dado, corrigindo defeito **estatístico** da E-2: aleatória daria 0,43 turnos esperados de um dos alvos). Controle negativo 0/20 FP, 0/108 falhas de parse. US$0,14. |
+| Wiki — rodagem cruzada | **SIM** | `docs_edp_v5/preregistro_rodagem_cruzada_wiki.md` | **parcial** — condição W fechada | 12 perguntas + 3 controles negativos congelados antes de compilar. Emenda E-1 pré-dado: orçamento igual por condição e separação nota bruta/diferencial. |
+
+### Errata que atravessa os quatro
+
+`docs_edp_v5/design_wiki_conversas.md` registra que o design da wiki foi
+escrito contra descrição de **segunda mão** do método `llm-wiki`, sem ler
+o gist original. O E-2 mediu corretamente uma peça que o método **não
+tem** — é irrelevante, não errado. O veredito "camada 3 cai" fica anulado
+por justificativa documental, não por dado novo.
+
+O que **sobrevive** do E-2 e vale por si: `cognitive_decisions` extrai
+conceitos gerais e não entidades específicas (`exp016` 0/20,
+`NOT_FOUND_FLOOR` 0/20, `Mongólia` 0/8, controle limpo).
+
+### Scripts de medição — permanecem no kernel
+
+`avaliador_honeypot_14q.py`, `medir_repeticao_honeypot.py`,
+`medir_gate_especificidade.py`, `precondicao_wiki_conversas.py`,
+`e2_extracao_alvos.py` seguem em `edp_v5_main/scripts/`. Importam
+`edp.embeddings`/`edp.wiki` diretamente e um importa o outro; movê-los
+exigiria reescrever imports e quebraria as citações nos pré-registros.
+Registrado onde estão em vez de duplicado — **uma fonte, um lugar**.
