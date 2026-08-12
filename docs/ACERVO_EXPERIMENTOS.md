@@ -118,11 +118,14 @@ acervo.
   sozinha; só coleta. Spec congelada e nota de execução em
   `docs/sujeito_edp/AUDITORIA_FASE1_TOKENS.md`. Protocolo agnóstico
   extraído em `docs/instrumentos/PROTOCOLO_TELEMETRIA_DE_TOKENS.md`.
-- **Fase 2 (não executada)** — calcular a razão real e compará-la ao
-  `4 chars ≈ 1 token` herdado. **Esta é experimento e nasce aqui**: exige
-  pré-registro pelo `docs/TEMPLATE_PREREGISTRO.md`, com hipótese e limiar
-  congelados antes de olhar o dado coletado. Sem isso vira ajuste de curva
-  para o resultado desejado.
+- **Fase 2 (pré-registrada, não executada)** — calcular a razão real e
+  compará-la ao `4 chars ≈ 1 token` herdado. **Pré-registro CONGELADO** em
+  `docs/preregistro_fase2_calibracao_tokens.md` (`4289c9c`, 12/08/2026),
+  escrito antes de qualquer amostra existir — 11 seções do template, nenhuma
+  faltando. Segundo pré-registro NATIVO do lab, depois do E7. Critério por
+  equivalência (IC bootstrap), com o nível do IC **medido** e não suposto
+  (`bancada/cobertura.py`, `df5e055`). Harness ainda não escrito; congela ao
+  primeiro disparo real.
 - **Fase 3 (não executada)** — aplicar a razão medida aos orçamentos, e só
   então otimizar formato.
 
