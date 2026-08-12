@@ -368,21 +368,41 @@ comum, IC estreito favorece **rejeitar** H0. Num teste de **equivalência**,
 PASSA H0 exige o IC inteiramente **dentro** da faixa — então IC estreito
 favorece **aceitar** H0. A subcobertura, aqui, é pró-conveniência.
 
-**Por que o critério permanece assim mesmo.**
+**Por que o critério permanece assim mesmo — e isto é ESCOLHA DE REGRA, não
+consequência do argumento.** Registrado assim porque a redação anterior desta
+seção apresentava a mitigação (2) como se ela resolvesse o problema, quando o
+que de fato decide é (1). Aceitas as premissas — "errar para mais é seguro",
+"a rejeição original era fraca" —, a conclusão "não corrigir" **não decorre
+delas**. Decorre de a regra de congelamento valer contra argumento procedente.
+É posição coerente, é o ponto inteiro de pré-registro existir, e é escolha.
 
 1. Alterar limiar depois do congelamento é a coisa exata que este documento
    proíbe. Uma objeção procedente não é exceção; se fosse, "congelado"
    significaria "congelado até alguém argumentar bem".
 2. A exposição é limitada pelo que já está declarado no §4: **INDETERMINADO é
    o resultado esperado**. Não se aceita H0 falsamente em estrato que nunca
-   chega a H0. O viés só morde em estrato que simultaneamente atinge `n_min`
-   **e** cai perto da fronteira `[3.6, 4.4]`.
+   chega a H0.
+
+   **ERRATA da própria objeção:** a versão anterior deste item seguia com "o
+   viés só morde em estrato que atinge `n_min` **e** cai perto da fronteira",
+   apresentado como conforto. **É o contrário.** Fronteira é exatamente onde o
+   veredito de um teste de equivalência é mais consequente de interpretar —
+   dizer que o viés só afeta os casos que mais importam não é dizer que afeta
+   poucos casos. O argumento foi retirado da lista de mitigações; sobra (1) e
+   (3), que sustentam a decisão sozinhos.
 3. Se morder, o remédio é **Fase 2b com nível nominal calibrado**, sobre dado
    novo — não emenda sobre dado visto.
 
 **Como isto deve ser lido no resultado.** Um veredito PASSA H0 nesta fase
 carrega **menos peso probatório** do que "IC 90%" sugere. Quem citar o
 resultado cita com esta seção junto.
+
+**E isto É uma mudança pós-congelamento — a semântica, não a sintaxe.** A regra
+mecânica (`[3.6, 4.4]`, `n_min=30`, IC 90% nominal) está intacta; **como um
+veredito PASSA H0 deve ser lido, mudou.** Dizer "o critério não muda" descreve
+só a metade sintática. Nomeado aqui porque uma disciplina que proíbe
+descongelar precisa ser exata sobre o que ela própria acabou de alterar —
+senão a exceção vira precedente sem nome.
 
 **Duas partes da mesma objeção que foram verificadas e não procedem** (o
 auditor não tinha acesso a este repositório e auditou por consistência do
