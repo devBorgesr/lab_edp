@@ -248,6 +248,47 @@ explícita de abrir a janela — e a janela congela o formato de injeção (§2)
 
 ---
 
+## 6-ter. EMENDA — regime de formato (12/08/2026, mesma data)
+
+A §5 item 11 dizia "formato de injeção congelado enquanto a coleta estiver
+aberta". Isso era **convenção pura**: nada registrava qual formato valia em
+cada amostra, e seis flags de `config.py` mais o modo operacional (`/mode
+sprint` troca o cap do turno-1 por 3×) podiam mudar no meio da coleta sem
+deixar rastro.
+
+O item 11 **mudou de natureza**, não foi apenas cumprido: mudança de formato
+deixou de ser proibida e passou a ser **detectável**. Cada amostra carrega
+`format_state` (modo, caps efetivos, 10 flags) e um `format_hash`
+determinístico. Mistura de regime vira estrato separável em vez de
+contaminação silenciosa.
+
+**O defeito foi encontrado por auditoria externa, não por mim.** A pergunta
+foi: "mostre todos os caminhos que produzem uma amostra e prove que todos
+passam pelo mesmo construtor de `format_state`". Não passavam — três não:
+
+| caminho | estado | correção |
+|---|---|---|
+| `AnthropicProvider.validate()` | amostra de ~1 token entrando no dataset; em prompt minúsculo o andaime JSON domina e ela puxaria a razão do estrato inteiro | `telemetria=False` |
+| `_llm_call_for_chamber()` | **herdava o regime do turno** (mesma thread) — metadado falso, pior que ausente | limpa antes, restaura no `finally` |
+| `cognitive_decisions` | thread de background → `format_state` já `None` | correto por acidente, agora por desenho |
+
+**Contrato da população** em [`CONTRATO_FASE1_TOKENS.md`](CONTRATO_FASE1_TOKENS.md),
+com o filtro em código (`amostra_valida_fase2`) e não só em prosa — a regra
+escrita tem um modo de falha conhecido e barato: `carrega_tudo()` sem o filtro.
+
+**Limite declarado e deliberadamente NÃO fechado:** o hash cobre regime de
+runtime, não de código. Duas builds diferentes podem produzir hash idêntico.
+Carimbar o commit mudaria a pergunta que o hash responde — de "qual regime
+operacional?" para "qual implementação exata?". Se for fechado, o desenho é
+`runtime_regime_hash` + `code_revision` lado a lado, não fundidos.
+
+**Pendência declarada:** custo do snapshot no caminho vivo não foi medido. Não
+vai escrito como "sem impacto".
+
+Suíte: **348 passed, 1 deselected** (eram 324).
+
+---
+
 ## 7. Limites desta auditoria
 
 - Os quatro repositórios foram lidos pelo README/página principal. Não li
