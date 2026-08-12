@@ -20,7 +20,7 @@ existia quando isto foi escrito — `EDP_TOKEN_TELEMETRY` seguia default OFF.
 | predição pré-dado | só a do arquiteto (§4) | **Daniel** — optou por não predizer |
 | estratificação primária | só por `classe` | arquiteto, §5 |
 | critério | equivalência por IC bootstrap, faixa `[3.6, 4.4]` | arquiteto, §4/§6 |
-| nível do IC | 90% nominal (real medido `0.85–0.88`) | arquiteto, §4 — **medido**, não suposto |
+| nível do IC | 90% nominal (`0.85–0.88` sob os dois geradores testados) | arquiteto, §4 — medido em simulação, não suposto |
 | faixas de tamanho | `0–1k / 1k–4k / 4k+`, descritivas | arquiteto, §6 |
 | numerador primário | `text_chars` | arquiteto, §9 |
 
@@ -337,3 +337,67 @@ observado invalidaria o critério que este documento acabou de congelar.
 Instrumentos: `bancada/cobertura.py` (validação de cobertura de IC),
 `edp.runtime.pareto_store.amostra_valida_fase2` (população).
 Contrato da amostra: [`sujeito_edp/CONTRATO_FASE1_TOKENS.md`](sujeito_edp/CONTRATO_FASE1_TOKENS.md).
+
+---
+
+## OBJEÇÃO REGISTRADA APÓS O CONGELAMENTO (12/08/2026)
+
+Auditoria externa levantou, depois do commit de congelamento, uma objeção ao
+critério. **O critério NÃO muda** — "nada se descongela" vale inclusive contra
+objeção procedente. Fica registrada aqui porque quem ler o resultado precisa
+saber que ela foi feita, por quem, e por que o critério permaneceu.
+
+**A objeção.** O viés de subcobertura empurra na direção de **aceitar H0
+falsamente** — e H0 é o resultado conveniente (encerra a frente com economia,
+Fase 3 não acontece). A resposta dada foi trocar o rótulo do IC em vez de
+compensar o viés. A compensação padrão — subir o nível nominal (ex.: pedir IC
+94–95% para mirar cobertura real de ~90%) — é barata e independente do BCa que
+foi descartado.
+
+**Por que a objeção é forte, e mais do que a rejeição original admitiu.** O
+documento rejeitou calibrar o nível nominal (§4) alegando que o fator de
+correção herdaria a suposição de ruído sintético, que variou ~3pp entre
+sementes. Esse argumento é mais fraco do que pareceu na hora: **errar para mais
+é seguro**. Um IC calibrado em excesso fica largo demais, produzindo mais
+INDETERMINADO — a direção conservadora. Um IC não calibrado erra exatamente na
+direção que importa. Correção grosseira domina correção nenhuma quando o erro
+de sobrecorrigir é benigno.
+
+Vale nomear por que o sinal inverte em relação à intuição usual: num teste
+comum, IC estreito favorece **rejeitar** H0. Num teste de **equivalência**,
+PASSA H0 exige o IC inteiramente **dentro** da faixa — então IC estreito
+favorece **aceitar** H0. A subcobertura, aqui, é pró-conveniência.
+
+**Por que o critério permanece assim mesmo.**
+
+1. Alterar limiar depois do congelamento é a coisa exata que este documento
+   proíbe. Uma objeção procedente não é exceção; se fosse, "congelado"
+   significaria "congelado até alguém argumentar bem".
+2. A exposição é limitada pelo que já está declarado no §4: **INDETERMINADO é
+   o resultado esperado**. Não se aceita H0 falsamente em estrato que nunca
+   chega a H0. O viés só morde em estrato que simultaneamente atinge `n_min`
+   **e** cai perto da fronteira `[3.6, 4.4]`.
+3. Se morder, o remédio é **Fase 2b com nível nominal calibrado**, sobre dado
+   novo — não emenda sobre dado visto.
+
+**Como isto deve ser lido no resultado.** Um veredito PASSA H0 nesta fase
+carrega **menos peso probatório** do que "IC 90%" sugere. Quem citar o
+resultado cita com esta seção junto.
+
+**Duas partes da mesma objeção que foram verificadas e não procedem** (o
+auditor não tinha acesso a este repositório e auditou por consistência do
+relato):
+
+- *"Calibrar o nível nominal não aparece cogitado em nenhum lugar do texto"* —
+  aparece, §4, linhas 100-101, com a razão da rejeição escrita. A rejeição era
+  fraca, como admitido acima; a ausência, não é fato.
+- *"N e n_min foram travados antes de a propriedade de cobertura ser
+  conhecida"* — a medição precedeu a decisão. A pergunta feita ao Daniel
+  trazia a subcobertura no enunciado das opções, e a opção `n_min=50` era
+  explicitamente descrita como "ataca a subcobertura medida (0.85–0.88 em
+  n=30)". Ele escolheu `n_min=30` **com** o achado à vista, não antes dele.
+
+**Uma terceira parte procede e foi corrigida acima:** a frase "cobertura real
+MEDIDA" comunicava mais do que se mediu. O que se mediu é cobertura sob dois
+geradores sintéticos; a distribuição real char→token do EDP não existe ainda.
+Texto anterior preservado nesta seção, corrigido na tabela do cabeçalho.
