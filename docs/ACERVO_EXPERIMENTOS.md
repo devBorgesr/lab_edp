@@ -105,3 +105,27 @@ conceitos gerais e não entidades específicas (`exp016` 0/20,
 `edp.embeddings`/`edp.wiki` diretamente e um importa o outro; movê-los
 exigiria reescrever imports e quebraria as citações nos pré-registros.
 Registrado onde estão em vez de duplicado — **uma fonte, um lugar**.
+
+## Nota — calibração de tokens (Fase 1 executada no `edp_v5`, ID reservado)
+
+Fora da tabela acima pelo mesmo motivo do exp017: a encarnação é uma feature
+flag no core do `edp_v5` (`EDP_TOKEN_TELEMETRY`, commit `93cfbf5`), não um
+harness em `sujeitos/edp/experimentos/`. Registrado aqui para não sumir do
+acervo.
+
+- **Fase 1 (executada, 12/08/2026)** — instrumentação: grava o par
+  `(chars enviados, tokens reais cobrados)` por chamada. Não mede nada
+  sozinha; só coleta. Spec congelada e nota de execução em
+  `docs/sujeito_edp/AUDITORIA_FASE1_TOKENS.md`. Protocolo agnóstico
+  extraído em `docs/instrumentos/PROTOCOLO_TELEMETRIA_DE_TOKENS.md`.
+- **Fase 2 (não executada)** — calcular a razão real e compará-la ao
+  `4 chars ≈ 1 token` herdado. **Esta é experimento e nasce aqui**: exige
+  pré-registro pelo `docs/TEMPLATE_PREREGISTRO.md`, com hipótese e limiar
+  congelados antes de olhar o dado coletado. Sem isso vira ajuste de curva
+  para o resultado desejado.
+- **Fase 3 (não executada)** — aplicar a razão medida aos orçamentos, e só
+  então otimizar formato.
+
+Estado em 12/08/2026: a coleta **não começou** — a flag está default OFF, e
+ligá-la é também a declaração de que o formato de injeção está congelado
+(regra 7 do protocolo).
