@@ -11,6 +11,11 @@ via git subtree split -P edp/lab.
 - `sujeitos/edp/` — adaptador que ensina a bancada a falar EDP + `experimentos/` (exp001-010, run_once, calibrações) + `analise/` (análises pós-coleta específicas por experimento)
 - `docs_edp_v5/` — **herdado**: pré-registros, estados, relatórios de fase e documentos fundadores importados do edp_v5 (cópias de referência, não editar)
 - `docs/` — **nativo** deste repo: template de pré-registro, acervo de experimentos, proveniência
+  - `docs/instrumentos/` — o que serve a **outro pesquisador, medindo outro sujeito**
+  - `docs/sujeito_edp/` — achados sobre **este** EDP (o prontuário do paciente)
+  - critério e classificação em [docs/DIVISAO.md](docs/DIVISAO.md) — é a mesma
+    linha que `bancada/` ↔ `sujeitos/` já traça no código, aplicada a
+    documento a partir de 12/08/2026
 - `tests/` — smoke tests e invariante de fronteira bancada/sujeito
 
 ## Dependência
