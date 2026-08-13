@@ -421,3 +421,55 @@ relato):
 MEDIDA" comunicava mais do que se mediu. O que se mediu é cobertura sob dois
 geradores sintéticos; a distribuição real char→token do EDP não existe ainda.
 Texto anterior preservado nesta seção, corrigido na tabela do cabeçalho.
+
+---
+
+## ACHADO DA JANELA DE COLETA (13/08/2026) — estrato `ascii` inalcançável
+
+Registrado nas primeiras 17 amostras válidas, **sem tocar na razão** (só nos
+sinais do classificador). Não altera o critério; declara um limite que o
+desenho congelado não previu.
+
+**O fato.** `nao_ascii` mínimo observado: `0.0203` — o **dobro** do limiar de
+`ascii` (`0.01`), em 17 de 17 amostras, nenhuma abaixo. `cercas` todas `0`,
+`simbolos` máximo `0.0297` contra limiar `0.15` de `codigo`.
+
+**O mecanismo, que é o que torna isto estrutural e não amostral.** O EDP injeta
+mobília própria em PT-BR em todo payload — âncora temporal por extenso
+(`"segunda-feira, 12 de agosto de 2026"`), `SYSTEM_TEMPLATE`, blocos de
+contexto. `classificar_conteudo` roda sobre o payload inteiro (§9 do contrato da
+Fase 1). Logo **toda amostra carrega acentuação do próprio EDP**, e uma pergunta
+escrita em inglês puro ainda sai `acentuado`. n=17 é pouco para provar; o
+mecanismo é verificável no código e não depende de n.
+
+**Consequência 1 — um estrato dos três não pode ser preenchido.** `ascii` sai
+INDETERMINADO por **inalcançabilidade estrutural**, que é uma terceira categoria
+que o §6 não distingue: diferente de INDETERMINADO por `n < n_min` (falta de
+dado) e de INDETERMINADO por IC cruzando a faixa (incerteza). O relatório tem
+de nomear qual dos três, sob pena de somar coisas diferentes.
+
+**Consequência 2 — metade da minha predição pré-dado é infalsificável.** A
+predição do §4 diz "H0 em `ascii`". Esse componente **não pode ser avaliado**.
+Registrado como erro de desenho meu, não como acerto ou erro de predição — não
+se pontua o que não se pode medir.
+
+**Consequência 3, e é a que mais importa para a Fase 3.** A razão que esta fase
+vai medir descreve **o que o EDP envia**, com a mobília dele dentro — não o que
+o usuário escreve. Para calibrar orçamento de janela isso é *exatamente* o
+certo: o cap orça o payload inteiro, mobília inclusa. Para testar a hipótese
+linguística que motivou a estratificação (PT-BR tokeniza pior que inglês), é o
+alvo **errado** — a mobília domina e o contraste some.
+
+**Fit for purpose, unfit for the hypothesis.** O experimento segue válido para
+o que a Fase 3 precisa. Não segue válido para a pergunta linguística, e o §3
+apresentava as duas como se fossem a mesma.
+
+**Não se corrige aqui.** Um classificador que medisse só o turno do usuário em
+vez do payload inteiro resolveria — e é mudança de instrumento sobre desenho
+congelado. Remédio: Fase 2b, com dado novo.
+
+**`codigo` continua alcançável**: dispara com `cercas >= 2`, e nenhum dos 17
+turnos teve bloco de código. Depende de uso real produzir. **Preencher esse
+estrato de propósito violaria o §5** — o desenho é observacional, "nenhuma
+condição é manipulada". Se o uso natural não gerar código, `codigo` sai
+INDETERMINADO por falta de dado, e isso é o resultado honesto.
