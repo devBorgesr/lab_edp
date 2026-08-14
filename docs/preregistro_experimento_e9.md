@@ -255,10 +255,12 @@ custo_saida  = eval_duration / eval_count
 total_duration, load_duration
 ```
 
-**Agregação:** mediana por condição, com **IC bootstrap percentil 95%**,
-`B = N_BOOTSTRAP` reamostragens, `SEED` congelada. Mediana e não média porque
-tempo de execução tem cauda direita pesada (uma preempção do SO cria outlier
-que a média absorve e a mediana ignora).
+**Agregação — ver emenda E-2, que substitui a mediana pela razão agregada.**
+
+~~Mediana por condição, com IC bootstrap percentil 95%, `B = N_BOOTSTRAP`
+reamostragens, `SEED` congelada. Mediana e não média porque tempo de execução
+tem cauda direita pesada (uma preempção do SO cria outlier que a média absorve
+e a mediana ignora).~~
 
 **Verificação de cobertura antes de confiar no IC:** ver §3.4. Roda-se
 `bancada/cobertura.py` no `n` proposto; cobertura medida `< COBERTURA_MINIMA`
@@ -291,7 +293,7 @@ que a média absorve e a mediana ignora).
 | `N_REPETICOES` | `30` |
 | `N_AQUECIMENTO` | `5` |
 | `FATOR_CARGA` | `2` |
-| `TOLERANCIA_CARGA` | `[1.8, 2.2]` |
+| `TOLERANCIA_CARGA` | `(1.8, 2.2)` |
 | `TEMPERATURA` | `0` |
 | `NUM_PREDICT` | `64` |
 | `SEED` | `20260814` |
@@ -300,8 +302,11 @@ que a média absorve e a mediana ignora).
 | `COBERTURA_MINIMA` | `0.90` |
 | `LOAD_DURATION_MAX_FRAC` | `0.01` |
 | condições | `base_A`, `base_B`, `dobro` |
-| `MODELO` | **emenda E-1** |
-| `TOPOLOGIA` | **emenda E-1** |
+| `MODELO` | `"llama3.2:1b"` *(E-1)* |
+| `TOPOLOGIA` | `"windows_local"` *(E-1)* |
+| `CONTENCAO_DECLARADA` | `False` *(E-1)* |
+| `FATOR_OUTLIER` | `5.0` *(E-2)* |
+| `MAX_DESCARTE_FRAC` | `0.05` *(E-2)* |
 
 **CONGELADO ao primeiro disparo real. Mudou a régua → é o E10, não o E9.**
 
@@ -310,6 +315,89 @@ tabela ↔ módulo e quebra o build se divergirem sem desvio declarado em
 `§N-bis`. Este experimento nasce sob esse gate — o desvio silencioso de
 `POOL_SIZE` no exp008 (50 congelado, 100 rodando, dois meses sem nota) é o
 precedente que ele existe para não repetir.
+
+---
+
+## §11-bis. Emendas PRÉ-DADO
+
+Todas datadas e anteriores ao primeiro disparo real. Nenhuma amostra existia
+quando qualquer uma foi escrita — verificável por `git log`.
+
+### Emenda E-1 — topologia e modelo congelados · 2026-08-14
+
+Decisão do pesquisador, tomada sobre as duas opções do §7-bis:
+
+| constante | valor congelado |
+|---|---|
+| `TOPOLOGIA` | **B — harness no Windows, junto do motor** |
+| `MODELO` | `llama3.2:1b` (quantização padrão do Ollama, Q4) |
+| `MODELO_DIGEST` | fixado na 1ª execução, verificado em toda execução seguinte |
+
+Consequências que entram no desenho por causa da escolha:
+
+- **`CONTENCAO_DECLARADA = False`.** A topologia B tira a fronteira de VM do
+  meio; o medidor e o medido rodam no mesmo SO, sem disputa de silício
+  atravessando hipervisor.
+- **Segunda régua habilitada.** `psutil` lê o tempo de CPU do processo
+  `ollama` antes e depois de cada requisição. Isso dá uma medida
+  **independente** da que o motor reporta. Se as duas discordarem
+  sistematicamente, há artefato — e a topologia A não conseguiria nem
+  enxergar isso. Se `psutil` não estiver disponível, o harness roda com uma
+  régua só e **grava `regua_secundaria: false`** em cada amostra, para o
+  relatório não poder omitir.
+- **Porte 1B escolhido por poder estatístico, não por representatividade.** O
+  E9 valida a régua, não a qualidade da resposta — o modelo é carga de
+  trabalho, não sujeito. Velocidade compra repetição, e repetição aperta o IC,
+  que é a única coisa que o E9 mede. O limite disso está no §12.
+- **O digest pina os pesos, não a tag.** Tag de Ollama pode ser reempurrada
+  apontando para outro blob. Congelar `llama3.2:1b` sem digest congelaria um
+  nome, não um modelo.
+
+### Emenda E-2 — estimador trocado para razão agregada · 2026-08-14
+
+O §9 original pedia **mediana** dos custos unitários. Substituído por
+**razão agregada** `Σ prompt_eval_duration / Σ prompt_eval_count`, com IC por
+`bancada.cobertura.ic_bootstrap_percentil`.
+
+**Motivo, e ele não é de conveniência:** o §3.4 exige que o IC usado como
+critério tenha cobertura verificada. A única cobertura que este lab mediu é a
+do bootstrap percentil **sobre estimador de razão reamostrando pares**
+(`df5e055`). Um IC de mediana teria cobertura desconhecida, e o §3.4 seria
+violado pela própria régua que ele governa.
+
+Ganho adicional, já argumentado no docstring de `razao_agregada`: média de
+razões pondera igual uma requisição minúscula e uma enorme, e é justamente na
+minúscula que custo fixo por requisição domina — que é exatamente o efeito
+que o §7 prevê. A razão agregada pondera por tokens, que é o que se quer
+quando o denominador é um custo.
+
+**Preço declarado:** a razão agregada é menos robusta a outlier que a mediana.
+Uma preempção do SO num prompt longo entra com peso. Mitigação congelada
+**agora, antes do dado**: descarte de requisições com
+`total_duration > MEDIANA_CONDICAO × FATOR_OUTLIER`, com a contagem de
+descartes **reportada obrigatoriamente** por condição. Descarte que não é
+reportado é maquiagem; descarte declarado e contado é higiene.
+
+| constante nova | valor |
+|---|---|
+| `FATOR_OUTLIER` | `5.0` |
+| `MAX_DESCARTE_FRAC` | `0.05` — acima disso a condição é declarada instável e nada é afirmado |
+
+### Emenda E-3 — o preenchimento é calibrado pelo motor, não estimado · 2026-08-14
+
+O §5 pedia preenchimento "até ≈ 2× tokens". Faltava dizer **como se sabe** que
+chegou a 2× sem assumir uma razão caractere→token.
+
+Congelado: o harness pergunta ao **próprio motor**. Uma requisição com
+`num_predict = 1` devolve `prompt_eval_count` sem gerar texto relevante; o
+preenchimento cresce frase a frase até o contador cair na faixa
+`TOLERANCIA_CARGA`. O número de frases por prompt é então fixado e **impresso
+na prova-no-espelho**.
+
+Isto não é detalhe: assumir `4 chars ≈ 1 token` para dimensionar o
+preenchimento seria usar, dentro do experimento, exatamente a constante
+não-calibrada que a Fase 2 existe para medir. O motor é o tokenizador; usá-lo
+como tal é medição, estimá-lo é o erro que este projeto está corrigindo.
 
 ---
 
