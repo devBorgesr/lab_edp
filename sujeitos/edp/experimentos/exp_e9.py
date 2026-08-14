@@ -222,21 +222,60 @@ def tokens_do_prompt(texto: str) -> int:
 
 def calibrar_preenchimento(prompt: str, rng: random.Random) -> tuple[str, int, float]:
     """
-    Cresce o preenchimento frase a frase ate prompt_eval_count cair na faixa.
+    Cresce o preenchimento ate prompt_eval_count cair DENTRO da faixa (E-4).
 
-    Devolve (texto_preenchido, n_frases, razao_atingida).
+    Duas granularidades, e a segunda existe por causa de um defeito que a
+    prova-no-espelho de 14/08 expos: a versao anterior so checava o PISO.
+    Cruzava 1.8x e retornava, mesmo passando de 2.2x — um prompt saiu em
+    2.22x, fora da tolerancia declarada.
+
+    Nao e cosmetico. A metrica primaria e custo POR TOKEN e o custo por token
+    cresce com o comprimento do prompt (atencao e superlinear). Prompt de
+    `dobro` mais longo que o declarado infla o custo unitario de `dobro` —
+    vies na direcao da hipotese H1. Pequeno, e do tipo que se corrige antes do
+    dado.
+
+    Passo grosso (frase inteira) para chegar perto com poucas chamadas ao
+    motor; passo fino (palavra a palavra) so quando o grosso estourou o teto.
+
+    Devolve (texto_preenchido, n_palavras, razao_atingida).
     """
     base = tokens_do_prompt(prompt)
     if base <= 0:
         raise RuntimeError(f"motor devolveu prompt_eval_count invalido para: {prompt!r}")
-    alvo_lo, alvo_hi = TOLERANCIA_CARGA
-    frases: list[str] = []
-    for _ in range(400):                       # teto de seguranca
-        razao = tokens_do_prompt(prompt + " " + " ".join(frases)) / base if frases else 1.0
-        if razao >= alvo_lo:
-            return (prompt + " " + " ".join(frases), len(frases), razao)
-        frases.append(_frase_de_preenchimento(rng))
-    raise RuntimeError(f"preenchimento nao atingiu {alvo_lo}x em 400 frases")
+    lo, hi = TOLERANCIA_CARGA
+
+    def _razao(palavras: list) -> float:
+        if not palavras:
+            return 1.0
+        return tokens_do_prompt(prompt + " " + " ".join(palavras)) / base
+
+    # ── passo grosso: frase por frase ate cruzar o piso ──────────────────
+    grosso: list[str] = []
+    antes_da_ultima: list[str] = []
+    razao = 1.0
+    for _ in range(200):                        # teto de seguranca
+        if razao >= lo:
+            break
+        antes_da_ultima = list(grosso)
+        grosso.extend(_frase_de_preenchimento(rng).split())
+        razao = _razao(grosso)
+    else:
+        raise RuntimeError(f"preenchimento nao atingiu {lo}x em 200 frases")
+
+    if razao <= hi:
+        return (prompt + " " + " ".join(grosso), len(grosso), razao)
+
+    # ── passo fino: desfaz a ultima frase, recoloca palavra a palavra ────
+    ultima = grosso[len(antes_da_ultima):]
+    fino = list(antes_da_ultima)
+    razao = _razao(fino)
+    for palavra in ultima:
+        fino.append(palavra)
+        razao = _razao(fino)
+        if razao >= lo:
+            break
+    return (prompt + " " + " ".join(fino), len(fino), razao)
 
 
 # ── Plano de execucao ────────────────────────────────────────────────────────
@@ -286,10 +325,12 @@ def run_e9(dry_run: bool = True) -> ResultadoE9:
     # Calibragem do preenchimento (E-3) -- impressa para revisao humana.
     preenchidos: list[str] = []
     for p in PROMPTS:
-        texto, n_frases, razao = calibrar_preenchimento(p, rng)
+        texto, n_palavras, razao = calibrar_preenchimento(p, rng)
         preenchidos.append(texto)
-        res.calibragem.append({"prompt": p[:48], "n_frases": n_frases,
-                               "razao": round(razao, 3)})
+        lo, hi = TOLERANCIA_CARGA
+        res.calibragem.append({"prompt": p[:48], "n_palavras": n_palavras,
+                               "razao": round(razao, 3),
+                               "na_faixa": lo <= razao <= hi})
 
     if dry_run:
         # A prova-no-espelho exercita o encanamento inteiro com UMA repeticao
@@ -412,9 +453,14 @@ def _imprimir(res: ResultadoE9, veredito: Optional[dict] = None) -> None:
     print(f"  regua secundaria: {'psutil ATIVA' if seg else 'AUSENTE (psutil nao instalado)'}")
     print(f"  amostras        : {len(res.amostras)}")
 
-    print("\n  calibragem do preenchimento (E-3 — motor como tokenizador):")
+    fora = [c for c in res.calibragem if not c["na_faixa"]]
+    print(f"\n  calibragem do preenchimento (E-3/E-4 — motor como tokenizador)"
+          f"  faixa={TOLERANCIA_CARGA}:")
     for c in res.calibragem:
-        print(f"    {c['razao']:>5.2f}x  {c['n_frases']:>3} frases  | {c['prompt']}")
+        marca = "  " if c["na_faixa"] else " <-- FORA DA FAIXA"
+        print(f"    {c['razao']:>5.2f}x  {c['n_palavras']:>3} palavras  | {c['prompt']}{marca}")
+    if fora:
+        print(f"\n    {len(fora)} de {len(res.calibragem)} FORA da faixa declarada.")
 
     if veredito:
         print("\n  " + "-" * 64)
@@ -436,7 +482,13 @@ def _imprimir(res: ResultadoE9, veredito: Optional[dict] = None) -> None:
             print(f"    razao medida      : {veredito['razao_medida']:.2f}x "
                   f"(descritivo — NAO e criterio, §6)")
     print("=" * 68)
-    if res.dry_run:
+    if res.dry_run and fora:
+        # "OK" impresso sobre calibragem fora da faixa e o mesmo defeito do
+        # relatorio do exp008, que dizia "retrieve REAL chamado" depois de
+        # abortar antes de chamar. Nao repetir.
+        print("  Prova-no-espelho INCOMPLETA: calibragem fora da faixa declarada.")
+        print("  NAO arme. O §6.2 reprovaria a sanidade de carga.")
+    elif res.dry_run:
         print("  Prova-no-espelho OK. Disparo REAL: EDP_LAB_ARMED=1 sem --dry-run.")
 
 
