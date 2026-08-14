@@ -399,6 +399,37 @@ preenchimento seria usar, dentro do experimento, exatamente a constante
 não-calibrada que a Fase 2 existe para medir. O motor é o tokenizador; usá-lo
 como tal é medição, estimá-lo é o erro que este projeto está corrigindo.
 
+### Emenda E-4 — o calibrador ganha guarda superior · 2026-08-14
+
+**Achado pela prova-no-espelho, antes de armar.** A primeira execução do
+dry-run (12 prompts, motor real, `llama3.2:1b` digest `baf6a787fdffd633`)
+devolveu razões de **1,81× a 2,22×** — e o teto declarado é 2,2×.
+
+Causa: o calibrador da E-3 só checava o **piso**. Cruzava `1,8×` e retornava,
+mesmo passando de `2,2×`. Faltava a guarda superior.
+
+**Por que não é cosmético.** A métrica primária é custo **por token**, e o
+custo por token cresce com o comprimento do prompt — atenção é superlinear.
+Um prompt de `dobro` mais longo que o declarado infla o custo unitário de
+`dobro`, ou seja, **enviesa na direção da H1**. Efeito pequeno; direção
+favorável à minha própria hipótese. Corrigir antes do dado é obrigatório;
+depois seria escolher a régua com o resultado na mão.
+
+**Correção congelada:** duas granularidades. Passo grosso por frase até cruzar
+o piso, com poucas chamadas ao motor. Se o grosso estourar o teto, desfaz a
+última frase e recoloca **palavra a palavra**, o que limita a ultrapassagem a
+uma palavra. Nenhuma constante do §11 muda — muda o algoritmo que as atinge.
+
+**E a prova-no-espelho passa a recusar o "OK".** Se qualquer prompt sair da
+faixa, imprime `INCOMPLETA` e manda não armar. Imprimir "OK" sobre calibragem
+fora da faixa seria o mesmo defeito do relatório do exp008, que afirmava
+"retrieve REAL chamado" depois de abortar antes de chamar.
+
+**Predição do arquiteto refutada, registrada.** No turno anterior previ que o
+preenchimento estouraria para 3–4× nos prompts curtos, por superestimar o
+custo em tokens do léxico. Veio 1,81–2,22×, média 2,01. A predição era pré-dado
+e existia para poder ser refutada — foi.
+
 ---
 
 ## §12. Honestidade de escopo — o que o E9 NÃO autoriza concluir
