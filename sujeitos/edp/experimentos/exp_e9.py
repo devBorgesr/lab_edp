@@ -474,7 +474,16 @@ def _imprimir(res: ResultadoE9, veredito: Optional[dict] = None) -> None:
                   f"IC[{lo/1e6:.3f}, {hi/1e6:.3f}]")
         print(f"\n    controle negativo : {'OK (sobrepoe)' if veredito.get('controle_negativo_ok') else 'FALHOU'}")
         if "razao_carga" in veredito:
-            print(f"    carga atingida    : {veredito['razao_carga']:.2f}x")
+            print(f"    carga atingida    : {veredito['razao_carga']:.2f}x  "
+                  f"(faixa {TOLERANCIA_CARGA})")
+        # Reprovar por cheque numerico sem mostrar o numero e inauditavel.
+        if "load_frac_mediana" in veredito:
+            print(f"    load_duration     : {veredito['load_frac_mediana']*100:.3f}% "
+                  f"do total  (teto {LOAD_DURATION_MAX_FRAC*100:.1f}%)")
+        if veredito.get("descartes"):
+            desc = ", ".join(f"{c}={i['frac']*100:.1f}%"
+                             for c, i in veredito["descartes"].items())
+            print(f"    descarte outlier  : {desc}  (teto {MAX_DESCARTE_FRAC*100:.0f}%)")
         print(f"\n    VEREDITO          : {veredito['veredito']}")
         if veredito.get("motivo"):
             print(f"    motivo            : {veredito['motivo']}")
@@ -492,13 +501,61 @@ def _imprimir(res: ResultadoE9, veredito: Optional[dict] = None) -> None:
         print("  Prova-no-espelho OK. Disparo REAL: EDP_LAB_ARMED=1 sem --dry-run.")
 
 
+def _diagnostico_load(amostras: list) -> None:
+    """
+    Descritivo do `load_duration`. NAO altera criterio nenhum.
+
+    Existe porque o E9 reprovou no cheque de recarga sem que ninguem pudesse
+    ver o numero. Distingue as duas historias que o cheque confunde:
+      (a) o modelo REALMENTE recarregou algumas vezes -> poucas amostras com
+          load_duration enorme, o resto perto de zero (cauda);
+      (b) o motor reporta setup fixo em TODA requisicao -> load_duration
+          pequeno e uniforme, e o teto de 1% e que era apertado demais.
+    A forma da distribuicao separa as duas. O criterio congelado nao muda.
+    """
+    vivos = [a for a in amostras if not a.get("dry_run")]
+    fracs = sorted((a.get("load_duration") or 0) / (a.get("total_duration") or 1)
+                   for a in vivos)
+    if not fracs:
+        return
+    n = len(fracs)
+    def _p(q): return fracs[min(n - 1, int(q * n))]
+    print("\n  diagnostico de load_duration (DESCRITIVO — nao muda criterio):")
+    print(f"    n={n}  min={_p(0)*100:.4f}%  p50={_p(.50)*100:.4f}%  "
+          f"p90={_p(.90)*100:.4f}%  p99={_p(.99)*100:.4f}%  max={fracs[-1]*100:.4f}%")
+    acima = sum(1 for f in fracs if f >= LOAD_DURATION_MAX_FRAC)
+    print(f"    acima do teto de {LOAD_DURATION_MAX_FRAC*100:.1f}%: {acima}/{n} "
+          f"({acima/n*100:.1f}%)")
+    if _p(.50) >= LOAD_DURATION_MAX_FRAC and _p(.90) < _p(.99) * 0.5:
+        forma = "CAUDA — poucas recargas reais no meio da rodada"
+    elif _p(.50) >= LOAD_DURATION_MAX_FRAC:
+        forma = "UNIFORME — setup fixo por requisicao, o teto e que era apertado"
+    else:
+        forma = "abaixo do teto na mediana"
+    print(f"    forma da distribuicao: {forma}")
+    print("    (qual das duas historias vale decide se cabe E9b — e E9b exige "
+          "pre-registro proprio, nao ajuste deste criterio)")
+
+
 def main(argv: Optional[list] = None) -> int:
     p = argparse.ArgumentParser(description="Experimento E9 — validacao de instrumento")
     p.add_argument("--dry-run", action="store_true",
                    help="prova-no-espelho: encanamento + motor REAL, sem armar")
     p.add_argument("--saida", default="e9_amostras.jsonl",
                    help="onde gravar as amostras cruas")
+    p.add_argument("--score", metavar="ARQUIVO", default=None,
+                   help="re-pontua a partir do JSONL salvo, sem re-rodar. "
+                        "Leitura pura: aplica o MESMO criterio congelado do §6.")
     args = p.parse_args(argv)
+
+    if args.score:
+        amostras = [json.loads(l) for l in
+                    Path(args.score).read_text(encoding="utf-8").splitlines() if l.strip()]
+        res = ResultadoE9(dry_run=False, armed=True, amostras=amostras)
+        res.digest = next((a.get("digest", "") for a in amostras if a.get("digest")), "")
+        _imprimir(res, score_e9(amostras))
+        _diagnostico_load(amostras)
+        return 0
 
     try:
         res = run_e9(dry_run=args.dry_run)
