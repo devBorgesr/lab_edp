@@ -432,6 +432,80 @@ e existia para poder ser refutada — foi.
 
 ---
 
+## §13. Disparo real de 2026-08-14 — resultado e o que ele NÃO autoriza
+
+Primeiro disparo real. `EDP_LAB_ARMED=1`, `llama3.2:1b`, digest
+`baf6a787fdffd633`, topologia `windows_local`, régua secundária `psutil`
+ativa. 1080 amostras, 360 por condição.
+
+| condição | n | custo de entrada | IC 95% |
+|---|---|---|---|
+| `base_A` | 360 | 55,197 ms/token | [53,418 · 56,957] |
+| `base_B` | 360 | 55,749 ms/token | [53,844 · 57,632] |
+| `dobro`  | 360 | 82,916 ms/token | [81,032 · 84,667] |
+
+**VEREDITO: `SANIDADE FALHOU (recarga de modelo)` — §6.3.**
+
+**H1 não é afirmada.** A cascata do §6 para no primeiro cheque que falha, e o
+passo confirmatório (§6.4) **nunca rodou**. Isto é o resultado do E9, e é o que
+vale.
+
+### O que passou, e é achado por si
+
+- **Controle negativo OK.** Os ICs de `base_A` e `base_B` — condições
+  byte-idênticas — se sobrepõem. Deriva térmica, contenção e carga de fundo
+  **não** contaminaram a rodada. Era a parte difícil e passou.
+- **Carga em 1,99×**, centro da faixa `(1.8, 2.2)`. A emenda E-4 funcionou.
+
+### O defeito está no critério, e é meu
+
+`LOAD_DURATION_MAX_FRAC = 0.01` foi escolhido **sem medição** — constante
+Tier A, congelada no critério de um experimento cuja razão de existir é parar
+de usar constante não-calibrada. A ironia fica registrada, não escondida.
+
+### O que NÃO é permitido fazer com este resultado
+
+Os ICs de `dobro` e `base_A` estão separados por margem larga. Isso **não é**
+H1 confirmada, e tratá-lo como tal seria abandonar o critério assim que ele
+contrariou o resultado desejado.
+
+**Proibido explicitamente:** afrouxar `LOAD_DURATION_MAX_FRAC` e repontuar
+estas mesmas amostras. Baixar um limiar depois de ver que ele bloqueou a
+própria hipótese é escolher a régua com o dado na mão. Se o diagnóstico
+mostrar que o cheque media a coisa errada, o caminho é **E9b, pré-registrado
+antes de nova coleta** — não reinterpretação desta.
+
+### Predição do arquiteto — pontuada, com ressalva
+
+O §7 previu razão medida entre 1,5× e 1,9×. Medido: **1,50×**
+(82,916 / 55,197) — dentro, na borda inferior. É campo **descritivo e
+explicitamente não-critério** (§6), e a rodada não satisfez o critério, então
+a pontuação é provisória.
+
+---
+
+## §13-bis. Mudança PÓS-DISPARO no harness — declarada
+
+O §2 congela `exp_e9.py` no primeiro disparo real. As mudanças abaixo entraram
+**depois** dele e ficam declaradas aqui em vez de silenciosas.
+
+| mudança | altera critério? |
+|---|---|
+| `--score ARQUIVO` — repontua a partir do JSONL salvo | **não** — aplica o mesmo §6, leitura pura |
+| imprime `load_duration` %, carga e descarte junto do veredito | **não** — mostra números que o critério já usava |
+| `_diagnostico_load()` — percentis da distribuição | **não** — descritivo |
+
+**Nenhuma constante do §11 mudou** — o gate
+`tests/test_preregistro_espelha_harness.py` verifica isso a cada build.
+
+Motivo da primeira e da segunda: o E9 **reprovou num cheque numérico sem
+imprimir o número**. Relatório que falha sem mostrar a medida é inauditável —
+é o mesmo defeito do exp008, que afirmava "retrieve REAL chamado" depois de
+abortar antes de chamar. Corrigir isso aumenta a auditabilidade do resultado;
+não muda o resultado.
+
+---
+
 ## §12. Honestidade de escopo — o que o E9 NÃO autoriza concluir
 
 - **Nada sobre joule ou watt.** Ver §3.1. Tempo de computação é proxy
