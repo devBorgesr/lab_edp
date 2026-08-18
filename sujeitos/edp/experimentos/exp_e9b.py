@@ -504,7 +504,17 @@ def main(argv: Optional[list] = None) -> int:
 
     try:
         res = run_e9b(dry_run=args.dry_run)
-    except (RuntimeError, urllib.error.URLError, OSError) as e:
+    except (urllib.error.URLError, ConnectionError) as e:
+        # WinError 10061 / ECONNREFUSED chega como urlopen error cru, que nao
+        # diz o que fazer. O motor cair entre rodadas e o caso comum.
+        print(f"\n[RECUSADO] o motor nao respondeu em {OLLAMA}")
+        print(f"           {e}")
+        print("\n  O servidor do Ollama esta rodando?")
+        print("    ollama list      # se falhar tambem, o servidor esta fora")
+        print("    ollama serve     # sobe o servidor (ocupa a janela)")
+        print(f"\n  Se o Ollama escuta em outro endereco: E9_OLLAMA=<url>")
+        return 1
+    except (RuntimeError, OSError) as e:
         print(f"\n[RECUSADO/ERRO] {e}")
         return 1
 
