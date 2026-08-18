@@ -171,3 +171,91 @@ memória, outro hardware, qualidade de resposta, transferência para Q4):
 - **Nada sobre `eval` (geração).** Com `NUM_PREDICT=1` a métrica secundária
   `custo_saida` passa a ser medida sobre um único token e **não deve ser
   reportada** como característica de geração.
+
+---
+
+## §13. Resultado do disparo real — 2026-08-18
+
+`EDP_LAB_ARMED=1`, 1440 amostras, 360 por condição, 4,5 s/req (~1,8 h).
+`llama3.2:1b` Q8_0, digest `baf6a787fdffd633`, régua secundária `psutil` ativa.
+
+| condição | n | custo unitário | `R` = custo / custo(`base_A`) |
+|---|---|---|---|
+| `base_A` | 360 | 49,146 ms/token | referência |
+| `base_B` | 360 | 49,213 ms/token | [0,9608 · 1,0450] |
+| `meio`   | 360 | 63,703 ms/token | [1,2455 · 1,3487] |
+| `dobro`  | 360 | 72,497 ms/token | [1,4226 · 1,5321] |
+
+### A cascata inteira, na ordem congelada
+
+| # | cheque | medido |
+|---|---|---|
+| 6.1 | controle negativo (equivalência) | IC [0,9608 · 1,0450] ⊂ [0,90 · 1,10] **ok** |
+| 6.3 | recarga por forma | **0/1440** acima de 5,0× a mediana **ok** |
+| 6.2 | `load_duration` comum | IC [0,9999 · **1,0037**] **ok** |
+| 6.4 | carga `meio` / `dobro` | 1,51× / 1,99× **ok** |
+| 6.4b | descarte de outlier | 0,0% nas quatro **ok** |
+| 6.5 | **H1** | IC(R dobro) exclui 1,0 **CONFIRMADA** |
+| 6.6 | **H2** dose-resposta | 1,3487 < 1,4226 **CONFIRMADA** |
+
+> **VEREDITO: `H1 E H2 CONFIRMADAS`.**
+
+### O que passou merece leitura separada
+
+**O controle negativo passou com resolução, não por largura.** IC de amplitude
+0,084 contra margem de 0,20 — sobra de 2,4×. Duas condições byte-idênticas
+medindo a 0,14% uma da outra. Era a peça que a emenda E9b-6 quase tornou
+impossível, e é a que sustenta tudo o mais.
+
+**O `load_duration` é comum a 0,4%.** IC [0,9999 · 1,0037] é praticamente a
+identidade. Confirma, com o cheque certo, o que o E9 diagnosticou com o cheque
+errado: overhead fixo por requisição, idêntico entre condições, fora do
+estimador. O §6.3 do E9 media a grandeza errada.
+
+**A dose-resposta é suave, não um salto.** Cargas 1,00 → 1,51 → 1,99 dão
+custos 1,000 → ~1,29 → 1,475, com ICs disjuntos e monotônicos. Era exatamente
+a pergunta do §3.3 do E9b, que o E9 não podia responder com dois pontos.
+
+### Predições do §7 — pontuadas
+
+Todas as sete se sustentaram, incluindo o par que existia para refutar a
+justificativa do E9c: **o absoluto caiu** (55,197 → 49,146 ms/token, −11%, com
+a máquina aquietada) **e a razão se preservou** (1,502 → 1,475, deslocamento de
+1,8%, muito dentro da amplitude do IC). `NUM_PREDICT` é neutro para a métrica,
+como o §3 afirmou antes de medir.
+
+Duas notas contra mim:
+
+- **Confiança calibrada errado em H2.** Declarei "média-baixa" e ela separou
+  com folga de 0,074. Subestimei.
+- **Estimativa de tempo errada de novo.** Previ ~45 min; foram ~1,8 h. Calculei
+  o `prompt_eval` só da `base` em vez da média entre condições, onde `dobro`
+  custa 3× a base. Erro na direção inofensiva, mas é o terceiro palpite de
+  tempo meu que não bate.
+
+### Interpretação mecanística — pós-dado, explicitamente NÃO critério
+
+Custo **por token** subindo com o comprimento é a assinatura do termo
+quadrático da atenção. Se o custo fosse linear em tokens (dominado por FFN), o
+custo unitário seria constante e `R` daria 1,0. Um modelo `T(N) = αN + βN²`
+com `βN_base ≈ 0,9α` prevê `R(meio) ≈ 1,24` e `R(dobro) ≈ 1,47` — próximo do
+observado (1,29 e 1,475).
+
+Isto é coerência, não evidência: o desenho não foi feito para estimar α e β, e
+nenhum critério depende deste ajuste.
+
+### O que este resultado NÃO autoriza
+
+Vale o §12 inteiro, sem atenuação. Em especial:
+
+- **A alegação é a estreita.** *"O instrumento resolve 2× numa rodada de ~1,8 h
+  em máquina aquietada, com VM desligada e plano de energia em desempenho
+  máximo."* Não sob rodada longa nem máquina em uso — condições que o E9b teria
+  testado e que esta versão evitou de propósito (§4).
+- **Piso de artefato 10%.** Com `DELTA_EQUIV = 0.10`, o instrumento sustenta
+  efeitos a partir de ~20%. Se o efeito de memória do E10/E12 vier abaixo
+  disso, o caminho é `n = 720` (potência 97,2% com margem 0,07, medido na
+  emenda E9b-6) — **não** afrouxar a margem.
+- **Nada sobre geração.** Com `NUM_PREDICT = 1`, `custo_saida` é medido sobre
+  um único token e não deve ser reportado.
+- **Nada sobre memória.** Não existe condição com memória, de propósito.
