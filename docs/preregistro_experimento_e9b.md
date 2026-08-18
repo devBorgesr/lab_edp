@@ -174,7 +174,7 @@ de `R(meio)` < limite inferior de `R(dobro)`.
 
 ### 6.7 Ordem
 
-6.1 → 6.2 → 6.3 → 6.4 → 6.5 → 6.6. **Para no primeiro que falhar.**
+6.1 → **6.3** → **6.2** → 6.4 → 6.5 → 6.6. **Para no primeiro que falhar.** A inversão de 6.2/6.3 é a emenda E9b-5.
 
 ### 6.8 Descritivo, explicitamente NÃO critério
 
@@ -286,7 +286,7 @@ durante a inferência, registro bruto dos seis campos por requisição.
 | `N_AQUECIMENTO` | `5` |
 | `TOLERANCIA_CARGA` | `(1.8, 2.2)` |
 | `TOLERANCIA_MEIO` | `(1.35, 1.65)` |
-| `DELTA_EQUIV` | `0.07` *(E9b-1)* |
+| `DELTA_EQUIV` | `0.10` *(E9b-6)* |
 | `TEMPERATURA` | `0` |
 | `NUM_PREDICT` | `64` |
 | `SEED` | `20260814` |
@@ -361,11 +361,89 @@ inteira e vale escrevê-la:
 
 O primeiro salva a hipótese; o segundo salva o experimento de não medir nada.
 
-### E9b-2 — segunda constante Tier A minha a falhar, e isso é o padrão
+### E9b-3 — `load_duration` agregado por MÉDIA, não mediana · 2026-08-14
 
-`LOAD_DURATION_MAX_FRAC = 0.01` (E9) e `DELTA_EQUIV = 0.02` (E9b) foram ambas
-escolhidas por plausibilidade, sem medição, e ambas estavam erradas — a
-primeira por ~6×, a segunda por ~2,3×.
+O §6.2 pedia razão de **medianas**. A encarnação usa **média**, via pares
+`(load_duration, 1.0)` no mesmo `ic_bootstrap_razao_de_razoes`.
+
+Motivo: o §3.4 exige IC com cobertura **verificada**, e a cobertura medida
+(§9) é a do estimador `Σa/Σb`. Um IC de razão de medianas teria cobertura
+desconhecida — o mesmo defeito que este pré-registro acabou de corrigir na
+margem de equivalência. Trocar rigor de cobertura por robustez a outlier seria
+piorar o que se está consertando.
+
+A cauda é tratada onde tem instrumento próprio: o §6.3 detecta recarga real
+por forma, contra a distribuição do próprio `load_duration`.
+
+### E9b-4 — preenchimento ANINHADO entre os degraus · 2026-08-14
+
+O §5 não dizia se o texto de `dobro` estenderia o de `meio` ou seria
+independente. Congelado: **estende**. `calibrar_escada()` faz um crescimento
+só e captura em dois pontos.
+
+Aninhar remove o conteúdo do preenchimento como variável entre os degraus — o
+que muda de `meio` para `dobro` passa a ser **só comprimento**, que é
+exatamente a variável da dose-resposta do §6.6. Com preenchimentos
+independentes, um salto entre degraus poderia vir do texto e não do tamanho.
+
+### E9b-5 — a ordem 6.2/6.3 estava invertida · 2026-08-14
+
+**Achado por teste sintético, antes da coleta.** O §6.2 compara **médias** de
+`load_duration` entre condições. Recarga é exatamente o que desestabiliza
+média: a distribuição vira bimodal e o IC da razão explode.
+
+Consequência: com recargas presentes, o 6.2 reprovava **antes** do 6.3, com
+mensagem enganosa — "`load_duration` difere entre condições" quando o que
+havia era recarga em todas elas.
+
+Não se pergunta "o overhead é comum?" com a distribuição de overhead
+contaminada. **Nova ordem: 6.1 → 6.3 → 6.2 → 6.4 → 6.5 → 6.6.**
+
+### E9b-6 — `DELTA_EQUIV` de novo, e o erro foi de raciocínio · 2026-08-14
+
+A emenda E9b-1 corrigiu `0.02 → 0.07` mostrando que o IC (largura 0,0937) não
+cabia na margem (0,040). **Mas "cabe" não é "passa".**
+
+O IC precisa caber **e estar centrado**, e o centro é aleatório. A potência do
+teste de equivalência, medida:
+
+| `DELTA_EQUIV` | potência do controle (analítica) | empírica |
+|---|---|---|
+| 0,05 | 10,5% | — |
+| **0,07** | **66,7%** | **60,7%** |
+| 0,09 | 92,9% | — |
+| **0,10** | **97,4%** | **95,3%** |
+
+Com `0.07`, **um terço das rodadas limpas declararia `INSTRUMENTO INVÁLIDO`** —
+reprovação por sorte, não por artefato. O controle negativo perderia o
+sentido: falharia tanto quando há problema quanto quando não há.
+
+**Novo valor: `DELTA_EQUIV = 0.10`.** É o único que satisfaz as duas
+fronteiras ao mesmo tempo — potência ≥ 95% **e** dentro do teto de utilidade
+(`≤ 1/5` do efeito de ~50%). Ele fica **exatamente na borda**, e isso é o
+achado: em n=360 este instrumento mal sustenta um teste de equivalência que
+seja válido e potente ao mesmo tempo.
+
+**Alternativa declarada, não escolhida:** `n=720` por condição daria potência
+de ~97% com `DELTA_EQUIV = 0.07` — piso de artefato 7% em vez de 10%. Custa
+2880 requisições (~6h em vez de ~3h). Fica registrada porque **se o efeito de
+memória no E10/E12 vier abaixo de ~20%, é para lá que se vai** — não para
+afrouxar a margem.
+
+**Custo desta escolha, dito alto:** piso de artefato 10%; o instrumento
+resolve efeitos a partir de ~20%.
+
+### E9b-2 — terceira constante Tier A minha a falhar, e isso é o padrão
+
+`LOAD_DURATION_MAX_FRAC = 0.01` (E9), `DELTA_EQUIV = 0.02` e depois
+`DELTA_EQUIV = 0.07` (E9b) foram todas escolhidas sem medir a consequência, e
+todas estavam erradas — por ~6×, por ~2,3×, e por potência (67% onde precisava
+de 95%).
+
+A terceira é a mais instrutiva porque **eu já estava corrigindo a segunda**:
+computei a largura do IC, comparei com a margem, declarei viável. O que faltou
+não foi medir — foi perceber que **caber não é passar**, porque o centro do IC
+é aleatório. Erro de raciocínio dentro de um passo de rigor.
 
 Fica registrado como achado sobre o **método**, não sobre o Ollama: num
 experimento cuja razão de existir é parar de usar constante não-calibrada, eu
