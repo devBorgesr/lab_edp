@@ -42,6 +42,7 @@ PARES = [
     # auto-ativa quando o harness aterrissar; ate la o par e ignorado por
     # nao existir o .py, o que e melhor que esquecer de registra-lo depois.
     ("preregistro_experimento_e9b.md", "exp_e9b.py"),
+    ("preregistro_experimento_e9c.md", "exp_e9c.py"),
 ]
 
 
