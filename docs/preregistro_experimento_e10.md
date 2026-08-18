@@ -129,13 +129,30 @@ A regra é impressa na prova-no-espelho para revisão humana antes de armar.
 
 | rótulo | escore | papel |
 |---|---|---|
-| `cego` | ignora o texto; devolve escore constante | **CONTROLE NEGATIVO** |
+| `cego` | **ignora o texto**; escore = função monotônica só do tamanho da afirmação | **CONTROLE NEGATIVO** |
 | `lexico` | `\|tok(afirm) ∩ tok(texto)\| / \|tok(afirm)\|` | tratamento |
 | `lexico_negacao` | `lexico`, zerado se `negation_asymmetry(afirm, texto)` | tratamento |
 
 `cego` existe pelo mesmo motivo do `base_B` no E9c: se um verificador real não
-superar um que **não lê a entrada**, nada foi aprendido. Ele não pode separar
-estrato nenhum, por construção.
+superar um que **não lê a entrada**, nada foi aprendido.
+
+> **Emenda E10-1 (pré-dado, 2026-08-18).** A primeira redação dizia "devolve
+> escore **constante**". Escore constante torna `min(A) > max(B)` **falso por
+> construção** — o controle passaria sempre, sem poder falhar. É o mesmo teatro
+> que a regra de sobreposição de IC produzia no E9b, e eu o reintroduzi.
+>
+> Corrigido: `cego` pontua **só pela afirmação**, ignorando o texto
+> (`len(tok(afirm)) / 100`). Agora ele tem dois comportamentos, e ambos
+> informam:
+> - contra `suportada` × `trocada` — **não pode separar**, porque os dois
+>   estratos usam as MESMAS 16 afirmações. Se separar, o vazamento está no
+>   encanamento.
+> - contra `suportada` × `negada` — **PODE separar**, e se separar revela um
+>   confundidor real: a negação mecânica altera o tamanho da afirmação, e um
+>   verificador poderia "detectar contradição" só notando que ela ficou maior,
+>   sem ler o texto.
+>
+> O segundo caso é o que a versão constante não conseguia nem enxergar.
 
 `tok(s)`: minúsculas, corte em não-alfanumérico, descarta com menos de
 `MIN_TOKEN_LEN` caracteres, remove `STOPWORDS` (§11).
@@ -157,14 +174,18 @@ SEPARA(A, B)  ⟺  min{ escore(x) : x ∈ A }  >  max{ escore(y) : y ∈ B }
 
 Cascata, **para no primeiro que falhar**:
 
-1. **VALIDADE.** `cego` **não** pode separar `suportada` de `trocada`. Se
-   separar, o escore está lendo algo que não é a entrada → **INSTRUMENTO
-   INVÁLIDO**, nada é afirmado.
-2. **SANIDADE.** Os três estratos têm `N_PARES` pares cada, e nenhuma
+1. **VALIDADE-a.** `cego` **não** pode separar `suportada` de `trocada`
+   (mesmas afirmações nos dois). Se separar → **INSTRUMENTO INVÁLIDO**,
+   vazamento no encanamento, nada é afirmado.
+2. **VALIDADE-b.** `cego` **não** pode separar `suportada` de `negada`. Se
+   separar → **ESTRATO `negada` CONFUNDIDO**: a negação mecânica é detectável
+   pelo tamanho da afirmação, sem ler o texto, e H2/H3 deixam de ser sobre
+   contradição. Nada é afirmado sobre `negada`.
+3. **SANIDADE.** Os três estratos têm `N_PARES` pares cada, e nenhuma
    afirmação vazia ou texto vazio.
-3. **H1.** `SEPARA(suportada, trocada)` para `lexico`.
-4. **H2.** `SEPARA(suportada, negada)` para `lexico` é **FALSO**.
-5. **H3.** `SEPARA(suportada, negada)` para `lexico_negacao` é **FALSO**.
+4. **H1.** `SEPARA(suportada, trocada)` para `lexico`.
+5. **H2.** `SEPARA(suportada, negada)` para `lexico` é **FALSO**.
+6. **H3.** `SEPARA(suportada, negada)` para `lexico_negacao` é **FALSO**.
 
 Reportado junto, **descritivo e NÃO critério**: acurácia por estrato com IC de
 Wilson 95% ao melhor limiar observado, e a margem de separação
@@ -215,10 +236,11 @@ variante e gabarito vai para JSONL. O agregado não é o achado.
 | `EXPERIMENTO` | `"E10"` |
 | `N_PARES` | `16` |
 | `MIN_TOKEN_LEN` | `3` |
+| `STOPWORDS` | `frozenset({'para', 'com', 'que', 'uma', 'dos', 'das', 'nao', 'por', 'como', 'mas', 'seu', 'sua', 'aos', 'nas', 'nos', 'ele', 'ela', 'isso', 'esta', 'este'})` |
 | `TROCA_OFFSET` | `1` |
 | `Z_WILSON` | `1.96` |
 | `SEED` | `20260818` |
-| `ESCORE_CEGO` | `0.5` |
+| `DIVISOR_CEGO` | `100.0` *(E10-1)* |
 | condições | `cego`, `lexico`, `lexico_negacao` |
 | estratos | `suportada`, `trocada`, `negada` |
 
@@ -246,3 +268,134 @@ mão.
   não decide se algo é verdade, decide se foi inventado.
 - **Nada sobre a Câmara de Eco.** O E10 não a modifica nem a avalia; propõe
   uma âncora alternativa e mede se ela se sustenta sozinha.
+
+---
+
+## §13. Resultado — 2026-08-18
+
+48 pares (16 por estrato), corpus real `default_cognitive`, kernel resolvido em
+`/media/sf_edp_v5_main/edp`. Leitura pura, zero inferência, execução em segundos.
+
+### Separações `min(A) > max(B)`
+
+| verificador | `suportada` > `trocada` | `suportada` > `negada` |
+|---|---|---|
+| `cego` | não (margem −0,080) | não (margem −0,080) |
+| `lexico` | **não** (margem −0,333) | não (margem −1,000) |
+| `lexico_negacao` | não (margem −0,222) | não (margem −1,000) |
+
+| # | cheque | |
+|---|---|---|
+| 1 | VALIDADE-a — `cego` não separa `trocada` | **ok** |
+| 2 | VALIDADE-b — `cego` não separa `negada` | **ok** |
+| 3 | SANIDADE — 16/16/16 | **ok** |
+| 4 | **H1** — `lexico` separa `trocada` | **FALHA** |
+| 5 | **H2** — `lexico` falha em `negada` | **ok** |
+| 6 | **H3** — `lexico_negacao` também falha | **ok** |
+
+> **VEREDITO: PARCIAL — H2 e H3 confirmadas, H1 REFUTADA.**
+
+### H1 refutada — e era a predição de confiança mais alta
+
+O §7 declarou *"H1 confirmada — confiança alta"*. Errado.
+
+Descritivo da distribuição de `escore_lexico`:
+
+```
+suportada   min=0,000  p25=0,667  mediana=0,764  max=1,000   zeros 1/16
+trocada     min=0,000  p25=0,000  mediana=0,050  max=0,333   zeros 8/16
+negada      min=0,000  p25=0,667  mediana=0,725  max=1,000   zeros 1/16
+```
+
+A separação falhou por **um único par**: a afirmação *"Oferta de assistência
+técnica genérica"* não compartilha **nenhum** token de conteúdo com o próprio
+texto de origem.
+
+**Por que eu errei:** supus que `key_assertion` fosse **extrativo** — derivado
+do texto, logo lexicalmente ancorado nele. Ele é parcialmente **abstrativo**:
+na maioria dos casos compartilha vocabulário (mediana 0,764), mas às vezes
+produz um rótulo puro, sem token em comum. Isso é atualização sobre o **EDP**,
+não só sobre o experimento.
+
+**O que NÃO faço com isso.** O critério era `min > max`, escolhido de propósito
+por ser livre de limiar e implacável. Ele falhou. Observar que "excluindo aquele
+par a separação existiria" seria escolher a régua depois de ver o dado — a
+mesma tentação do E9, recusada pelo mesmo motivo. **H1 está refutada como
+especificada.** A observação sobre o outlier é insumo para o E10b, não resgate
+do E10.
+
+### H2 e H3 — o achado que sustenta a conclusão
+
+```
+suportada  mediana 0,764
+negada     mediana 0,725
+```
+
+**Inserir uma negação praticamente não move o escore.** Muda ~1 token entre
+dezenas. Um verificador léxico não distingue `X` de `X não`.
+
+E `lexico_negacao` não resgata, exatamente como o §7 previu a partir de
+medição anterior deste repo (16/18 textos já contêm marcador de negação, logo
+`negation_asymmetry` não dispara). Foi a única predição derivada de medição, e
+foi a que se sustentou.
+
+### A conclusão operacional
+
+Acurácia ao melhor limiar observado (**descritivo, não critério**):
+
+| verificador | acurácia | IC 95% |
+|---|---|---|
+| `cego` (não lê a memória) | 0,646 | [0,504 · 0,766] |
+| `lexico` | 0,708 | [0,568 · 0,818] |
+| `lexico_negacao` | 0,688 | [0,547 · 0,800] |
+
+> **O verificador léxico não é estatisticamente distinguível de um que nunca
+> lê a memória.** ICs largamente sobrepostos, e o veto de negação **piora**.
+
+**Verificação de proveniência por meio léxico não serve como crítico de laço
+autônomo.** Isso era o que o §1 se propôs a estabelecer, e está estabelecido —
+como piso experimental, não como opinião.
+
+### Predições pontuadas
+
+| | previsto | resultado |
+|---|---|---|
+| H1 | confirmada, **confiança alta** | **REFUTADA** |
+| H2 | confirmada, confiança alta | confirmada |
+| H3 | confirmada, confiança média-alta, **derivada de medição** | confirmada |
+
+Duas de três. A que falhou foi a de maior confiança e a única baseada em
+suposição minha sobre o comportamento de um componente; a que mais se sustentou
+foi a única ancorada num número já medido. O padrão é o mesmo do arco E9.
+
+### Uma fraqueza de desenho, registrada
+
+**Para o E10, prova-no-espelho e disparo real são a mesma computação.** O E10 é
+determinístico — sem amostragem, sem tempo, sem aleatoriedade. As duas execuções
+diferem apenas em imprimir o dataset e gravar o JSONL. Diferente do E9, onde o
+dry-run exercitava o encanamento sem gastar a coleta, aqui **não há nada para
+revisar "antes"**: ver a saída do dry-run já é ver o resultado.
+
+Não invalida nada — o critério estava congelado e commitado (`970bcdc`) antes de
+qualquer execução, o que é o que importa. Mas a prova-no-espelho não cumpre no
+E10 a função que cumpre no E9, e chamá-la assim seria imprecisão.
+
+---
+
+## §11-bis. Emendas
+
+### E10-2 — o harness verifica de ONDE o `edp` foi importado · 2026-08-18
+
+**Achado ao escrever o harness, antes da primeira medição.** Sem `PYTHONPATH`,
+`import edp` resolve para `~/.local/lib/python3.11/site-packages/edp/` — cópia
+**instalada** de 492 linhas, anterior à telemetria de contradição de 13/08,
+contra **527** do kernel vivo.
+
+O E10 importaria `negation_asymmetry` de **outra build**, e nada avisaria. O
+§10 exige a função *de produção*; uma cópia instalada não é produção — é um
+retrato dela, de data desconhecida.
+
+Congelado: `kernel_resolvido()` **recusa** execução se o `edp` vier de
+`site-packages`/`dist-packages`, respeita `EDP_KERNEL` quando definida, e o
+caminho resolvido vai para a saída. Um experimento sobre proveniência
+registrando a própria proveniência.

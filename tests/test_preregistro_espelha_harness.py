@@ -43,6 +43,7 @@ PARES = [
     # nao existir o .py, o que e melhor que esquecer de registra-lo depois.
     ("preregistro_experimento_e9b.md", "exp_e9b.py"),
     ("preregistro_experimento_e9c.md", "exp_e9c.py"),
+    ("preregistro_experimento_e10.md", "exp_e10.py"),
 ]
 
 
