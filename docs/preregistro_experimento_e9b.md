@@ -433,6 +433,56 @@ afrouxar a margem.
 **Custo desta escolha, dito alto:** piso de artefato 10%; o instrumento
 resolve efeitos a partir de ~20%.
 
+
+### E9b-7 — o modelo é Q8_0, não Q4 · 2026-08-18
+
+**Errata factual.** A emenda E-1 do E9 descreve `llama3.2:1b` como
+*"quantização padrão do Ollama, Q4"*. O log do motor mostra outra coisa:
+
+```
+print_info: file type = Q8_0
+print_info: file size = 1.22 GiB (8.50 BPW)
+```
+
+São **8,5 bits por peso**, não 4. O erro é meu, e vem de eu ter oferecido
+"1B em 4-bit" como opção sem verificar o que `ollama pull llama3.2:1b`
+entrega de fato.
+
+**O critério não muda** — `MODELO_DIGEST` pina os pesos reais
+(`baf6a787fdffd633`), e o experimento sempre rodou contra eles. O que estava
+errado era a descrição, não o objeto. Fica corrigido aqui em vez de editado
+no lugar.
+
+**Importa para interpretação:** Q8_0 tem largura de banda de memória e custo
+por token diferentes de Q4. Nenhum número deste experimento transfere para uma
+rodada em Q4 sem nova medição.
+
+### E9b-8 — ambiente de execução, registrado antes da coleta · 2026-08-18
+
+Do log do motor, para o resultado não ser lido como mais geral do que é:
+
+| | |
+|---|---|
+| backend | `ggml-cpu-sandybridge.dll` |
+| ISA | SSE3, SSSE3, AVX — **sem AVX2, sem FMA** |
+| CPU | 4 núcleos físicos, 8 lógicos, `NumThreads:4` |
+| memória livre no início | 2,2 GiB de 7,9 GiB (swap livre 2,5 GiB) |
+| contexto | `n_ctx = 4096`, KV cache 128 MiB, buffer de compute 258,5 MiB |
+| `OLLAMA_NUM_PARALLEL` | 1 — sem concorrência interna, um confundidor a menos |
+| `OLLAMA_KEEP_ALIVE` | 5m — rodada contínua não descarrega o modelo |
+
+Ausência de AVX2/FMA é característica dominante: a inferência roda num caminho
+de código bem mais lento que o de máquina moderna. Isso **não afeta a validade
+interna** (todas as condições rodam no mesmo hardware, e o controle negativo
+mede exatamente isso), mas fecha qualquer leitura de que os ms/token medidos
+representem um custo típico.
+
+**O aviso `failed to disable thread power throttling (87)` persiste** e não é
+corrigível — a chamada não é suportada nesta versão do Windows. O SO pode
+variar a frequência das threads durante a rodada. Não há mitigação; há
+detecção: é precisamente o tipo de deriva que o §6.1 existe para pegar, e se
+ele reprovar, esta é a primeira suspeita.
+
 ### E9b-2 — terceira constante Tier A minha a falhar, e isso é o padrão
 
 `LOAD_DURATION_MAX_FRAC = 0.01` (E9), `DELTA_EQUIV = 0.02` e depois

@@ -330,7 +330,7 @@ Decisão do pesquisador, tomada sobre as duas opções do §7-bis:
 | constante | valor congelado |
 |---|---|
 | `TOPOLOGIA` | **B — harness no Windows, junto do motor** |
-| `MODELO` | `llama3.2:1b` (quantização padrão do Ollama, Q4) |
+| `MODELO` | `llama3.2:1b` ~~(quantização padrão do Ollama, Q4)~~ — **errata: é Q8_0, 8,50 BPW, 1,22 GiB. Ver E9b-7.** |
 | `MODELO_DIGEST` | fixado na 1ª execução, verificado em toda execução seguinte |
 
 Consequências que entram no desenho por causa da escolha:
