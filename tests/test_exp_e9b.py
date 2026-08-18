@@ -210,3 +210,31 @@ def test_preenchimento_de_dobro_estende_o_de_meio():
     i1 = fonte.index("_cresce_ate")
     i2 = fonte.index("_cresce_ate", i1 + 1)
     assert "palavras" in fonte[i1:i2 + 120]
+
+
+# ── Rodada interrompida nao pode ser pontuada em silencio ────────────────────
+
+def test_rodada_incompleta_e_recusada():
+    """
+    Rodada de ~7h interrompida deixa condicoes desbalanceadas, e o
+    desbalanceamento entra direto no IC. Pontuar isso produziria relatorio de
+    aparencia normal com numeros errados — o pior modo de falha possivel.
+    """
+    am = amostras(random.Random(12))
+    truncado = [a for a in am if not (a["condicao"] == "dobro" and a["prompt_idx"] > 5)]
+    v = E.score_e9b(truncado)
+    assert v["veredito"] == "RODADA INCOMPLETA"
+    assert "dobro" in v["faltando"]
+
+
+def test_rodada_completa_nao_e_recusada():
+    """O guarda nao pode reprovar o caminho normal."""
+    v = E.score_e9b(amostras(random.Random(13)))
+    assert v["veredito"] != "RODADA INCOMPLETA"
+
+
+def test_pontuar_parcial_exige_pedido_explicito():
+    """Escapatoria existe, mas tem de ser pedida — nunca o padrao."""
+    am = amostras(random.Random(14))
+    truncado = [a for a in am if not (a["condicao"] == "meio" and a["prompt_idx"] > 8)]
+    assert E.score_e9b(truncado, exigir_completo=False)["veredito"] != "RODADA INCOMPLETA"
