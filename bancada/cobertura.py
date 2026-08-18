@@ -188,3 +188,94 @@ def alvo_com_overhead(
         num += a
         den += a / razao + overhead
     return num / den
+
+
+def cobertura_de_estimador(
+    gerador: Callable[[random.Random], tuple],
+    ic: Callable[..., tuple[float, float]],
+    alvo: float,
+    reps: int = 300,
+    conf: float = 0.95,
+    semente: int | None = None,
+    **kw_ic,
+) -> dict:
+    """
+    Cobertura real de QUALQUER par (estimador, IC), não só de `Σa/Σb`.
+
+    `cobertura_simulada` acima é presa a `ic_bootstrap_percentil`, então não
+    serve para estimador novo. Esta versão recebe a função de IC, o que
+    permite validar um estimador ANTES de congelá-lo num pré-registro — que é
+    o que o §3.4 exige e o que ninguém consegue fazer com um IC cuja cobertura
+    nunca foi medida.
+
+    `gerador(rng)` devolve a tupla de argumentos que `ic` espera; `alvo` é o
+    valor verdadeiro conhecido por construção.
+
+    Estrear estimador sem medir cobertura é, na estatística, o mesmo erro que
+    congelar um limiar escolhido por plausibilidade é na sanidade.
+    """
+    rng = random.Random(semente)
+    acertos = 0
+    larguras = []
+    for _ in range(reps):
+        args = gerador(rng)
+        lo, hi = ic(*args, rng=rng, conf=conf, **kw_ic)
+        larguras.append(hi - lo)
+        if lo <= alvo <= hi:
+            acertos += 1
+    p = acertos / reps
+    return {
+        "cobertura": p,
+        "se": (p * (1 - p) / reps) ** 0.5,
+        "largura_media": sum(larguras) / len(larguras),
+        "nominal": conf,
+        "reps": reps,
+    }
+
+
+def ic_bootstrap_razao_de_razoes(
+    pares_x: Sequence[tuple[float, float]],
+    pares_ref: Sequence[tuple[float, float]],
+    b: int = 2000,
+    conf: float = 0.95,
+    rng: random.Random | None = None,
+) -> tuple[float, float]:
+    """
+    IC percentil para `R = (Σa_x/Σb_x) / (Σa_ref/Σb_ref)`.
+
+    Estima a razão ENTRE condições diretamente, com IC próprio, em vez de
+    comparar dois ICs marginais. A diferença importa em teste de
+    EQUIVALÊNCIA: "os ICs se sobrepõem" passa trivialmente quando os ICs são
+    largos, ou seja, premia falta de resolução. Um IC sobre R, exigido dentro
+    de uma margem, reprova o IC largo — que é o comportamento correto quando
+    a hipótese é "estas duas condições são iguais".
+
+    As duas condições são reamostradas independentemente porque são rodadas
+    independentes; dentro de cada uma, o PAR é reamostrado junto, pelo mesmo
+    motivo de `ic_bootstrap_percentil`.
+    """
+    if not pares_x or not pares_ref:
+        raise ValueError("amostra vazia")
+    rng = rng or random.Random()
+    ix, iref = range(len(pares_x)), range(len(pares_ref))
+    replicas = []
+    for _ in range(b):
+        nx = dx = 0.0
+        for i in rng.choices(ix, k=len(pares_x)):
+            a, d = pares_x[i]
+            nx += a
+            dx += d
+        nr = dr = 0.0
+        for i in rng.choices(iref, k=len(pares_ref)):
+            a, d = pares_ref[i]
+            nr += a
+            dr += d
+        if dx and dr and nr:
+            replicas.append((nx / dx) / (nr / dr))
+    if not replicas:
+        raise ValueError("bootstrap sem replicas validas")
+    replicas.sort()
+    alfa = (1.0 - conf) / 2.0
+    lo = replicas[max(0, int(alfa * len(replicas)))]
+    hi = replicas[min(len(replicas) - 1, int((1.0 - alfa) * len(replicas)))]
+    return lo, hi

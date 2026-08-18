@@ -39,6 +39,9 @@ LINHA = re.compile(r"^\|\s*`([A-Z][A-Z0-9_]*)`[^|`]*\|\s*`([^`]+)`[^|]*\|", re.M
 # do lab e por letra (E7, E9) e nao casa com `expNNN` por regra simples.
 PARES = [
     ("preregistro_experimento_e9.md", "exp_e9.py"),
+    # auto-ativa quando o harness aterrissar; ate la o par e ignorado por
+    # nao existir o .py, o que e melhor que esquecer de registra-lo depois.
+    ("preregistro_experimento_e9b.md", "exp_e9b.py"),
 ]
 
 
