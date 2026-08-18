@@ -399,3 +399,70 @@ Congelado: `kernel_resolvido()` **recusa** execução se o `edp` vier de
 `site-packages`/`dist-packages`, respeita `EDP_KERNEL` quando definida, e o
 caminho resolvido vai para a saída. Um experimento sobre proveniência
 registrando a própria proveniência.
+
+
+---
+
+## §14. ERRATA — o E10 rodou contra o store errado · 2026-08-18
+
+**O §4 e o §11 afirmam que `N_PARES = 16` é "o tamanho do universo medido
+hoje, não uma escolha". A afirmação é falsa.**
+
+Os 16 vieram de `<repo>/data`, um store **lateral** de 18 entradas que o EDP
+criou entre 12 e 13/08 porque `EDP_BASE_DIR` tem três defaults distintos no
+código (`config.py:9`, `pareto_store.py:223`, `lineage.py:315`) e ficou
+indefinida. Li `data/` porque havia arquivos ali e **nunca verifiquei que era
+produção**.
+
+Medido em 18/08, depois de fundir os dois stores:
+
+| | E10 (13/08) | store real |
+|---|---|---|
+| entradas episódicas | 18 | **155+** |
+| universo com `key_assertion` | 16 | **93** |
+
+### O que isso faz com o resultado do §13
+
+**Não sei, e é essa a resposta honesta.**
+
+O que o §13 afirma — `H1 REFUTADA`, `H2` e `H3` confirmadas — vale para 16
+pares de um store lateral. Não vale para o corpus do EDP, e não posso inferir
+a direção:
+
+- **H1** falhou por **um único par** de escore zero. Com 93 pares há mais
+  chances de outliers como aquele, mas também um `trocada` mais diverso, que
+  poderia separar melhor. Os dois efeitos empurram em sentidos opostos.
+- **H2/H3** (negação quase não move o escore léxico) são **estruturais** —
+  inserir uma palavra entre dezenas muda pouco, e `negation_asymmetry` exige
+  exatamente um lado com negação. Sobrevivem *provavelmente*.
+
+**"Provavelmente" não é resultado.** Foi exatamente essa palavra que custou o
+defeito da telemetria de ranking no mesmo dia
+(`ACHADO_TELEMETRIA_NO_CAMINHO_MORTO.md`).
+
+### O que NÃO faço
+
+Não repontuo o E10 com `N_PARES = 93`. O critério estava congelado e o
+experimento rodou como especificado; trocar a constante agora seria mudar a
+régua depois do resultado. **O §11 fica em 16** — é o que foi congelado e o
+que rodou, e o gate de espelhamento continua exigindo isso.
+
+Refazer contra o corpus certo é o **E10b**, com pré-registro próprio. E ele
+herda três coisas desta errata:
+
+1. `N_PARES` volta a ser o tamanho do universo — agora **medido no store
+   verificado**, com o caminho impresso na saída, como o `kernel_resolvido()`
+   já faz para a proveniência do `edp`.
+2. A condição **semântica** (cosseno de embeddings) que ficou de fora por
+   economia — com 93 pares e execução em segundos, o custo continua
+   desprezível e a informação por experimento dobra.
+3. A métrica secundária com cobertura verificada que o §12 pediu, para um
+   ponto solitário não determinar o veredito quando o efeito de fundo é
+   grande.
+
+### O que sobrevive intacto
+
+A emenda **E10-2** (o harness recusa `edp` vindo de `site-packages`) não
+depende de corpus e continua valendo — e é, ironicamente, uma guarda de
+proveniência escrita no mesmo dia em que eu falhei em verificar a proveniência
+do **dado**. Guardei de onde vinha o código e não de onde vinha o corpus.
