@@ -84,3 +84,69 @@ E quebra numa direção pior: dislexia não piora a cada leitura. Isto piora.
   o `exp016` já tem precedente exato desse procedimento.
 
 Achado, não correção.
+
+---
+
+## ERRATA — 18/08/2026, algumas horas depois
+
+**Duas afirmações acima descrevem o caminho COSSENO, e a produção roda o
+HÍBRIDO desde 08/07.** Medido em `store.py`, dentro de `_retrieve_hybrid`:
+
+```
+access_boost   0 ocorrências      nf_floor       0
+prioridade     0                  session_boost  0
+epi_mult       0                  src_weight     0
+dom_penalty    0                  anchor_boost   0
+acessos        6  ← só para INCREMENTAR, nunca para pontuar
+```
+
+O `HybridRetriever` pontua com **BM25 + vetor + RRF**. Nada mais.
+
+### O que CAI
+
+**"Piora com o uso" está errado em produção.** Escrevi que cada recuperação
+incrementa `acessos` → alimenta `access_boost` → sobe o rank da próxima vez.
+O `acessos` é incrementado, sim — e **nunca lido pelo ranking híbrido**. O
+laço auto-reforçado que descrevi **não existe no caminho vivo**. Ele existe no
+cosseno, que não roda desde 08/07.
+
+**E o "piso de 20×" também não.** `NOT_FOUND_FLOOR` tem zero ocorrências no
+híbrido.
+
+### O que SOBREVIVE, e com mecanismo diferente
+
+A governança **existe** no híbrido, mas como **exclusão no índice**, não como
+rebaixamento no ranking (`store.py:1645-1662`):
+
+```python
+if e.get("epistemic_status") in ("contradicted", "quarantined"):  continue
+if _WP12 and e.get("answer_class") in _TAC12:                     continue
+if _recusa(e["text"]).get("confianca") == "alta":                 continue
+```
+
+É **binário**: dentro ou fora. Não há meio-termo graduado.
+
+E o achado central continua de pé, com a causa correta: as 32
+`session_summary` têm `answer_class = None`, então **passam pela exclusão** e
+competem em pé de igualdade. A defesa é retroativamente cega — só que o que
+ela deixa passar não é "rebaixado 20×", é **plenamente competitivo**.
+
+### E a dominância vem de onde, então
+
+De **similaridade pura**. Aqueles resumos são longos, genéricos e
+semanticamente centrais — exatamente o que vence tanto no BM25 quanto no
+vetor quando a query é vaga. Não precisam de boost nenhum.
+
+Isso é pior que o diagnóstico original, não melhor: **não há um privilégio
+para remover.** Eles ganham no mérito da métrica.
+
+### Consequência que quase me fez recomendar a coisa errada
+
+Eu ia sugerir o **exp009** como o passo seguinte — ele foi pré-registrado em
+julho para "remover os privilégios de nascença das `session_summary`
+(prioridade alta + verified)". Mas `prioridade` e `epistemic_status`
+**não entram no ranking híbrido**. O exp009 mediria a remoção de privilégios
+que a produção não concede.
+
+A H1 dele pode estar vazia hoje — não por refutação, por mudança de
+substrato. Isso precisa ser verificado antes de qualquer disparo.
