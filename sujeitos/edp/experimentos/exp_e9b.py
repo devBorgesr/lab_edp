@@ -258,7 +258,7 @@ def plano_de_execucao(rng: random.Random) -> list:
     return plano
 
 
-def run_e9b(dry_run: bool = True) -> ResultadoE9b:
+def run_e9b(dry_run: bool = True, saida: Optional[Path] = None) -> ResultadoE9b:
     res = ResultadoE9b(dry_run=dry_run)
     res.armed = os.environ.get("EDP_LAB_ARMED") == "1"
     if not dry_run and not res.armed:
@@ -286,11 +286,30 @@ def run_e9b(dry_run: bool = True) -> ResultadoE9b:
     for _ in range(N_AQUECIMENTO):
         uma_requisicao(PROMPTS[0])
 
-    for cond, idx in plano_de_execucao(rng):
-        am = uma_requisicao(_texto(cond, idx))
-        am.update({"condicao": cond, "prompt_idx": idx, "dry_run": False,
-                   "digest": res.digest, "ts": time.time()})
-        res.amostras.append(am)
+    plano = plano_de_execucao(rng)
+    total = len(plano)
+    # Gravacao INCREMENTAL. A versao anterior so escrevia depois das 1440:
+    # interromper na hora 6 de uma rodada de 7h perdia tudo. Em 2h era
+    # aceitavel; em 7h nao e.
+    fh = open(saida, "w", encoding="utf-8") if saida else None
+    t0 = time.time()
+    try:
+        for k, (cond, idx) in enumerate(plano, 1):
+            am = uma_requisicao(_texto(cond, idx))
+            am.update({"condicao": cond, "prompt_idx": idx, "dry_run": False,
+                       "digest": res.digest, "ts": time.time()})
+            res.amostras.append(am)
+            if fh:
+                fh.write(json.dumps(am, ensure_ascii=False) + "\n")
+                fh.flush()
+            if k % 25 == 0 or k == total:
+                med = (time.time() - t0) / k
+                falta = (total - k) * med
+                print(f"  {k:>5}/{total}  {med:.1f}s/req  "
+                      f"faltam ~{falta/3600:.1f}h", flush=True)
+    finally:
+        if fh:
+            fh.close()
     return res
 
 
@@ -323,9 +342,21 @@ def _dentro(ic: tuple, delta: float) -> bool:
     return (1.0 - delta) <= ic[0] and ic[1] <= (1.0 + delta)
 
 
-def score_e9b(amostras: list) -> dict:
+def score_e9b(amostras: list, exigir_completo: bool = True) -> dict:
+    """
+    `exigir_completo` recusa rodada interrompida. Pontuar um arquivo parcial
+    daria numeros com condicoes desbalanceadas, e o desbalanceamento entra
+    direto no IC — erro que passaria despercebido porque o relatorio sairia
+    normal.
+    """
     rng = random.Random(SEED)
     out: dict = {"condicoes": {}, "descartes": {}, "R": {}, "checks": []}
+    esperado = K_PROMPTS * N_REPETICOES
+    faltando = {c: esperado - len(_validas(amostras, c)) for c in CONDICOES}
+    if exigir_completo and any(v > 0 for v in faltando.values()):
+        out["veredito"] = "RODADA INCOMPLETA"
+        out["faltando"] = {c: v for c, v in faltando.items() if v > 0}
+        return out
 
     pares: dict = {}
     for cond in CONDICOES:
@@ -503,7 +534,8 @@ def main(argv: Optional[list] = None) -> int:
         return 0
 
     try:
-        res = run_e9b(dry_run=args.dry_run)
+        res = run_e9b(dry_run=args.dry_run,
+                      saida=None if args.dry_run else Path(args.saida))
     except (urllib.error.URLError, ConnectionError) as e:
         # WinError 10061 / ECONNREFUSED chega como urlopen error cru, que nao
         # diz o que fazer. O motor cair entre rodadas e o caso comum.
@@ -518,12 +550,7 @@ def main(argv: Optional[list] = None) -> int:
         print(f"\n[RECUSADO/ERRO] {e}")
         return 1
 
-    v = None
-    if not res.dry_run:
-        Path(args.saida).write_text(
-            "\n".join(json.dumps(a, ensure_ascii=False) for a in res.amostras),
-            encoding="utf-8")
-        v = score_e9b(res.amostras)
+    v = score_e9b(res.amostras) if not res.dry_run else None
     _imprimir(res, v)
     return 0
 
