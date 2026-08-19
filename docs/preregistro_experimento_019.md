@@ -158,3 +158,57 @@ com este poder"*, **não** *"não existe"*. A conclusão vai escrita assim.
   contrastar `NÃO diga X` contra uma formulação positiva do mesmo requisito —
   outro desenho.
 - **Não** transfere entre modelos. Ver §3.
+
+---
+
+## §4-bis. Errata — o dataset passa a ser amostrado do log real
+
+**18/08/2026, antes de qualquer dado.** O §4 exigia queries **escritas à mão**.
+A regra fica registrada e o método muda, por dois motivos que a invalidam.
+
+**1. Circularidade.** Quem escreveria as queries leu as 60 linhas do
+`SYSTEM_TEMPLATE` primeiro. Qualquer pergunta escrita depois disso é calibrada —
+mesmo sem intenção — para casar com o que as regras proíbem. Seria construir a
+prova a partir do gabarito, e o experimento mediria se as regras bloqueiam
+perguntas desenhadas para acioná-las. Isso confirma H1 por construção. Log real
+não sabe que as regras existem.
+
+**2. Taxa de base.** As regras nasceram de falhas reais, mas ninguém mediu com
+que frequência essas falhas aparecem. Um bloco pode funcionar perfeitamente e
+ainda assim custar 640 chars em **todo** turno para atender 1% do tráfego.
+Query inventada **assume** a frequência; amostra real a **mede**. Sem log real
+descobre-se se a regra funciona; com log real descobre-se se ela **vale a pena**
+— que é a pergunta original.
+
+### Fonte e critério (congelados aqui, antes de olhar o corpus)
+
+- **Fonte:** entries do store vivo com `source_type == "user_input"`. Exclui
+  `session_summary`, `llm_response` e `meta_conversation`.
+- **Deduplicação:** por texto normalizado (`strip + casefold + colapso de
+  whitespace`). Medido em 18/08: há 14 cópias extras no store, e amostrar sem
+  deduplicar daria peso extra a quem está repetido.
+- **Estratificação MECÂNICA**, por marcador, não por julgamento:
+
+| estrato | regra de inclusão (congelada) |
+|---|---|
+| `alvo` | contém pronome/referência (`isso`, `sua resposta`, `o que você disse`, `qual a base`, `tirou`, `falou`) **OU** marcador temporal (`ontem`, `agora`, `antes`, `última vez`, `lembra`) **OU** citação de memória (`aquela`, `você falou de`) |
+| `controle` | **nenhum** dos marcadores acima |
+
+- **Amostragem:** aleatória sem reposição dentro de cada estrato,
+  `SEED = 20260818`.
+- As listas de marcadores **congelam aqui** e não crescem depois de ver o
+  corpus.
+
+### Se um estrato não encher, isso é RESULTADO — não é problema de dataset
+
+Se o log real não fornecer 40 queries do estrato `alvo`, **não** se afrouxa o
+marcador, **não** se escreve query à mão para completar, e **não** se reduz o N
+em silêncio.
+
+O N alcançado vai reportado, com o poder recalculado para ele. E a escassez
+entra como achado primário: *os blocos 16–48 endereçam um caso que aparece em
+X% do tráfego real* — que responde a pergunta de custo-benefício direto, sem
+precisar do experimento principal.
+
+Esta é a única forma de a impossibilidade de rodar virar informação em vez de
+frustração (NORTE §4.3).
