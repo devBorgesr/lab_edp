@@ -290,6 +290,110 @@ def veredito(alvo: tuple[int, int, int, int],
             "controle": {"dif": d_c, "ic": [lo_c, hi_c]}}
 
 
+# ── Execucao (§3, §7) ─────────────────────────────────────────────────────────
+
+def monta_condicoes(raiz=None) -> dict:
+    """As duas condicoes do §3, derivadas do MESMO literal."""
+    t = carrega_template(raiz)
+    return {"completo": t, "ablado": abla(t)}
+
+
+def exige_caminho_vivo() -> None:
+    """
+    Guarda contra medir o caminho MORTO.
+
+    `stream_chat` so usa `_build_enriched_context` (o caminho de producao)
+    quando `EDP_USE_CTX_MGR=1`, que e o default. Com a var em 0 ele cai no
+    fallback `.format(context=...)`, que monta o prompt de OUTRO jeito — e o
+    experimento mediria uma estrutura que producao nao usa.
+
+    Foi assim que o §1 deste pre-registro nasceu errado (ver §1-bis), e e a
+    terceira vez em dois dias que "qual caminho roda" custa caro. Aqui vira
+    excecao, nao comentario.
+    """
+    if os.environ.get("EDP_USE_CTX_MGR", "1") != "1":
+        raise RuntimeError(
+            "EDP_USE_CTX_MGR != 1 — stream_chat cairia no fallback .format(), "
+            "que NAO e a montagem de producao. Ver §1-bis."
+        )
+
+
+def responde(runtime, pergunta: str, system: str) -> str:
+    """
+    Um turno pelo caminho VIVO, com o system prompt da condicao.
+
+    `system or self.SYSTEM_TEMPLATE` (llm_adapter.py:1714) faz o argumento
+    vencer — a montagem seguinte e byte-a-byte a de producao, so o texto do
+    system muda. Nao ha reimplementacao de prompt aqui, de proposito.
+
+    `stream_chat` NAO chama `_store_to_memory` (Divida #10, llm_adapter.py),
+    entao rodar o experimento nao grava turnos no store. E a segunda camada de
+    protecao; a primeira continua sendo o §7 (store clonado).
+    """
+    exige_caminho_vivo()
+    return "".join(runtime.stream_chat(pergunta, system=system))
+
+
+def par_com_antecessor(qs_ordenadas: list, alvo: str) -> Optional[str]:
+    """
+    O turno que PRECEDEU a query no log real, ou None.
+
+    POR QUE ISTO EXISTE (achado de 19/08, ao escrever a execucao): a metrica
+    `usa_turno_anterior` do §5 compara a resposta com o item marcado
+    `[turno anterior]`. Num harness de query ISOLADA nao existe turno anterior
+    — a metrica devolveria False sempre, sem sinal nenhum, e pareceria medir.
+
+    Pior: o estrato `alvo` e feito de perguntas com pronome e referencia. Uma
+    pergunta como "entao voce lembra !!" sem o turno que a precedeu nao e a
+    mesma pergunta — e um fragmento sem referente.
+
+    Entao cada item do dataset e um PAR (antecessor, alvo), reproduzido na
+    ordem do log. Sem antecessor, o item nao entra.
+    """
+    try:
+        i = qs_ordenadas.index(alvo)
+    except ValueError:
+        return None
+    return qs_ordenadas[i - 1] if i > 0 else None
+
+
+def executa(runtime, dataset: dict, qs_ordenadas: list) -> list:
+    """
+    Roda as duas condicoes sobre os mesmos pares, na mesma ordem (§7).
+
+    Devolve registros CRUS. O veredito e calculado depois, por `veredito()`,
+    de proposito: coleta e analise separadas evitam parar a coleta ao ver o
+    numero aparecer.
+    """
+    import random
+    cond = monta_condicoes()
+    itens = [(estrato, e) for estrato in ("alvo", "controle") for e in dataset[estrato]]
+    random.Random(SEED).shuffle(itens)     # mesma ordem para as duas condicoes
+
+    saida = []
+    for estrato, entry in itens:
+        pergunta = entry.get("_pergunta") or extrai_pergunta(entry)
+        if not pergunta:
+            continue
+        antecessor = par_com_antecessor(qs_ordenadas, pergunta)
+        if antecessor is None:
+            continue                       # sem referente: fora, nao remendado
+        for nome, sysprompt in cond.items():
+            _ = responde(runtime, antecessor, sysprompt)   # estabelece o turno anterior
+            resp = responde(runtime, pergunta, sysprompt)
+            saida.append({
+                "estrato":            estrato,
+                "condicao":           nome,
+                "pergunta":           pergunta,
+                "antecessor":         antecessor,
+                "resposta":           resp,
+                "nega_memoria":       nega_memoria(resp),
+                "usa_turno_anterior": usa_turno_anterior(resp, antecessor),
+                "n_chars_resposta":   len(resp),
+            })
+    return saida
+
+
 # ── Entrada ───────────────────────────────────────────────────────────────────
 
 def main(argv=None) -> int:
