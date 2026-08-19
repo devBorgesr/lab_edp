@@ -218,3 +218,81 @@ precisar do experimento principal.
 
 Esta é a única forma de a impossibilidade de rodar virar informação em vez de
 frustração (NORTE §4.3).
+
+---
+
+## §4-ter. Resultado da checagem de viabilidade — o estrato `alvo` não enche, e isso responde a pergunta
+
+**18/08/2026, antes do disparo.** O §4-bis previa este caso e mandou tratá-lo
+como achado. Ele ocorreu.
+
+### O número
+
+Corpus: `edp_data/sessions/default_cognitive/episodic.json`, snapshot de 18/08
+12:14, **137 entradas → 75 perguntas únicas** após extração e dedup.
+
+| estrato | n | fração |
+|---|---|---|
+| `alvo` | **3** | **4,0%** |
+| `controle` | 72 | 96,0% |
+
+IC 95% de Wilson sobre a fração `alvo`: **[1,4% ; 11,1%]**.
+
+`N_POR_CELULA = 40` exige **37 queries a mais** no `alvo`. O desenho é inviável
+neste corpus por um fator de ~13.
+
+### O que isso já responde, sem rodar o experimento
+
+> Os blocos 16–48 custam **1.877 chars em 100% dos turnos** e endereçam um caso
+> que aparece em **4% do tráfego real** — no limite superior do IC, **1 turno em
+> 9**.
+
+Esta é a pergunta de custo-benefício que originou o exp019, e ela ficou
+respondida pela construção do dataset. O experimento principal — *as regras
+funcionam?* — segue aberto e agora é secundário: mesmo que funcionem
+perfeitamente, funcionam para uma minoria pequena do tráfego.
+
+### DUAS correções de instrumento achadas aqui (as duas antes de qualquer dado)
+
+**1. `source_type == "user_input"` não existe neste store.** A regra de fonte do
+§4-bis devolvia **zero**. As 137 entradas são `llm_response` (77),
+`session_summary` (32), `meta_conversation` (18) e `camara_response` (10). A
+pergunta do usuário vive **dentro** do texto do turno, na linha `Q:`. Eu supus a
+estrutura do corpus sem conferir — o mesmo erro das três constantes Tier A do
+arco E9.
+
+**2. Casamento por substring, terceira vez no mesmo dia.** O marcador `antes`
+casou dentro de **`importantes`**, promovendo uma query ao `alvo` indevidamente.
+Corrigido para fronteira de palavra (`\b`), o que derrubou 4 → 3.
+
+Nota sobre por que esta correção é legítima e não raciocínio motivado: ela torna
+o critério **mais estrito** e o estrato **menor**. Uma correção que só pode
+piorar a própria viabilidade não pode ter sido escolhida para salvar o
+resultado. (As outras duas do dia: `prompt_eval_count` contendo `eval_count`, e
+o catálogo de código morto.)
+
+### CONFUNDIDOR que este número não resolve — e que pode invertê-lo
+
+A baixa frequência pode ser **consequência** da falha, não evidência de que ela
+não importa. Se perguntas de continuação falham, o usuário aprende a não
+fazê-las. O relato que originou toda esta linha foi *"o contexto não está
+lembrando da última conversa"* — exatamente o sintoma que faria alguém parar de
+usar pronome e passar a repetir o assunto por extenso.
+
+Isso é **seleção pelo desfecho**, e o corpus não consegue distingui-la de baixa
+demanda genuína. Um corpus de usuário novo, ou traffic anterior à falha,
+separaria as duas. Nenhum dos dois existe aqui.
+
+**Portanto: o 4% mede a frequência OBSERVADA, não a demanda latente.** Qualquer
+decisão de cortar os blocos com base só neste número herda esse confundidor, e a
+decisão precisa dizer isso em voz alta.
+
+### O que NÃO foi feito (§4-bis)
+
+- **Não** se afrouxou nenhum marcador — a lista congelada segue intacta.
+- **Não** se escreveu query à mão para completar o estrato.
+- **Não** se reduziu `N_POR_CELULA` em silêncio.
+
+O `N` alcançado fica reportado como está. O disparo do experimento principal
+depende de corpus maior; até lá, o achado de frequência **vale sozinho** e é de
+Tier D (medido), com o confundidor acima declarado.

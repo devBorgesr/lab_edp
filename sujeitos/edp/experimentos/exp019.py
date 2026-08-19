@@ -63,6 +63,10 @@ MARCADORES_ALVO = (
     "aquela", "voce falou de",
 )
 
+# De onde a pergunta do usuario e extraida (§4-ter). NAO e `user_input`: esse
+# source_type nao existe no store.
+FONTES_DE_PERGUNTA = ("llm_response", "camara_response")
+
 FRASES_NEGACAO = (
     "nao tenho memoria",
     "nao tenho acesso a",
@@ -156,10 +160,39 @@ def normaliza(texto: str) -> str:
     return re.sub(r"\s+", " ", (texto or "").strip().casefold())
 
 
+def extrai_pergunta(entry: dict) -> Optional[str]:
+    """
+    A pergunta do usuario, extraida da linha `Q:` do texto do turno.
+
+    CORRECAO 18/08 (§4-ter): a regra original filtrava
+    `source_type == "user_input"` e devolvia ZERO — esse tipo nao existe neste
+    store. As 137 entradas sao llm_response, session_summary,
+    meta_conversation e camara_response, e a pergunta vive DENTRO do texto do
+    turno. Eu supus a estrutura do corpus sem conferir.
+    """
+    if (entry or {}).get("source_type") not in FONTES_DE_PERGUNTA:
+        return None
+    m = re.match(r"\s*Q:\s*(.+?)(?:\n\s*A:|\Z)", entry.get("text") or "", re.S)
+    return m.group(1).strip() if m else None
+
+
 def classifica(texto: str) -> str:
-    """`alvo` se casa qualquer marcador congelado; `controle` se nenhum."""
+    """
+    `alvo` se casa qualquer marcador congelado; `controle` se nenhum.
+
+    FRONTEIRA DE PALAVRA, nao substring. CORRECAO 18/08 (§4-ter): `antes`
+    casava dentro de `importantes` e promovia query ao alvo indevidamente —
+    terceira vez no mesmo dia que casamento frouxo morde (as outras:
+    `prompt_eval_count` contendo `eval_count`, e o catalogo de codigo morto).
+
+    A correcao torna o criterio MAIS ESTRITO e o estrato MENOR (4 -> 3), entao
+    nao pode ter sido escolhida para salvar a viabilidade.
+    """
     t = _sem_acento(texto)
-    return "alvo" if any(m in t for m in MARCADORES_ALVO) else "controle"
+    for m in MARCADORES_ALVO:
+        if re.search(r"\b" + re.escape(m) + r"\b", t):
+            return "alvo"
+    return "controle"
 
 
 def amostra(entries: Iterable[dict], n_por_celula: int = N_POR_CELULA,
@@ -178,16 +211,14 @@ def amostra(entries: Iterable[dict], n_por_celula: int = N_POR_CELULA,
     vistos: set = set()
     estratos: dict = {"alvo": [], "controle": []}
     for e in entries:
-        if (e or {}).get("source_type") != "user_input":
-            continue
-        txt = (e.get("text") or "").strip()
+        txt = extrai_pergunta(e)
         if not txt:
             continue
         k = normaliza(txt)
         if k in vistos:
             continue
         vistos.add(k)
-        estratos[classifica(txt)].append(e)
+        estratos[classifica(txt)].append({**e, "_pergunta": txt})
 
     rng = random.Random(seed)
     return {nome: rng.sample(itens, min(n_por_celula, len(itens)))
