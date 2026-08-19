@@ -44,7 +44,30 @@ PARES = [
     ("preregistro_experimento_e9b.md", "exp_e9b.py"),
     ("preregistro_experimento_e9c.md", "exp_e9c.py"),
     ("preregistro_experimento_e10.md", "exp_e10.py"),
+    # exp019 ainda sem harness; registrado agora para auto-ativar quando ele
+    # aterrissar, em vez de depender de alguem lembrar.
+    ("preregistro_experimento_019.md", "exp019.py"),
 ]
+
+# ── LACUNA DECLARADA (18/08/2026) — exp018 nao e pareavel ────────────────────
+# O exp018 TEM harness (`exp018.py`) e TEM tabela de constantes (§11), e mesmo
+# assim fica fora da lista acima. O motivo e estrutural, nao esquecimento:
+#
+#   a) a tabela do §11 nao usa backtick nos nomes (`| PROMOTE_THRESHOLD | 3 |`),
+#      entao o parser — que exige `| `NOME` | `valor` |` — extrai zero; e
+#   b) mesmo com backtick nao adiantaria: `exp018.py` so expoe `FLAG_REQUERIDA`
+#      e `FUNCOES_POR_CONDICAO` como constantes de modulo. `PROMOTE_THRESHOLD`,
+#      `ACESSOS_TRATAMENTO` e as demais nao existem como nome la dentro. Nao ha
+#      o que comparar.
+#
+# NAO foi "consertado" refatorando `exp018.py` para nomear as constantes: o
+# experimento pode ja ter disparado, e mexer no harness para satisfazer um gate
+# troca o congelamento pela conveniencia — exatamente o que o §4.4 proibe.
+#
+# Consequencia honesta: as constantes do exp018 seguem SEM conferencia
+# automatica. Isso esta escrito aqui em vez de invisivel, que e a diferenca
+# entre lacuna declarada e lacuna silenciosa.
+EXP018_NAO_PAREAVEL = "harness nao expoe as constantes do §11 como nomes de modulo"
 
 
 def _literal(txt: str):
