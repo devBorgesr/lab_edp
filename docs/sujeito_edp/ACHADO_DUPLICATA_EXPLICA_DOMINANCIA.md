@@ -265,3 +265,61 @@ O `answer_class` tóxico (`not_found`, `disqualification`) já é excluído do �
 híbrido quando `EDP_TOXIC_GUARDS` está ligada (`store.py:1662`). Este caso
 sugere que respostas de falha do caminho `camara_response` não estão sendo
 classificadas — mas isso é **hipótese**, não verificado, e é outra investigação.
+
+---
+
+## Adendo 3 — 19/08/2026: a duplicação na entrega, medida com N útil
+
+Substitui a estimativa de 35% do Adendo 1, que vinha de **4 linhas de log** e
+era anedota. Agora são **50 turnos** de `ranking_decision` do store vivo,
+janela 04/06 → 19/08.
+
+Método: para cada turno, contar quantos itens entregues compartilham o par
+`(bm25, vec)` com outro item do mesmo turno. Dois rankers independentes não
+produzem escores idênticos por acaso — par idêntico significa texto idêntico.
+
+### O número
+
+```
+itens entregues .......... 246
+duplicados ...............  61
+fração ................... 24,8%   IC 95% [20,5% ; 29,7%]
+turnos com ≥1 duplicata ... 44/50 = 88%   IC 95% [78% ; 96%]
+```
+
+IC por **bootstrap de turno** (cluster), não binomial simples: itens do mesmo
+turno não são independentes, e tratá-los como tal estreitaria o intervalo
+indevidamente.
+
+Distribuição:
+
+| dup/entregues | turnos |
+|---|---|
+| 1/5 | 29 |
+| 2/5 | 11 |
+| **0/5** | **6** |
+| 1/3 | 2 |
+| 4/5 | 2 |
+
+**Apenas 6 dos 50 turnos (12%) entregam contexto sem repetição.**
+
+### O que isso autoriza, e o que não
+
+**Autoriza:** dizer que **um quarto do orçamento de contexto entregue é
+redundante**, com incerteza declarada, em regime de uso real. Ligar
+`EDP_RETRIEVE_DEDUP` liberaria em média **1,22 slot de 4,9 por turno**.
+
+**Não autoriza** dizer que a resposta melhora. O dedup libera slot; se a memória
+que entra no lugar é melhor que a cópia que saiu, isto **não mede**. Essa é a
+parte que ainda exige experimento, e é a única que sobrou.
+
+### Correção da estimativa anterior
+
+O Adendo 1 reportou **35%** a partir de 4 turnos (`dup_rate hash = 4/5, 0/5,
+2/5, 1/5`). O valor real é **24,8%**, e 35% cai fora do IC. A amostra de 4
+turnos pegou por acaso o turno de 80%, que a distribuição acima mostra ser raro
+(2 de 50).
+
+Foi exatamente o erro contra o qual o próprio Adendo 1 avisava — *"a média de
+35% tem incerteza enorme e não é um número para citar sozinho"* — e eu o citei
+sozinho no commit e na conversa. O aviso estava escrito e não impediu nada.
