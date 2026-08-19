@@ -296,3 +296,57 @@ decisão precisa dizer isso em voz alta.
 O `N` alcançado fica reportado como está. O disparo do experimento principal
 depende de corpus maior; até lá, o achado de frequência **vale sozinho** e é de
 Tier D (medido), com o confundidor acima declarado.
+
+---
+
+## §4-quater. Exploratório (Tier C) — o confundidor NÃO foi resolvido
+
+**18/08/2026.** Análise **exploratória**, não pré-registrada. Serve para dizer o
+que o corpus **não** consegue decidir, e é rotulada Tier C por isso.
+
+### Tentativa: a frequência de 4% caiu ao longo do tempo?
+
+Se a baixa frequência fosse aprendizado (o usuário parou de usar pronome porque
+não funcionava), esperaríamos queda temporal **e** perguntas ficando mais longas
+e autocontidas. Duas previsões, feitas antes de olhar.
+
+| terço | n | `alvo` | % | mediana chars | período |
+|---|---|---|---|---|---|
+| início | 25 | 2 | 8,0% | 35 | 31/05–04/06 |
+| meio | 25 | 1 | 4,0% | 40 | 04/06–13/06 |
+| fim | 25 | 0 | 0,0% | 39 | 13/06–09/08 |
+
+**Resultado: inconclusivo, e uma das duas previsões falhou.**
+
+- A direção da queda é consistente com aprendizado, mas **Fisher exato
+  início vs fim: p = 0,49**. Com 3 eventos no total não havia como dar outra
+  coisa. Isto **não é evidência**.
+- A mediana de caracteres ficou **plana** (35 / 40 / 39). A previsão de
+  autocontenção crescente **não se confirmou** — e era a metade que
+  fortaleceria a hipótese.
+
+**O confundidor segue aberto.** O corpus não distingue aprendizado de demanda
+genuinamente baixa, e esta análise não mudou isso.
+
+### Observação sobre a composição do estrato — com alerta sobre mim mesmo
+
+Inspecionando as 3 queries do `alvo`, uma delas é:
+
+> *"...hardware especializador para **isso**?"*
+
+O marcador `isso` casou corretamente na fronteira de palavra, mas aponta para
+**dentro da própria frase** — dêixis intra-sentencial, não referência ao turno
+anterior, que é o que os blocos 16–24 endereçam. Pela **intenção** do estrato,
+não deveria contar.
+
+Se não contasse, a taxa cairia de 4,0% para **2,7%** (2/75).
+
+**A lista de marcadores está congelada e NÃO foi alterada.** Fica registrada
+como over-inclusiva, e o 4,0% do §4-ter permanece como o número oficial.
+
+**Alerta explícito:** esta observação **fortalece** a conclusão que o §4-ter já
+defende — os blocos servem pouco tráfego. Diferente da correção
+`antes`/`importantes` (que piorava a viabilidade e por isso era imune a
+raciocínio motivado), esta corre a favor de quem a fez. Por isso ela entra como
+nota, não como número revisado, e a decisão de usar 4,0% ou 2,7% fica para quem
+auditar — com a assimetria à vista.
