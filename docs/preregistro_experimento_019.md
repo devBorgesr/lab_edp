@@ -142,7 +142,13 @@ com este poder"*, **não** *"não existe"*. A conclusão vai escrita assim.
 | `LINHAS_ABLADAS` | `(16, 48)` |
 | `SEED` | `20260818` |
 | `TOP_K` / `MIN_SCORE` | `5` / `0.0` |
+| `CHARS_TEMPLATE` | `3095` |
+| `CHARS_BLOCO_ABLADO` | `1877` |
 | frases de negação | `não tenho memória`, `não tenho acesso a`, `não consigo lembrar`, `não tenho como saber`, `sou um modelo` |
+
+As duas últimas foram **medidas** contra o template real em 18/08 (não
+escolhidas) e acrescentadas ANTES do primeiro disparo — o congelamento vale
+a partir dele, e o §7 já exigia a guarda sem nomear o número.
 
 **CONGELADO ao primeiro disparo real. Mudou a régua → é o Experimento 020.**
 

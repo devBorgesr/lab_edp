@@ -31,9 +31,26 @@ HARNESSES = RAIZ / "sujeitos" / "edp" / "experimentos"
 
 # | `NOME` <glosa opcional> | `literal` |
 # O sufixo `[^|`]*` aceita a glosa da celula do nome mas NAO um segundo
-# backtick, entao duas constantes numa celula ficam de fora — nao da para
-# casar dois nomes com um valor.
+# backtick, entao esta regex sozinha so ve 1-nome/1-valor.
+#
+# ERRATA 18/08/2026: aqui dizia que duas constantes numa celula "ficam de fora —
+# nao da para casar dois nomes com um valor". A segunda metade era falsa quando
+# ha DOIS valores; ver NOME_N abaixo.
 LINHA = re.compile(r"^\|\s*`([A-Z][A-Z0-9_]*)`[^|`]*\|\s*`([^`]+)`[^|]*\|", re.M)
+
+# ── 18/08/2026: a mesma lacuna que o gate do kernel tinha ─────────────────────
+# "Nao da para casar dois nomes com um valor" e verdade — mas a linha real nao
+# tem um valor, tem dois:
+#
+#     | `TOP_K` / `MIN_SCORE` | `5` / `0.0` |
+#
+# Com N nomes e N literais na mesma ordem o pareamento e unico; com N!=M
+# continua fora. Corrigido primeiro em test_preregistro_espelha_encarnacao.py
+# (edp_v5) e portado para ca no mesmo dia — o gate do lab tinha a lacuna
+# identica, e deixar so um dos dois consertado seria pior que nenhum: daria a
+# impressao de que a familia inteira estava coberta.
+NOME_N  = re.compile(r"`([A-Z][A-Z0-9_]*)`")
+VALOR_N = re.compile(r"`([^`]+)`")
 
 # (pre-registro, harness) — par explicito em vez de glob, porque a nomenclatura
 # do lab e por letra (E7, E9) e nao casa com `expNNN` por regra simples.
@@ -97,6 +114,20 @@ def _tabelas(md: str) -> tuple[dict, dict]:
         lit = _literal(val)
         if lit is not None:
             congeladas[nome] = lit
+
+    # Linhas de N nomes / N valores (ver NOME_N acima). So duas colunas, para
+    # nao invadir a tabela de desvio, que tem tres e semantica diferente.
+    for ln in md.splitlines():
+        celulas = [c.strip() for c in ln.split("|")[1:-1]]
+        if len(celulas) != 2:
+            continue
+        nomes, vals = NOME_N.findall(celulas[0]), VALOR_N.findall(celulas[1])
+        if len(nomes) < 2 or len(nomes) != len(vals):
+            continue
+        for nome, val in zip(nomes, vals):
+            lit = _literal(val)
+            if lit is not None:
+                congeladas.setdefault(nome, lit)
 
     desvios = {}
     for bloco in re.split(r"^##\s+", md, flags=re.M):
@@ -227,3 +258,35 @@ def test_e9_nao_declara_medir_energia():
         f"exp_e9.py calcula '{atribuicao.group(1)}' — o §12 declara que nenhum "
         "resultado do E9 autoriza conclusao em joule ou watt."
     )
+
+
+def test_linha_de_dois_nomes_e_conferida():
+    """
+    Prova que o pareamento N-nomes/N-valores extrai — e discrimina.
+
+    Portado do gate do edp_v5 em 18/08. Sem ele, `TOP_K` e `MIN_SCORE` do
+    exp019 ficariam fora da conferencia, e o §8 pareceria coberto sem estar.
+    """
+    md = (DOCS / "preregistro_experimento_019.md").read_text(encoding="utf-8")
+    congeladas, _ = _tabelas(md)
+    assert congeladas.get("TOP_K") == 5, "pareamento nao extraiu TOP_K"
+    assert congeladas.get("MIN_SCORE") == 0.0, "pareamento nao extraiu MIN_SCORE"
+
+
+def test_dois_nomes_um_valor_continua_fora():
+    r"""
+    A exclusao original vale onde a contagem diverge — e continua valendo.
+
+    Dois nomes com UM valor nao tem pareamento unico; adivinhar ali seria pior
+    que nao conferir, porque congelaria a constante errada em silencio.
+
+    DIVERGENCIA DECLARADA em relacao ao gate do edp_v5: la o caso simetrico
+    (UM nome, DOIS valores) tambem fica de fora, porque `LINHA` e ancorada em
+    `$`. Aqui NAO e — a regex base termina em `[^|]*\|` e portanto ja captura
+    essa linha, ficando com o PRIMEIRO valor. Isso e pre-existente a esta
+    mudanca. Nao foi "corrigido" ancorando a regex: varias tabelas do lab tem
+    prosa depois do literal (`| `TOP_K` ... | `10` / `0.0` (ver §1a.1) |`), e
+    ancorar derrubaria constantes hoje conferidas — o conserto seria mais caro
+    que o defeito, e silencioso.
+    """
+    assert _tabelas("| `A_X` / `B_Y` | `7` |\n")[0] == {}, "2 nomes / 1 valor foi adivinhado"
