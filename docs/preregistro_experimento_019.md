@@ -403,3 +403,66 @@ conteúdo", que é uma situação diferente e não foi medida por ninguém.
 - **§9 ganha um item:** o exp019 **não** testa a ordem instrução-antes-de-memória
   contra memória-antes-de-instrução. Essa manipulação agora tem base concreta
   para existir como experimento próprio, e não existia quando o §9 foi escrito.
+
+---
+
+## §5-bis. Errata — a unidade do dataset é um PAR, não uma query
+
+**19/08/2026, antes do disparo.** Descoberto ao escrever a execução, não ao
+analisar dado.
+
+### O furo
+
+A métrica `usa_turno_anterior` do §5 compara a resposta com o item marcado
+`[turno anterior]` no contexto entregue. Num harness que envia **uma query
+isolada**, não existe turno anterior: a métrica devolveria `False` em 100% dos
+casos, nas duas condições, e **pareceria estar medindo**.
+
+Pior que a métrica morta: o estrato `alvo` é feito de perguntas com pronome e
+referência. *"então você lembra !!"* sem o turno que a precedeu **não é a mesma
+pergunta** — é um fragmento sem referente. Metade do experimento estaria
+medindo um objeto diferente do que o §2 declara.
+
+### A correção
+
+Cada item do dataset passa a ser um **par `(antecessor, alvo)`**, reproduzido na
+ordem do log real. O harness envia o antecessor primeiro — estabelecendo o
+`[turno anterior]` pelo mesmo mecanismo de produção — e depois a query medida.
+
+**Itens sem antecessor não entram.** Não são remendados com turno sintético:
+um antecessor inventado é conteúdo escrito por modelo entrando pela porta que o
+§4-bis fechou.
+
+### Custo verificado
+
+| | queries | com antecessor |
+|---|---|---|
+| `alvo` | 3 | **3** |
+| `controle` | 72 | **71** |
+
+Nenhuma perda relevante — o único item sem antecessor é a primeira pergunta do
+log, por definição.
+
+**Custo dobra:** cada par exige 2 chamadas por condição, então
+`40 × 2 estratos × 2 condições × 2 chamadas = 320 chamadas` (era 160). Na régua
+do E9c, ≈ **95 minutos**. O §6 continua com `N_POR_CELULA = 40`; o que muda é o
+preço, não o poder.
+
+### Duas propriedades verificadas do caminho de execução
+
+**A montagem é a de produção, não uma reimplementação.** `stream_chat` resolve
+`system or self.SYSTEM_TEMPLATE` (`llm_adapter.py:1714`), então passar `system=`
+substitui só o texto — `_build_enriched_context` roda igual nas duas condições.
+O harness não monta prompt.
+
+**O experimento não escreve no store.** `stream_chat` não chama
+`_store_to_memory` (Dívida #10, `llm_adapter.py`). É segunda camada; a primeira
+continua sendo o store clonado do §7.
+
+### Guarda nova no harness
+
+`exige_caminho_vivo()` estoura se `EDP_USE_CTX_MGR != 1`. Com essa var em `0`,
+`stream_chat` cai no fallback `.format(context=...)` — **outra** montagem, a que
+o §1-bis mostrou não ser a de produção. Sem a guarda, o experimento rodaria
+verde medindo a estrutura errada, e o resultado seria indistinguível de um
+válido.
