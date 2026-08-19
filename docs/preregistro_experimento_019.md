@@ -350,3 +350,56 @@ defende — os blocos servem pouco tráfego. Diferente da correção
 raciocínio motivado), esta corre a favor de quem a fez. Por isso ela entra como
 nota, não como número revisado, e a decisão de usar 4,0% ou 2,7% fica para quem
 auditar — com a assimetria à vista.
+
+---
+
+## §1-bis. Errata — descrevi a ordem do prompt a partir do caminho MORTO
+
+**19/08/2026, observando o prompt real em produção.** O §1 afirma:
+
+> *"O slot `{context}` está no caractere 124. Depois dele vêm 2.962 caracteres
+> de instrução... O modelo recebe o conteúdo e, em seguida, um manual do mesmo
+> tamanho ou maior sobre como lê-lo."*
+
+**Está errado.** O log de produção mostra o slot **vazio**:
+
+```
+Contexto da memoria (use SOMENTE se relevante para a pergunta atual):
+                                    ← nada aqui
+VOCE TEM ACESSO A INFORMACAO TEMPORAL — IMPORTANTE:
+```
+
+As memórias entram muito depois, num bloco próprio `=== MEMÓRIAS RELEVANTES ===`.
+
+**Causa, verificada na fonte.** Há dois caminhos de montagem em `llm_adapter.py`:
+
+| linha | código | quando roda |
+|---|---|---|
+| `:2661` | `system_prompt.format(context=ctx_str)` | **só se `ContextWindowManager` falhar ao importar** |
+| `:2838` | `mgr.build(system_prompt=system_prompt.replace("{context}", "").strip(), ...)` | **produção** |
+
+O caminho vivo **esvazia** o slot e passa as memórias separadas ao manager. Li o
+template, vi o `{context}` na linha 4, e assumi que ele era preenchido — sem
+conferir qual dos dois caminhos executa. É a terceira vez em dois dias que
+"qual caminho realmente roda" me pega (as outras: telemetria de ranking
+instalada no cosseno, e o laço `access_boost` descrito como vivo).
+
+### A correção torna a motivação MAIS forte, não menos
+
+Ordem real: **~3.081 chars de instrução, integralmente ANTES de qualquer
+memória.** O modelo lê o manual inteiro — incluindo as 12 proibições e os três
+blocos compensatórios — antes de ver uma única memória recuperada.
+
+O argumento de **custo** do §1 não muda (1.877 chars em todo turno). O de
+**posição** muda de "manual depois do conteúdo" para "manual antes do
+conteúdo", que é uma situação diferente e não foi medida por ninguém.
+
+### Efeito sobre o experimento
+
+- **§2 (hipótese), §5 (métricas), §6 (critério): intactos.** Nada ali dependia
+  da posição.
+- **§7 (anti-mock): intacto.** A ablação corta linhas do literal, e o literal é
+  o mesmo nos dois caminhos.
+- **§9 ganha um item:** o exp019 **não** testa a ordem instrução-antes-de-memória
+  contra memória-antes-de-instrução. Essa manipulação agora tem base concreta
+  para existir como experimento próprio, e não existia quando o §9 foi escrito.
