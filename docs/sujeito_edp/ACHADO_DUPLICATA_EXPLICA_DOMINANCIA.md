@@ -138,3 +138,56 @@ sintoma.
 
 Fonte primária: `data/_telemetria_windows/events.jsonl` (cópia de leitura de
 18/08 16:07, 544 eventos, 131.973 bytes).
+
+---
+
+## Adendo — 19/08/2026: a duplicação está sendo medida em produção há tempo, por instrumento que já existia
+
+Log de quatro turnos reais (kernel Windows, `claude-haiku-4-5`, 00:48–00:57):
+
+```
+00:48:35  [exp017] dup_rate id=0/5 hash=4/5
+00:49:37  [exp017] dup_rate id=0/5 hash=0/5
+00:51:12  [exp017] dup_rate id=2/5 hash=2/5
+00:56:48  [exp017] dup_rate id=1/5 hash=1/5
+```
+
+**7 de 20 slots entregues (35%) são duplicata por hash normalizado**, com um
+turno chegando a **4 de 5 (80%)**. `hash` é a mesma normalização do
+`_dedup_pass_exp017` — ou seja, é exatamente o que o dedup colapsaria se
+estivesse ligado.
+
+O turno de 80% é visível no prompt renderizado:
+
+```
+[há 2 meses, llm_response] Q: oi  A: Oi! Tudo bem?  Como poss...   ← ×5
+```
+
+Cinco cópias do mesmo cumprimento ocupando **cinco dos dez blocos** do
+retrieval, para a query `"oi"`. A recuperação está correta (casamento exato); o
+que falha é não colapsar.
+
+### Por que este adendo importa mais que a contagem original
+
+O corpo deste documento contou duplicatas **no store** (14 cópias extras em 5
+grupos) e inferiu o efeito no ranking a partir de escores idênticos na
+telemetria. Isso era indireto.
+
+O `dup_rate` mede **o que foi entregue ao prompt**, turno a turno, e é emitido
+por instrumento que **já existia e já rodava** — nenhuma flag precisou ser
+ligada, nenhum experimento precisou ser desenhado. O dado estava no log.
+
+**Consequência prática:** o efeito de ligar `EDP_RETRIEVE_DEDUP` é estimável
+**sem rodar experimento** — `dup_rate` já diz quantos slots seriam liberados por
+turno. O que ele não diz é se a memória que entraria no lugar é melhor, e essa
+parte continua exigindo medição.
+
+### Limites
+
+- 4 turnos. A média de 35% tem incerteza enorme e não é um número para citar
+  sozinho.
+- Os quatro turnos são de uma sessão, num dia, com um padrão de conversa só.
+- `dup_rate` conta o que o dedup **colapsaria**, não o que está sendo
+  desperdiçado em sentido semântico — duas memórias distintas com o mesmo texto
+  normalizado são raras, mas o inverso (conteúdo redundante com texto diferente)
+  não é contado aqui de forma nenhuma.
