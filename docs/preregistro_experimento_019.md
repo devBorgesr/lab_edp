@@ -466,3 +466,72 @@ continua sendo o store clonado do §7.
 o §1-bis mostrou não ser a de produção. Sem a guarda, o experimento rodaria
 verde medindo a estrutura errada, e o resultado seria indistinguível de um
 válido.
+
+---
+
+## §6-bis. Recorte declarado — só o estrato `controle`, e o que ele testa
+
+**19/08/2026, declarado ANTES do disparo.**
+
+O `§4-ter` mediu: o estrato `alvo` tem **3 pares** contra os 40 exigidos. O
+experimento do `§6` **não pode rodar**. Completar à mão ou reduzir o `N` em
+silêncio está proibido pelo `§4-bis`.
+
+O estrato `controle` tem **71 pares** e roda. Este recorte dispara só ele.
+
+### O que o recorte testa — e não é consolo
+
+A previsão do `§4`, escrita antes de qualquer dado, foi: **o `controle` não se
+move, sob H1 ou H0.** O recorte **testa essa previsão**.
+
+Duas leituras, ambas úteis:
+
+- **A previsão se sustenta** → o controle negativo está validado, e o
+  experimento completo pode disparar depois com uma incerteza a menos.
+- **A previsão falha** → o desenho tem problema, e é **muito** melhor descobrir
+  agora do que depois de gastar as 320 chamadas da rodada completa.
+
+E há uma leitura substantiva independente: dado que o `alvo` é 4% do tráfego
+real, *"a ablação prejudica os outros 96%?"* é discutivelmente a pergunta mais
+importante para decidir o corte. Se remover 1.877 chars não piora o tráfego
+ordinário, o custo de mantê-los fica sem contrapartida visível.
+
+### O QUE O RECORTE NÃO FAZ
+
+**Não confirma nem refuta a H1.** A H1 é sobre o estrato `alvo`, e ele não
+rodou. Nenhuma frase do relatório pode sugerir o contrário.
+
+**Não é o exp019.** É um recorte com número próprio de leitura; o `§6` continua
+travado e intacto para quando o corpus permitir.
+
+### Critério — e a armadilha do E9b, aplicada aqui
+
+Métrica primária: `nega_memoria` no `controle`, `ablado` vs `completo`.
+
+**Perigo:** aqui procura-se AUSÊNCIA de efeito, e para ausência o teste se
+inverte — um IC largo "passa" trivialmente. *Caber não é passar.* Foi
+exatamente isso que derrubou o `DELTA_EQUIV = 0.07` do E9b, num passo cuja
+finalidade era rigor.
+
+Portanto, o veredito é escrito assim, e não de outro jeito:
+
+| resultado | conclusão permitida |
+|---|---|
+| IC exclui zero | **a ablação move o controle** — desenho comprometido, o `§4` errou a previsão |
+| IC contém zero | **não detectado deslocamento maior que a MDE abaixo** — NÃO é "sem efeito" |
+
+**MDE (efeito mínimo detectável) com `N = 40`, do `§6`:** 0,90 de poder para
+0,10→0,40; **0,76** para 0,05→0,25. Um deslocamento de 20 pontos a partir de
+base baixa **não seria detectado de forma confiável**, e a conclusão declara
+isso em vez de omitir.
+
+`MDE_DECLARADA = 0.30` (pontos percentuais, poder ≥ 0,90).
+
+### Constantes adicionais deste recorte
+
+| constante | valor |
+|---|---|
+| `RECORTE` | `"controle"` |
+| `MDE_DECLARADA` | `0.30` |
+
+Modelo e store clonado vão no `§8-bis`, registrados no ato do disparo.

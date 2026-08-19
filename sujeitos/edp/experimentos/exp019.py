@@ -50,6 +50,9 @@ MIN_SCORE          = 0.0
 # Guarda de tamanho do §7. MEDIDO em 18/08/2026 contra o template real, nao
 # escolhido: se o SYSTEM_TEMPLATE mudar, o corte deixa de bater e o harness
 # PARA — em vez de ablar silenciosamente o bloco errado.
+RECORTE            = "controle"   # §6-bis: o estrato alvo tem 3 pares, nao roda
+MDE_DECLARADA      = 0.30         # efeito minimo detectavel com N=40, poder >=0.90
+
 CHARS_BLOCO_ABLADO = 1877
 CHARS_TEMPLATE     = 3095
 
@@ -396,12 +399,92 @@ def executa(runtime, dataset: dict, qs_ordenadas: list) -> list:
 
 # ── Entrada ───────────────────────────────────────────────────────────────────
 
+def carrega_corpus(store: Path) -> tuple[list, list]:
+    """(entries, perguntas_em_ordem_cronologica) de um store CLONADO."""
+    import json
+    ep = store / "sessions" / "default_cognitive" / "episodic.json"
+    if not ep.exists():
+        raise RuntimeError(f"episodic.json nao encontrado em {ep}")
+    entries = json.loads(ep.read_text(encoding="utf-8"))
+    qs, vistos = [], set()
+    for e in sorted(entries, key=lambda x: (x or {}).get("timestamp") or 0):
+        q = extrai_pergunta(e)
+        if not q:
+            continue
+        k = normaliza(q)
+        if k in vistos:
+            continue
+        vistos.add(k)
+        qs.append(q)
+    return entries, qs
+
+
+def dispara_recorte_controle(runtime, store: Path, n: int = N_POR_CELULA) -> dict:
+    """
+    §6-bis: roda SO o estrato `controle`.
+
+    O `alvo` tem 3 pares contra os 40 exigidos (§4-ter) e NAO e completado nem
+    reduzido em silencio — fica de fora, declarado.
+    """
+    exige_caminho_vivo()
+    entries, qs = carrega_corpus(store)
+    todos = amostra(entries, n_por_celula=10**9)          # sem cortar ainda
+    ctrl = [e for e in todos["controle"]
+            if par_com_antecessor(qs, e["_pergunta"]) is not None][:n]
+    registros = executa(runtime, {"alvo": [], "controle": ctrl}, qs)
+    return {
+        "experimento":  EXPERIMENTO,
+        "recorte":      RECORTE,
+        "n_pares":      len(ctrl),
+        "n_alvo_disponivel": len(todos["alvo"]),
+        "mde_declarada": MDE_DECLARADA,
+        "registros":    registros,
+    }
+
+
+def analisa_recorte(res: dict) -> dict:
+    """
+    §6-bis: veredito do recorte, com a armadilha do E9b explicita.
+
+    IC contendo zero NAO autoriza "sem efeito" — autoriza "nao detectado
+    deslocamento maior que a MDE". A frase sai pronta daqui para nao ser
+    reescrita com mais confianca do que o dado tem.
+    """
+    reg = res["registros"]
+    def conta(c):
+        sub = [r for r in reg if r["condicao"] == c]
+        return sum(1 for r in sub if r["nega_memoria"]), len(sub)
+    k1, n1 = conta("completo")
+    k2, n2 = conta("ablado")
+    if not (n1 and n2):
+        return {"veredito": "SEM DADO", "n": (n1, n2)}
+    d, lo, hi = wilson_diff(k1, n1, k2, n2)
+    move = (lo > 0) or (hi < 0)
+    return {
+        "completo":  f"{k1}/{n1}",
+        "ablado":    f"{k2}/{n2}",
+        "diferenca": round(d, 4),
+        "ic95":      [round(lo, 4), round(hi, 4)],
+        "veredito": (
+            "A ABLACAO MOVE O CONTROLE — desenho comprometido, a previsao do §4 errou"
+            if move else
+            f"nao detectado deslocamento maior que MDE={MDE_DECLARADA} "
+            f"(NAO e 'sem efeito' — ver §6-bis)"
+        ),
+        "nao_diz": "nada sobre a H1: o estrato alvo nao rodou",
+    }
+
+
 def main(argv=None) -> int:
     import argparse
     import json
     ap = argparse.ArgumentParser(description=f"Experimento {EXPERIMENTO}")
     ap.add_argument("--dry-run", action="store_true",
                     help="so mostra template/ablacao/estratos, sem chamar modelo")
+    ap.add_argument("--recorte-controle", metavar="STORE_CLONADO",
+                    help="§6-bis: dispara so o estrato controle contra o store clonado")
+    ap.add_argument("--modelo", default="claude-haiku-4-5")
+    ap.add_argument("--saida", default="resultado_exp019_recorte.json")
     a = ap.parse_args(argv)
 
     t = carrega_template()
@@ -417,6 +500,30 @@ def main(argv=None) -> int:
     if a.dry_run:
         print("\n--dry-run: nada foi chamado. O disparo real exige o §8-bis "
               "com o MODELO registrado antes.")
+        return 0
+
+    if a.recorte_controle:
+        chave = os.environ.get("ANTHROPIC_API_KEY", "")
+        if not chave:
+            raise SystemExit("ANTHROPIC_API_KEY ausente no ambiente.")
+        store = Path(a.recorte_controle)
+        if "edp_data_todo" in str(store) and "clone" not in str(store).lower():
+            raise SystemExit(
+                f"{store} parece ser o store DE PRODUCAO. O §7 exige clone. "
+                "Copie antes e aponte para a copia."
+            )
+        from edp.llm_adapter import EDPRuntime          # type: ignore
+        rt = EDPRuntime()
+        if not rt.connect_anthropic(api_key=chave, model=a.modelo):
+            raise SystemExit("connect_anthropic falhou.")
+        res = dispara_recorte_controle(rt, store)
+        res["modelo"] = a.modelo
+        res["analise"] = analisa_recorte(res)
+        Path(a.saida).write_text(json.dumps(res, ensure_ascii=False, indent=2),
+                                 encoding="utf-8")
+        print(json.dumps(res["analise"], ensure_ascii=False, indent=2))
+        print(f"\nbruto em {a.saida} ({res['n_pares']} pares, "
+              f"alvo disponivel={res['n_alvo_disponivel']})")
         return 0
 
     raise SystemExit(
