@@ -442,6 +442,26 @@ def dispara_recorte_controle(runtime, store: Path, n: int = N_POR_CELULA) -> dic
     }
 
 
+def antecessor_chegou(registros: list) -> tuple[int, int]:
+    """
+    (quantos declaram NAO ter contexto anterior, total).
+
+    GUARDA NASCIDA DA FALHA 3 (§6-ter, 19/08). `stream_chat` nao chama
+    `_store_to_memory` (Divida #10), entao o turno do antecessor NAO e
+    persistido e nao existe como `[turno anterior]` na chamada seguinte. No
+    piloto, 17 de 80 respostas disseram isso na cara e o harness seguiu em
+    frente calculando um veredito.
+
+    A propriedade que protege o store (nao escrever) e a mesma que quebra o
+    pareamento. Eu vi so um dos dois lados e comemorei.
+    """
+    import re as _re
+    pat = _re.compile(r"nao tenho (contexto|registro) (anterior|de uma conversa)"
+                      r"|nao ha (registro|contexto) (anterior|de conversa)")
+    n = sum(1 for r in registros if pat.search(_sem_acento(r.get("resposta", ""))))
+    return n, len(registros)
+
+
 def analisa_recorte(res: dict) -> dict:
     """
     §6-bis: veredito do recorte, com a armadilha do E9b explicita.
@@ -458,6 +478,28 @@ def analisa_recorte(res: dict) -> dict:
     k2, n2 = conta("ablado")
     if not (n1 and n2):
         return {"veredito": "SEM DADO", "n": (n1, n2)}
+
+    # Falha 3 do §6-ter: se o antecessor nao chega, o pareamento nao existe e
+    # nenhum veredito sobre o turno anterior e interpretavel.
+    sem_ctx, tot = antecessor_chegou(reg)
+    if sem_ctx:
+        return {
+            "veredito": "INVALIDO — o antecessor nao chegou ao contexto",
+            "respostas_sem_contexto_anterior": f"{sem_ctx}/{tot}",
+            "causa": "stream_chat nao persiste turno (Divida #10); ver §6-ter falha 3",
+            "nao_diz": "nada sobre a ablacao — a rodada nao mediu o que declarou medir",
+        }
+
+    # Falha 1 do §6-ter: zero nas DUAS condicoes nao e piso, e suspeita de lista
+    # incompleta. 0/40 vs 0/40 produz IC [0,0], que exclui nada e parece preciso.
+    if k1 == 0 and k2 == 0:
+        return {
+            "veredito": "SEM SINAL — a metrica nao disparou em nenhuma condicao",
+            "alerta": ("IC degenerado [0,0]: nao e 'sem efeito'. Confira se a lista "
+                       "congelada de FRASES_NEGACAO cobre as negacoes reais antes de "
+                       "interpretar (§6-ter falha 1)."),
+            "nao_diz": "nada sobre a ablacao",
+        }
     d, lo, hi = wilson_diff(k1, n1, k2, n2)
     move = (lo > 0) or (hi < 0)
     return {
