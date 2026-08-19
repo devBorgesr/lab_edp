@@ -535,3 +535,113 @@ isso em vez de omitir.
 | `MDE_DECLARADA` | `0.30` |
 
 Modelo e store clonado vão no `§8-bis`, registrados no ato do disparo.
+
+---
+
+## §6-ter. Resultado do recorte — o instrumento foi invalidado, não a hipótese
+
+**19/08/2026, 03h40. Modelo `claude-haiku-4-5`, 40 pares, 160 chamadas,
+store clonado (186 entradas).**
+
+### O que saiu
+
+```
+nega_memoria        completo 0/40    ablado 0/40    dif 0.0   IC [0.0, 0.0]
+usa_turno_anterior  completo 0/40    ablado 0/40
+n_chars_resposta    completo med 604 ablado med 472
+```
+
+O veredito impresso — *"não detectado deslocamento maior que MDE=0.30"* — **está
+errado**, e o motivo é pior que um efeito nulo.
+
+### Falha 1 — `nega_memoria` é falso negativo, não piso
+
+A lista congelada do `§8` tem cinco frases. As negações reais que o modelo
+produziu foram outras:
+
+> *"**Não tenho contexto anterior** nesta conversa"*
+> *"**Não tenho registro de uma conversa anterior** nesta sessão"*
+> *"**Não consigo responder isso com confiança**"*
+
+Nenhuma casa a lista. Medição exploratória com padrão amplo (**não** é a lista
+congelada, e não substitui nada):
+
+| | lista congelada | padrão amplo |
+|---|---|---|
+| `completo` | 0/40 | **9/40** |
+| `ablado` | 0/40 | **8/40** |
+
+O comportamento aconteceu em ~21% dos casos e o instrumento devolveu zero.
+
+**A lista NÃO é expandida agora.** O `§5` diz explicitamente *"congela no §8 e
+não cresce depois do dado"*. Expandi-la vendo o resultado é escolher o
+instrumento pelo que ele produz. A métrica fica **void para esta rodada**, e uma
+lista nova precisa nascer de amostra reservada, em experimento novo.
+
+### Falha 2 — `usa_turno_anterior` era inalcançável
+
+Maior trecho literal comum entre antecessor e resposta, nos 40 pares:
+**mediana 2 chars, máximo 10**, contra `MIN_CHARS_VERBATIM = 20`. **Zero** dos
+40 poderiam ter disparado, em qualquer condição.
+
+O modelo **parafraseia**, não cita.
+
+E aqui a ironia registrada: desenhei esta métrica como extrativa **justamente
+para não repetir o E10**, cuja H1 caiu porque `key_assertion` era parcialmente
+abstrativa. Evitei o julgamento-por-modelo e caí no mesmo buraco pelo outro
+lado — supus que o **comportamento** seria extrativo.
+
+### Falha 3 — o antecessor nunca chegou ao contexto (a mais grave)
+
+**17 de 80 respostas declaram explicitamente não ter contexto anterior**, depois
+de o antecessor ter sido enviado.
+
+Causa: `stream_chat` **não** chama `_store_to_memory` (Dívida #10). O turno do
+antecessor não é persistido, então não existe como `[turno anterior]` na chamada
+seguinte.
+
+No commit do `§5-bis` eu escrevi essa mesma propriedade como **garantia de
+segurança** — *"o experimento não escreve no store"* — e comemorei. É
+exatamente ela que evapora o pareamento. A propriedade que protege o store é a
+que quebra o experimento, e eu vi só um dos dois lados.
+
+O mecanismo de par do `§5-bis` **não funciona**.
+
+### Por que os 16 testes não pegaram
+
+`test_exp019_execucao.py` valida que o harness **pergunta** certo: ordem,
+pareamento, system prompt, guardas. Ele usa um runtime falso que registra
+chamadas — e um runtime falso não pode revelar que o runtime **real** não
+persiste turnos.
+
+Os testes verificaram a emissão. Não verificavam a **recepção**. Minha
+disciplina anti-mock estava aplicada à montagem do prompt e não ao estado
+entre turnos.
+
+### O que este recorte conclui
+
+**Nada sobre a ablação.** As duas métricas de decisão estão void. A rodada é
+inválida como medição.
+
+**É válida como piloto**, e foi exatamente para isso que serviu: 160 chamadas
+compraram a descoberta de que as 320 da rodada completa produziriam o mesmo
+vazio.
+
+### O único número que se moveu, e por que ele NÃO vira resultado
+
+`n_chars_resposta`: mediana **604 → 472** (−22%), média 710 → 630 (−11%).
+
+O `§5` declara essa métrica **descritiva, fora do critério de decisão**.
+Promovê-la a achado agora é trocar a pergunta depois de ver o dado — a única
+coisa que este pré-registro existe para impedir. Fica registrada como
+observação, e serve para **motivar** um desenho novo, não para concluir este.
+
+### O que um desenho que funcione precisa
+
+1. Lista de negação derivada de **amostra reservada**, não do corpus medido.
+2. Métrica de uso do turno anterior que **não** presuma citação literal.
+3. Um caminho de execução que **persista** o antecessor — `chat()` em vez de
+   `stream_chat`, ou injeção direta em `recent_turns`, com o custo de store
+   sujo declarado e um clone descartável por par.
+
+Isso é o **Experimento 020**. O `§6` deste continua travado e intacto.
