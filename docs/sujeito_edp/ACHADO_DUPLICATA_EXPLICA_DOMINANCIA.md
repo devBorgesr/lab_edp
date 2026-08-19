@@ -191,3 +191,77 @@ parte continua exigindo medição.
   desperdiçado em sentido semântico — duas memórias distintas com o mesmo texto
   normalizado são raras, mas o inverso (conteúdo redundante com texto diferente)
   não é contado aqui de forma nenhuma.
+
+---
+
+## Adendo 2 — 19/08/2026: o gerador é a DESCONEXÃO, não o uso
+
+Observação que fecha a cadeia causal deste achado e **muda a prioridade do
+conserto**.
+
+### A evidência
+
+Log de uma sessão contínua, nove turnos entre 00:48 e 01:26, sem nenhum
+`[WS] desconectado`:
+
+```
+00:48  00:49  00:51  01:00  01:13  01:17  01:20  01:23  01:26   → 0 summary_write
+```
+
+Os dois `summary_write` que existem no store vieram logo após os dois
+disconnects anteriores, às 00:45:22 e 00:47:44.
+
+`generate_session_summary` é chamado dentro de
+`except WebSocketDisconnect` (`websocket.py:1376`). **Nove turnos de conversa
+real produziram zero resumos; dois fechamentos de aba produziram dois.**
+
+### O que isso corrige no entendimento anterior
+
+O corpo deste documento tratava a duplicação como acúmulo. Não é.
+
+> **O gerador de `session_summary` não é o volume de conversa — é a frequência
+> de desconexão.**
+
+Quem deixa uma aba aberta o dia inteiro produz **zero** resumos. Quem recarrega
+a página cinco vezes produz **cinco**, todos sobre a mesma janela
+`entries[-10:]`, todos praticamente idênticos.
+
+Os 5 grupos com 2–3 cópias cada não são acúmulo gradual. São **rajadas de
+refresh**.
+
+Isso também explica a composição do store: **32 de 137 entradas (23%) são
+`session_summary`** — desproporção que faz sentido para um gerador acionado por
+evento de transporte, e nenhum para um acionado por conteúdo.
+
+### Consequência prática — inverte a prioridade
+
+Eu havia colocado a guarda de escrita e o dedup de leitura como duas frentes
+paralelas. Não são equivalentes:
+
+| conserto | o que faz | alcance |
+|---|---|---|
+| `EDP_SUMMARY_DEDUP` (escrita) | não grava resumo acima do limiar | **ataca a fonte** — sem cópia no store, nada a colapsar depois |
+| `EDP_RETRIEVE_DEDUP` (leitura) | colapsa duplicata no ranking | trata o sintoma a cada turno, para sempre |
+
+A guarda de escrita é **mais importante** do que eu disse, porque o gerador é
+acionado por um evento que o usuário não controla conscientemente — queda de
+rede, fechamento de aba, reconexão do navegador. É uma fonte que só cresce.
+
+Nota: o dedup de leitura continua necessário para as duplicatas **já existentes**
+e para as de `llm_response` (as 9 cópias de "oi"), que a guarda de escrita não
+toca.
+
+### Observação lateral — falha duplicada ocupa dois slots
+
+No prompt de 01:17, duas cópias idênticas de um `camara_response` cuja resposta
+é *"O contexto original que recebi está vazio — não há pergunta explícita à qual
+responder."*
+
+Uma **falha** armazenada, recuperada duas vezes, ocupando dois dos slots
+entregues. E em 01:20/01:23, `retrieval_kept` traz `[..., 3122, 3122, ...]` —
+6.244 caracteres gastos com o mesmo texto no mesmo prompt.
+
+O `answer_class` tóxico (`not_found`, `disqualification`) já é excluído do índice
+híbrido quando `EDP_TOXIC_GUARDS` está ligada (`store.py:1662`). Este caso
+sugere que respostas de falha do caminho `camara_response` não estão sendo
+classificadas — mas isso é **hipótese**, não verificado, e é outra investigação.
