@@ -57,3 +57,23 @@ graphify-out/
 graphify-out/
 e10_pares.jsonl
 e9*_amostras.jsonl
+
+# ── Corpus conversacional (21/08/2026, EDI-001) ──────────────────────────────
+# NEGADO POR CLASSE, nao por nome. O bloco de cima lista .jsonl um a um
+# (export_fase0, e10_pares, e9*_amostras) — allowlist por omissao, onde
+# esquecer de adicionar um arquivo novo nao da sintoma nenhum ate ser tarde.
+#
+# Daqui pra baixo a direcao inverte: todo .jsonl e ignorado, e o que precisa
+# ser versionado (dataset congelado de experimento) tem de ser liberado
+# explicitamente com `!` E declarado em tests/test_higiene_de_corpus.py com o
+# motivo. Manter custa duas linhas; esquecer custa build vermelho.
+*.jsonl
+!e7_sequencia.jsonl
+
+# Saidas do EDI — features, corpus extraido, predicoes. Nunca versionar:
+# medido em 21/08, o corpus local tem 121 mencoes a nomes de arquivo de
+# gabarito restritos pelo AVISO.
+edi_out/
+corpus_extraido/
+*_features.csv
+*_predicoes.csv
