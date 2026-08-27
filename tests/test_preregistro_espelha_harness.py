@@ -29,6 +29,14 @@ RAIZ = Path(__file__).resolve().parent.parent
 DOCS = RAIZ / "docs"
 HARNESSES = RAIZ / "sujeitos" / "edp" / "experimentos"
 
+# 22/08/2026: o EDI vive em outro par de diretorios. Caminho fixo unico deixaria
+# o §8 do EDI-001 fora de qualquer conferencia — e o espelhamento so vale se
+# alcancar TODO pre-registro com constantes, nao os que couberam no glob.
+DIRS = [
+    (DOCS, HARNESSES),
+    (RAIZ / "docs" / "edi", RAIZ / "sujeitos" / "edi"),
+]
+
 # | `NOME` <glosa opcional> | `literal` |
 # O sufixo `[^|`]*` aceita a glosa da celula do nome mas NAO um segundo
 # backtick, entao esta regex sozinha so ve 1-nome/1-valor.
@@ -64,6 +72,8 @@ PARES = [
     # exp019 ainda sem harness; registrado agora para auto-ativar quando ele
     # aterrissar, em vez de depender de alguem lembrar.
     ("preregistro_experimento_019.md", "exp019.py"),
+    # EDI — primeiro pre-registro do edp_engineering, em docs/edi/ + sujeitos/edi/
+    ("preregistro_edi_001.md", "edi_001.py"),
 ]
 
 # ── LACUNA DECLARADA (18/08/2026) — exp018 nao e pareavel ────────────────────
@@ -156,11 +166,18 @@ def _carrega(caminho: Path):
     return mod
 
 
-CASOS = [
-    pytest.param(DOCS / md, HARNESSES / py, id=py.replace(".py", ""))
-    for md, py in PARES
-    if (DOCS / md).exists() and (HARNESSES / py).exists()
-]
+def _casos():
+    """Procura cada par nos DIRS — o primeiro em que os dois existam."""
+    out = []
+    for md, py in PARES:
+        for d_md, d_py in DIRS:
+            if (d_md / md).exists() and (d_py / py).exists():
+                out.append(pytest.param(d_md / md, d_py / py, id=py.replace(".py", "")))
+                break
+    return out
+
+
+CASOS = _casos()
 
 
 def test_ha_pares_para_conferir():
