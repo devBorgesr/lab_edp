@@ -309,3 +309,62 @@ A coluna passa a se chamar **`o desenho conclui?`**, e o veredito continua sendo
 o do `§6`: aprovado só com IC inteiramente acima de 0,80, reprovado com IC
 inteiramente abaixo de 0,60, inconclusivo se atravessar. Nenhuma linha da tabela
 de poder é veredito sobre o instrumento.
+
+---
+
+## §6.3. Errata — a correção do §3.3 quebrou o poder, e aumentar N não conserta
+
+**30/08/2026, antes de qualquer rotulação. Erro meu, encontrado ao implementar
+o harness.**
+
+O `§6` calculou poder sobre **500 pares**. O `§3.3` moveu o gate para o estrato
+`topo`, que tem `N_TOPO = 5` por query — **250 pares**, metade. Não propaguei.
+
+E medir mostra que o problema não é o N:
+
+| queries | pares no `topo` | acordo 95% | acordo 97% |
+|---|---|---|---|
+| 50 | 250 | κ=0,81 IC [0,73 ; 0,88] — inconclusivo | κ=0,90 IC [0,84 ; 0,94] — **aprova** |
+| 100 | 500 | κ=0,81 IC [0,76 ; 0,86] — inconclusivo | κ=0,88 — aprova |
+| 300 | 1500 | κ=0,82 IC [0,79 ; 0,84] — **ainda inconclusivo** | κ=0,89 — aprova |
+
+**Triplicar o corpus seis vezes não aprova um instrumento de 95%.** Com esse
+acordo o κ converge para ~0,82 — genuinamente acima do gate — e o limite
+inferior estaciona em 0,79. O intervalo nunca exclui 0,80 de forma limpa.
+
+### Isto é assimetria deliberada, e fica declarada
+
+O desenho, como está, **rejeita bem e aprova mal**:
+
+| o instrumento tem | o experimento conclui |
+|---|---|
+| ≥ 97% de acordo | **aprova** — já com 50 queries |
+| ~95% de acordo | **inconclusivo em qualquer N praticável** |
+| ≤ 90% de acordo | **reprova** — IC inteiramente abaixo de 0,60 |
+
+Não vou baixar o gate. O uso a jusante é **vender Recall@K como medição
+confiável**, e nesse uso o ônus da prova pertence a quem aprova. Um desenho
+difícil de aprovar e fácil de rejeitar é o viés certo para essa aplicação.
+
+Mas isso precisa estar dito antes, e não descoberto depois que o resultado sair
+inconclusivo. **É o §4.3: critério inatingível se declara, não se esconde.**
+
+### A leitura permitida de um inconclusivo
+
+Se o REL-001 voltar inconclusivo com acordo em torno de 95%, a frase é:
+
+> *"O instrumento tem acordo alto, e este desenho não consegue separar 0,82 de
+> 0,80 com N praticável. Não aprovado — e não reprovado."*
+
+Não é *"o instrumento falhou"*, nem *"quase passou"*. Um inconclusivo aqui é
+informação sobre o **desenho**, não sobre o instrumento — e o que ele autoriza é
+buscar outro critério, não arredondar este.
+
+### O que NÃO foi feito
+
+Não aumentei `N_QUERIES` para simular poder que não existe: a tabela mostra que
+não adianta. Não troquei o critério de intervalo por ponto — foi assim que o
+`DELTA_EQUIV = 0.07` do E9b morreu. E não mexi em `GATE_APROVA`.
+
+O `§8` permanece intacto. Esta errata muda o que o experimento **promete**, não
+o que ele mede.
