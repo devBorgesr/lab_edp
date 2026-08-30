@@ -234,3 +234,78 @@ Corrigido, com o motivo:
 | 5 | sem cálculo de poder | é a ausência que gerou 1, 2 e 3 |
 | 6 | veredito sobre κ pontual | *caber não é passar* (E9b) |
 | 7 | prevalência como métrica secundária | ela **determina** se o gate é atingível |
+
+---
+
+## §3.3. Errata — consertei a prevalência e introduzi um viés de dificuldade
+
+**30/08/2026, antes de qualquer rotulação. Achado por auditoria externa.**
+
+O `§3.2` mistura `topo` + `cauda` + `controle` para levar a prevalência a ~0,5 e
+tornar o κ interpretável. Isso funciona **e cria um problema novo que eu não vi**:
+o pool fica **bimodal em dificuldade** — positivos fáceis no topo, negativos
+triviais no controle — enquanto a decisão que o Recall@K realmente faz vive na
+região do meio: *topicamente parecido e inútil*.
+
+Acordo medido em caso fácil **infla** o número. Medido, com o mesmo instrumento e
+a mesma dificuldade por estrato, mudando só a mistura:
+
+| pool | prevalência | κ | AC1 |
+|---|---|---|---|
+| balanceado (topo+cauda+controle) | 0,22 | **0,64** | **0,73** |
+| **só `topo`** — o que Recall@K usa | 0,55 | **0,57** | 0,58 |
+
+O pool balanceado infla o κ em **0,07** e o AC1 em **0,15**. Um instrumento que
+sai como "0,64" na mistura vale **0,57** onde ele de fato decide.
+
+### A correção
+
+O dado aponta um conserto mais simples do que o problema sugeria: **o estrato
+`topo` já é prevalência-balanceado por natureza** (~0,55), então κ se comporta
+bem ali sozinho. A patologia do `§3.1` vinha de medir o pool inteiro, não do
+estrato operacional.
+
+**O gate passa para o estrato `topo`.** Os outros mudam de papel:
+
+| estrato | papel novo | entra no gate? |
+|---|---|---|
+| `topo` (5/q) | **medição operacional** — é onde o Recall@K decide | **sim** |
+| `cauda` (3/q) | verifica que o rubric não vira "tudo é relevante" | não, reportado |
+| `controle` (2/q) | integridade do instrumento — negativo óbvio | não, **é pré-condição** |
+
+O `controle` deixa de ser parte do κ e vira **pré-condição**: se ele não atingir
+`ACORDO_ESPERADO_CONTROLE = 0.98`, o rubric não reconhece nem negativo trivial e
+**a rodada é declarada inválida** — não ajustada.
+
+### A prevalência do `topo` é suposição, não medida
+
+A simulação usou 0,55 porque é plausível. Em retrieval real, a taxa de
+relevantes no top-5 varia muito — de 0,3 a 0,8 conforme domínio e qualidade do
+retriever.
+
+**A prevalência alcançada no `topo` é reportada obrigatoriamente.** Se cair fora
+de [0,30 ; 0,70], o κ volta a ser distorcido e a leitura passa a exigir o AC1 ao
+lado, com a prevalência declarada na mesma linha. Isso está escrito aqui em vez
+de descoberto na análise.
+
+### O que a auditoria externa acertou e eu não
+
+O controle negativo serve para provar que o instrumento **reconhece um negativo
+óbvio** — não para substituir o caso ambíguo. Eu tinha usado os dois papéis no
+mesmo número. São coisas diferentes e agora estão separadas.
+
+---
+
+## §6.2. Errata — "decide" não é "passa"
+
+A tabela do `§6` tem uma coluna `decide?`, e ela é ambígua. Para
+`κ = 0,68  IC [0,61 ; 0,75]` ela marca **sim** — e isso significa apenas que o
+desenho **consegue concluir**, não que o instrumento passou.
+
+Naquele caso o IC está inteiramente **abaixo** de 0,80: a conclusão é
+*"não atingiu o gate de aprovação"*. O desenho funcionou; o instrumento não.
+
+A coluna passa a se chamar **`o desenho conclui?`**, e o veredito continua sendo
+o do `§6`: aprovado só com IC inteiramente acima de 0,80, reprovado com IC
+inteiramente abaixo de 0,60, inconclusivo se atravessar. Nenhuma linha da tabela
+de poder é veredito sobre o instrumento.
