@@ -116,11 +116,28 @@ def monta_pool(query: str,
     Falha alto se o ranking nao alcancar a cauda: pool incompleto muda a
     prevalencia e portanto muda o kappa, e isso nao pode acontecer em silencio.
     """
+    # DEDUP POR ID ANTES DE FATIAR (achado 30/08).
+    # Todos os 61 ids da camada semantica tambem estao na episodica — a
+    # consolidacao promove e nao remove, e `_hybrid_index` varre as duas sem
+    # deduplicar. Resultado medido: 637 ids repetidos em 2.500 slots (25,5%).
+    #
+    # Sem isto, `ranking[:5]` pode ter menos de 5 documentos distintos, e o
+    # MESMO documento pode cair em `topo` e em `cauda` — julgado duas vezes,
+    # entrando duas vezes no kappa.
+    #
+    # Nao altera o protocolo: o §3.2 diz "top-5 do retriever", e cinco slots
+    # com quatro documentos distintos nunca foram cinco.
+    vistos, unico = set(), []
+    for d in ranking:
+        if d not in vistos:
+            vistos.add(d); unico.append(d)
+    ranking = unico
+
     if len(ranking) < 50:
         raise RuntimeError(
             f"ranking com {len(ranking)} itens; o estrato `cauda` sai das "
-            f"posicoes 20-50 e precisa de 50. Pool incompleto altera a "
-            f"prevalencia e o kappa — ver §3.3."
+            f"posicoes 20-50 e precisa de 50 DISTINTOS. Pool incompleto altera "
+            f"a prevalencia e o kappa — ver §3.3."
         )
     if len(corpus_outro_dominio) < N_CONTROLE:
         raise RuntimeError("corpus de outro dominio insuficiente para o controle")
