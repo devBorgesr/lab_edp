@@ -71,3 +71,70 @@ mas a primeira rodada real pode encontrar queries com ranking curto.
 Não autoriza dizer que o REL-001 vai dar certo. Autoriza dizer que ele **pode
 ser executado** sem afrouxar o protocolo — que é uma pergunta diferente, e a
 única que esta checagem faz.
+
+---
+
+## Verificação operacional — o retriever entrega o pool congelado?
+
+**30/08/2026.** A checagem anterior contou documentos no índice; esta roda o
+**retriever real** contra as queries reais, num clone do store.
+
+```
+queries testadas ........................ 50
+tamanho do ranking: mín 50 | mediana 50 | máx 50
+queries com >= 50 candidatos ............ 50/50
+```
+
+**Viável.** O `§3.2` exige ranking de 50 posições para o estrato `cauda`
+(20–50), e todas as 50 queries entregam.
+
+Com isto **encerra-se a fase de viabilidade.** Nenhuma outra checagem prévia
+está planejada — o próximo passo é coleta, não desenho.
+
+## Errata do controle negativo — validar o rótulo em vez de contornar
+
+A limitação declarada acima (o domínio vem de `cognitive_decisions`, extraído
+por LLM, e nunca foi validado) foi apontada em auditoria externa como cadeia
+frágil:
+
+```
+LLM → rótulo de domínio → "outro domínio" → controle → REL-001
+```
+
+Correto pelo `§4.14`: *"o LLM disse que são domínios diferentes"* não é verdade.
+
+### Por que NÃO trocar por corpus externo
+
+A saída sugerida — controle vindo de coleção explicitamente separada — tem um
+furo próprio: documento de outra coleção provavelmente tem **formato diferente**
+(docstring, artigo, página). Os dois julgadores concordariam que é irrelevante
+por reconhecerem o **formato**, não por aplicarem o rubric.
+
+O controle ficaria fácil **pelo motivo errado** — e um controle que passa sem
+exercitar o rubric não verifica nada. É pior que a dependência que ele resolve.
+
+Fundo do ranking também não serve: depende do retriever que está sendo auditado.
+
+### O que fica congelado
+
+**Os 77 rótulos de domínio são verificados manualmente, uma vez, antes da
+coleta, e congelados.** O pesquisador confere cada um; a lista corrigida vira
+artefato versionado.
+
+Três propriedades que isso preserva e a troca de corpus não preservava:
+
+1. **Formato idêntico** ao dos estratos `topo` e `cauda` — o julgador não
+   distingue o controle por aparência.
+2. **A dependência do LLM some do caminho crítico** — o rótulo que entra no
+   experimento é humano, não do extrator.
+3. **Produz um número:** quantos dos 77 o LLM errou. Isso é `§4.14` aplicado —
+   a concordância vira medida em vez de suposição.
+
+`N_DOMINIOS_VERIFICADOS = 77` entra como pré-condição de armamento: sem a lista
+verificada e congelada, o REL-001 não dispara.
+
+### Limitação que permanece
+
+Quem verifica é o **mesmo** que rotula relevância no caminho A. Para um controle
+com predição de ~100% de acordo o risco de viés sutil é baixo, mas não é zero, e
+fica escrito aqui em vez de omitido.
