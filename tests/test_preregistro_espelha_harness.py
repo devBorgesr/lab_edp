@@ -35,6 +35,7 @@ HARNESSES = RAIZ / "sujeitos" / "edp" / "experimentos"
 DIRS = [
     (DOCS, HARNESSES),
     (RAIZ / "docs" / "edi", RAIZ / "sujeitos" / "edi"),
+    (RAIZ / "docs" / "rel", RAIZ / "sujeitos" / "rel"),
 ]
 
 # | `NOME` <glosa opcional> | `literal` |
@@ -74,6 +75,8 @@ PARES = [
     ("preregistro_experimento_019.md", "exp019.py"),
     # EDI — primeiro pre-registro do edp_engineering, em docs/edi/ + sujeitos/edi/
     ("preregistro_edi_001.md", "edi_001.py"),
+    # REL — validacao do instrumento de relevancia, antes de qualquer Recall@K
+    ("preregistro_rel_001.md", "rel_001.py"),
 ]
 
 # ── LACUNA DECLARADA (18/08/2026) — exp018 nao e pareavel ────────────────────
