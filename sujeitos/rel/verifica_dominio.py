@@ -8,12 +8,13 @@ vem de `cognitive_decisions`, extraído por LLM, e nunca foi validado. Pelo
 NORTE §4.14, *"o LLM disse que são domínios diferentes"* não é verdade.
 
 A errata do REL-001A não remove o LLM da cadeia — **valida a saída dele**. Este
-script é essa validação, em dois passos:
+script é essa validação, em três passos:
 
-    1. gerar   -> escreve os 77 itens num .jsonl para revisão humana
-    2. congelar-> lê o revisado, MEDE a discordância, e emite o artefato
+    1. gerar   -> escreve os 77 itens num .jsonl
+    2. revisar -> percorre item a item, interativo e RETOMÁVEL (grava a cada um)
+    3. congelar-> lê o revisado, MEDE a discordância, e emite o artefato
 
-O passo 2 produz o número que o §4.14 pede: **quantos dos 77 o LLM errou**. Sem
+O passo 3 produz o número que o §4.14 pede: **quantos dos 77 o LLM errou**. Sem
 esse número, trocar rótulo de modelo por rótulo humano seria só mudar de fé.
 
 SEGURANÇA
@@ -25,8 +26,8 @@ Nenhum dos dois arquivos deste script deve entrar em commit.
 
 USO
     python verifica_dominio.py gerar    --store <path> --saida revisao.jsonl
-    # ... edite `dominio_humano` nas linhas em que o LLM errou ...
-    python verifica_dominio.py congelar --revisao revisao.jsonl --saida congelado.jsonl
+    python verifica_dominio.py revisar  --revisao revisao.jsonl     # interativo, retomavel
+    python verifica_dominio.py congelar --revisao revisao.jsonl --saida congelado.json
 """
 from __future__ import annotations
 
@@ -124,11 +125,64 @@ def congelar(revisao: Path, saida: Path) -> dict:
     return congelado
 
 
+def _quebra(txt: str, larg: int = 76) -> str:
+    import textwrap
+    return "\n".join("    " + l for l in textwrap.wrap(" ".join(txt.split()), larg))
+
+
+def revisar(revisao: Path) -> dict:
+    """
+    Revisao interativa, COM RETOMADA — grava a cada item.
+
+    Revisar 77 linhas de JSON num editor e ruim: cada uma tem 400 chars de
+    trecho numa linha so. Aqui o revisor le o trecho formatado e decide.
+
+    Grava depois de CADA decisao. Setenta e sete itens e sessao longa; perder o
+    trabalho por fechar o terminal seria o mesmo dano que `gerar` sobrescrever.
+    """
+    itens = [json.loads(l) for l in revisao.read_text(encoding="utf-8").splitlines() if l.strip()]
+    pend = [i for i in itens if not i.get("verificado")]
+    print(f"\n{len(pend)} de {len(itens)} pendentes.")
+    print("ENTER aceita o dominio do LLM | texto corrige | 'q' salva e sai\n")
+
+    def grava():
+        revisao.write_text("\n".join(json.dumps(i, ensure_ascii=False) for i in itens),
+                           encoding="utf-8")
+
+    feitos = 0
+    # enumerate, nao itens.index(i): index() casa por IGUALDADE DE DICT, e dois
+    # itens identicos apontariam para a posicao errada no contador.
+    for n, i in enumerate(itens, 1):
+        if i.get("verificado"):
+            continue
+        print("─" * 80)
+        print(f"[{n}/{len(itens)}]  id={str(i['id'])[:8]}")
+        print(_quebra(i["trecho"]))
+        print(f"\n  dominio do LLM: {i['dominio_llm']!r}")
+        try:
+            r = input("  aceita? [ENTER=sim / novo dominio / q] ").strip()
+        except (EOFError, KeyboardInterrupt):
+            grava(); print(f"\ninterrompido — {feitos} gravados, retomavel."); break
+        if r.lower() == "q":
+            grava(); print(f"\n{feitos} gravados. Rode de novo para continuar."); break
+        if r:
+            i["dominio_humano"] = r
+        i["verificado"] = True
+        feitos += 1
+        grava()
+    else:
+        print(f"\nrevisao COMPLETA: {feitos} itens nesta sessao.")
+    rest = sum(1 for i in itens if not i.get("verificado"))
+    return {"revisados_nesta_sessao": feitos, "ainda_pendentes": rest,
+            "pronto_para_congelar": rest == 0}
+
+
 def main(argv=None) -> int:
     import argparse
     ap = argparse.ArgumentParser(description=f"pré-condição de armamento do {EXPERIMENTO}")
     sub = ap.add_subparsers(dest="cmd", required=True)
     g = sub.add_parser("gerar");    g.add_argument("--store", required=True); g.add_argument("--saida", required=True)
+    r_ = sub.add_parser("revisar");  r_.add_argument("--revisao", required=True)
     c = sub.add_parser("congelar"); c.add_argument("--revisao", required=True); c.add_argument("--saida", required=True)
     a = ap.parse_args(argv)
 
@@ -141,6 +195,9 @@ def main(argv=None) -> int:
                   f"a data do snapshot no relatório.")
         print("\nAgora edite `dominio_humano` onde o LLM errou e marque "
               "`verificado: true` em TODAS as linhas.")
+    elif a.cmd == "revisar":
+        r = revisar(Path(a.revisao))
+        print(json.dumps(r, ensure_ascii=False, indent=2))
     else:
         r = congelar(Path(a.revisao), Path(a.saida))
         print(json.dumps({k: v for k, v in r.items() if k != "dominios"},
