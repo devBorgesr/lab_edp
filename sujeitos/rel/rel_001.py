@@ -55,6 +55,13 @@ FAIXA_PREVALENCIA_OK = (0.30, 0.70)
 ESTRATOS = ("topo", "cauda", "controle")
 ESTRATO_DO_GATE = "topo"          # §3.3 — onde o Recall@K de fato decide
 
+# Marcador do artefato congelado v2 (30/08). Documento SEM assunto — saudacao,
+# comando, instante datado — nao serve de controle negativo: os dois julgadores
+# concordariam que e irrelevante por AUSENCIA DE CONTEUDO, nao por diferenca de
+# dominio. Controle que passa sem exercitar o rubric nao verifica nada, e e o
+# mesmo furo pelo qual recusei o corpus externo.
+MARCADOR_SEM_TEMA = "SEM_TEMA"
+
 
 # ── Montagem do pool (§3.2, corrigido pelo §3.3) ──────────────────────────────
 
@@ -86,10 +93,14 @@ def corpus_de_outro_dominio(dominios: dict, dominio_da_query: str) -> list[str]:
     verificado. Documento sem dominio verificado NAO entra: nao se sabe a que
     assunto pertence, e adivinhar aqui reintroduziria o rotulo nao-validado que
     a pre-condicao existe para eliminar.
+
+    `SEM_TEMA` tambem fica de fora (v2 do congelado): 13 dos 77 sao saudacao,
+    comando ou instante datado. Como controle negativo eles seriam faceis pelo
+    motivo errado — falta de conteudo, nao diferenca de assunto.
     """
     alvo = normaliza_dominio(dominio_da_query)
     return [doc_id for doc_id, dom in dominios.items()
-            if normaliza_dominio(dom) != alvo]
+            if dom != MARCADOR_SEM_TEMA and normaliza_dominio(dom) != alvo]
 
 def monta_pool(query: str,
                ranking: Sequence[str],

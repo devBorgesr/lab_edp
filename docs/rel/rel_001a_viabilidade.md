@@ -138,3 +138,64 @@ verificada e congelada, o REL-001 não dispara.
 Quem verifica é o **mesmo** que rotula relevância no caminho A. Para um controle
 com predição de ~100% de acordo o risco de viés sutil é baixo, mas não é zero, e
 fica escrito aqui em vez de omitido.
+
+---
+
+## Resultado da pré-condição — v1 e v2, e o que o número mede
+
+**30/08/2026.** Os 77 rótulos foram revisados. Duas rodadas, e a diferença entre
+elas é o achado.
+
+| | discordâncias | `taxa_erro_llm` |
+|---|---|---|
+| **v1** — revisão sem critério explícito | **0** de 77 | 0,000 |
+| **v2** — revisão com o critério do `§`abaixo | **13** de 77 | **0,169** |
+
+### O critério que mudou tudo
+
+Entre as duas rodadas foi formulada uma pergunta única, aplicável item a item:
+
+> **Este documento poderia ser a resposta certa para alguma pergunta futura?**
+
+Os 13 que falham: **11 saudações** (`oi`, `bom dia`), **2 instantes datados**
+(*"que dia é hoje"* → 31 de maio; → 2 de junho). Todos marcados `SEM_TEMA`.
+
+Os dois comandos `/modo` **não** foram marcados: a resposta descreve princípios
+com conteúdo próprio, e o revisor os manteve. Fronteira decidida, não ignorada.
+
+### O que os 16,9% NÃO significam
+
+**Não é "o extrator errou 17% dos rótulos".** Ele não errou sobre o que o texto
+dizia: `conversação geral` descreve corretamente uma saudação, e
+`datetime handling` descreve corretamente uma resposta com data.
+
+O erro é de **categoria**: tratar *ausência de assunto* como se fosse um
+assunto. Para descrever um documento, `conversação geral` está certo. Para
+servir de eixo do controle negativo, não existe.
+
+**E o número mede o critério tanto quanto o extrator.** A v1 deu zero porque o
+revisor não tinha pergunta para aplicar — os mesmos 77 documentos, o mesmo
+revisor, os mesmos rótulos. Só a régua mudou.
+
+É o `NORTE §4.14` aplicado à própria pré-condição: a concordância de v1
+(0 discordâncias) não media a qualidade do extrator. Media a ausência de
+critério.
+
+### Estado do pool
+
+```
+77 documentos verificados
+  13 SEM_TEMA (fora do controle)
+  64 com domínio real, em 47 domínios canônicos
+pool para uma query típica: 58 documentos  →  folga de 29× sobre os 2 exigidos
+```
+
+`dominio_congelado.json` (v1) **não foi reescrito** — o v2 é sucessor, e os dois
+ficam. Quem auditar vê a diferença que o critério fez.
+
+### Limitação que permanece
+
+O revisor é o mesmo que rotulará relevância no caminho A, e foi ele quem
+formulou — junto com o agente — o critério que produziu os 13. Um segundo
+revisor com outro critério produziria outro número. Isso não invalida o
+artefato; delimita o que ele sustenta.
