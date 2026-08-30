@@ -58,6 +58,39 @@ ESTRATO_DO_GATE = "topo"          # §3.3 — onde o Recall@K de fato decide
 
 # ── Montagem do pool (§3.2, corrigido pelo §3.3) ──────────────────────────────
 
+def normaliza_dominio(d: str) -> str:
+    """
+    Chave canonica de dominio.
+
+    ACHADO 30/08, no artefato congelado: `PostgreSQL indexing` e
+    `postgresql indexing` entraram como dominios DISTINTOS — 6 dos 77
+    documentos. Sem normalizar, um doc do segundo contaria como "outro
+    dominio" para uma query do primeiro, e o controle negativo receberia um
+    documento do MESMO assunto. O controle deixaria de ser negativo.
+
+    Consertado aqui e nao no artefato: congelado nao se reescreve (§4.4). A
+    comparacao passa a ser sobre a chave; o rotulo original fica preservado.
+    """
+    import re, unicodedata
+    s = "".join(c for c in unicodedata.normalize("NFD", (d or "").lower())
+                if unicodedata.category(c) != "Mn")
+    return re.sub(r"[^a-z0-9]+", " ", s).strip()
+
+
+def corpus_de_outro_dominio(dominios: dict, dominio_da_query: str) -> list[str]:
+    """
+    Ids elegiveis para o estrato `controle`: tudo cujo dominio NORMALIZADO
+    difere do da query.
+
+    `dominios` e o artefato congelado de verifica_dominio.py — id -> dominio
+    verificado. Documento sem dominio verificado NAO entra: nao se sabe a que
+    assunto pertence, e adivinhar aqui reintroduziria o rotulo nao-validado que
+    a pre-condicao existe para eliminar.
+    """
+    alvo = normaliza_dominio(dominio_da_query)
+    return [doc_id for doc_id, dom in dominios.items()
+            if normaliza_dominio(dom) != alvo]
+
 def monta_pool(query: str,
                ranking: Sequence[str],
                corpus_outro_dominio: Sequence[str],
