@@ -38,23 +38,50 @@ iguais com ids diferentes (causa: resumo regravado por disconnect). Ver
 Que a repetição desperdice contexto é inferência plausível e **não medida** — o
 efeito na qualidade da resposta não foi testado em lugar nenhum deste projeto.
 
-## Um número que eu não consigo reconciliar
+## RECONCILIADO — 30/08, a origem do 15,7% foi localizada
 
-A landing traz *"15,7% — Duplicação intra-query (média)"*, com a distribuição
-`4 queries 0% · 9 em 20% · 1 em 40%`, n=14. A média dessa distribuição é
-exatamente 15,7%, e a distribuição **é** intra-query em k=5.
+**Resultado: (A) reproduzido.** A fonte é `edp_v5/RELATORIO_DOGFOOD.md`:
 
-Mas o T6, **no mesmo corpus de 14 queries**, reporta intra-query como
-`dup_rate = 12,4%` — e reporta 15,4% para outra coisa (entre queries).
+```
+Export analisado: 14 queries válidas, k considerado: 5
+dup_rate@k por hash (média) ..... 15.7%
+dup_rate@k por ID   (média) ..... 15.7%
+pior query ...................... 40.0%
+export: export_fase0.jsonl (67 KB, 22/07)
+```
 
-**Não consigo reconciliar os dois a partir do que está nos repositórios.** Pode
-haver uma rodada com k diferente que eu não vi. O ponto é outro: a página afirma
-*"todo número tem fonte — arquivo, data e linha por trás de cada métrica"*, e
-esse é justamente o número cuja fonte eu não localizo.
+O rótulo da landing está **correto**: é duplicação intra-query.
 
-Vale checar antes que um cliente técnico peça.
+**E reconcilia com o T6 pelo `k`.** O dogfood mede em `k = 5` fixo; o T6 mede
+sobre o `retrieval_kept`, de tamanho variável. Dois valores corretos da mesma
+família, em cortes diferentes — 15,7% em k=5 e 12,4% no kept.
 
-E o 15,7% aparece sem intervalo. Com n=14, ele é **[10,0% ; 21,4%]** — 11,4
+O `15,4%` do T6 ficou perto por coincidência e **não** é comparável: é
+sobreposição entre queries. O cross-query real do dogfood é **4,6%** (contínua)
+e **0,0%** (binária), contra referência aleatória de 7,0%.
+
+### Dois problemas que a reconciliação revelou
+
+**A fonte não está versionada.** `RELATORIO_DOGFOOD.md`, `comercial/FUNIL.md` e
+`comercial/PUBLICO_ALVO.md` estão **untracked**. A página promete *"arquivo,
+data e linha por trás de cada métrica"*, e o arquivo não está no repositório —
+some se a máquina sumir, e ninguém consegue auditar a partir do que foi
+publicado.
+
+**Três `15,7%` distintos convivem no projeto, medindo coisas diferentes:**
+
+| onde | mede |
+|---|---|
+| `RELATORIO_DOGFOOD.md` | `dup_rate@k=5`, média de 14 queries — **intra-query** |
+| `EXP017_FASE0.md:164` | censo de duplicatas na camada **semântica** (8 de 51) |
+| `PRE_REGISTRO_EXP017.md:190` | o mesmo censo, citado no veredito da H3 |
+
+Coincidência de valor, não de fenômeno. Um relatório que cite "15,7%" sem
+referente pode estar falando de qualquer um dos três.
+
+## O que faltava, e agora está fechado
+
+O 15,7% aparece sem intervalo. Com n=14, ele é **[10,0% ; 21,4%]** — 11,4
 pontos de largura. Fonte e intervalo são coisas distintas, e a página promete a
 primeira enquanto omite a segunda.
 
