@@ -120,7 +120,8 @@ def executivo(m: Manifesto) -> str:
           f"se aplicar a ele.")
         A("")
 
-    A("## O que foi medido mesmo assim")
+    diag = spec.get("escopo") == "diagnostico"
+    A("## O que foi medido" if diag else "## O que foi medido mesmo assim")
     A("")
     if m.medicoes:
         A("Fatos observáveis sobre o material recuperado. **Não são métricas "
@@ -140,7 +141,28 @@ def executivo(m: Manifesto) -> str:
 
     A("## O que NÃO foi medido")
     A("")
-    if m.status is not StatusAuditoria.COMPLETE:
+    if diag:
+        # OBRIGATORIO, e mesmo sob COMPLETE. A versao anterior imprimia
+        # "(nada — a auditoria completou)", que e FALSO para esta regua e
+        # convida a ler um diagnostico como auditoria plena. O escopo estreito
+        # precisa aparecer no lugar onde o leitor procura o que faltou.
+        A(f"O {ident} tem **escopo de diagnóstico**: ele descreve o material "
+          f"que o retriever devolveu, e mais nada.")
+        A("")
+        A("**Não foi medido, e este relatório não permite afirmar:**")
+        A("")
+        A("- qualidade das respostas do sistema;")
+        A("- Recall@K, precisão, ou qualquer métrica que compare o recuperado "
+          "com um conjunto de referência;")
+        A("- relevância dos documentos para as perguntas — nenhum julgamento, "
+          "humano ou automático, foi feito;")
+        A("- conformidade, certificação ou aprovação de qualquer espécie.")
+        A("")
+        A("Os números acima descrevem **o que foi recuperado**, não **se o que "
+          "foi recuperado era o certo**. As duas coisas são diferentes, e só a "
+          "primeira está aqui.")
+        A("")
+    elif m.status is not StatusAuditoria.COMPLETE:
         A(f"Nenhuma métrica de protocolo do {ident} foi calculada — sem "
           f"Recall@K, sem índice de acordo, sem *ground truth*.")
         A("")
@@ -160,6 +182,11 @@ def executivo(m: Manifesto) -> str:
         A(f"Entre **alterar o objeto auditado** e **alterar a régua**. As duas "
           f"mudam o que está sendo medido; nenhuma pode ser adotada em "
           f"silêncio, e a escolha não é do serviço.")
+    elif diag:
+        A("Se algum número acima indicar desperdício — janela de contexto "
+          "ocupada por documento repetido, por exemplo — a decisão sobre o que "
+          "fazer é de quem opera o sistema. Este relatório mede; não "
+          "recomenda correção nem estima o efeito de corrigi-la.")
     else:
         A("Nenhuma pendente.")
     A("")

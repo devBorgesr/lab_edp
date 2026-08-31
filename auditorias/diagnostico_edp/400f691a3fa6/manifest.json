@@ -1,0 +1,283 @@
+{
+  "audit_id": "400f691a3fa6",
+  "protocolo": "DIAGNOSTICO",
+  "protocolo_spec": {
+    "nome": "DIAGNOSTICO",
+    "versao": 1,
+    "identidade": "DIAGNOSTICO v1",
+    "tipo": "demonstrativo",
+    "escopo": "diagnostico",
+    "descricao": "Descreve o MATERIAL que o retriever devolve: cardinalidade, duplicacao por id e por texto, sobreposicao entre queries e distribuicao de score. NAO mede qualidade de resposta, nao usa estratos, nao usa controle negativo e nao certifica nada. Exige apenas que o ranking tenha procedencia provada.",
+    "top_k": 50,
+    "min_distintos": 1,
+    "estratos": {},
+    "janela_cauda": [
+      0,
+      0
+    ],
+    "min_unidades": 20
+  },
+  "protocolo_identidade": "DIAGNOSTICO v1",
+  "versao_servico": "0.2.0",
+  "modo": "AUDIT",
+  "criado_em": "2026-08-31T23:34:38+00:00",
+  "status": "COMPLETE",
+  "ambiente": {
+    "python": "3.11.8",
+    "plataforma": "Linux-6.6.9-amd64-x86_64-with-glibc2.40"
+  },
+  "snapshot": {
+    "dir": "/tmp/auditoria_gzjxp202/sessions/default_cognitive",
+    "store": "/tmp/auditoria_gzjxp202/sessions/default_cognitive",
+    "sha256_episodic": "d64fcc74a0c7e9b08eb3972129a7f5689b008912c3e32abce9e386477d1703be",
+    "sha256_semantic": "632a7f228045f89cc92bf98695a4f664e181e214a93236035f0af1a635eab27d"
+  },
+  "retriever": {
+    "top_k": 50,
+    "origem": "EDPAuditavel",
+    "adaptador": "EDPAuditavel",
+    "versao_adaptador": "edp-1",
+    "telemetria": {
+      "origem_do_ranking": "EDPAuditavel.consulta",
+      "top_k_solicitado": 50,
+      "n_slots_recebidos": 50,
+      "n_ids_distintos": 37,
+      "n_textos_distintos": 37,
+      "formato_valido": true
+    }
+  },
+  "dataset": {
+    "n_queries": 50,
+    "sha256_queries": "180586f4cf9cd39dc7e4af8d839ce4b1f70124d8a07af3113f6f7221abf4485d",
+    "origem": "amostra_congelada.json",
+    "nota": "o conjunto de queries e entrada do protocolo; trocar a fonte muda `sha256_queries` e fica visivel aqui",
+    "pool_por_query": 0
+  },
+  "amostra": {
+    "n_queries": 50
+  },
+  "juiz": {
+    "configurado": false,
+    "nota": "MVP-0: execucao de juiz fora de escopo"
+  },
+  "etapas": [
+    {
+      "etapa": "snapshot",
+      "estado": "PASS"
+    },
+    {
+      "etapa": "entrada",
+      "estado": "PASS"
+    },
+    {
+      "etapa": "retriever",
+      "estado": "PASS"
+    },
+    {
+      "etapa": "ranking",
+      "estado": "PASS"
+    },
+    {
+      "etapa": "estratos",
+      "estado": "PENDING",
+      "motivo": "nao se aplica ao escopo `diagnostico` do DIAGNOSTICO v1: esta regua nao usa estratos nem controle negativo"
+    },
+    {
+      "etapa": "estratos",
+      "estado": "PASS"
+    },
+    {
+      "etapa": "amostragem",
+      "estado": "PASS"
+    },
+    {
+      "etapa": "julgadores",
+      "estado": "PASS"
+    },
+    {
+      "etapa": "estatistica",
+      "estado": "PASS"
+    }
+  ],
+  "checks": [
+    {
+      "nome": "procedencia.snapshot_tem_hash",
+      "estado": "PASS",
+      "detecta": "corpus trocado sob o mesmo caminho entre a auditoria e a contestacao",
+      "bloqueia": true,
+      "barra": false,
+      "motivo": "",
+      "evidencia": {
+        "store": "/tmp/auditoria_gzjxp202/sessions/default_cognitive",
+        "sha256_episodic": "d64fcc74a0c7e9b08eb3972129a7f5689b008912c3e32abce9e386477d1703be",
+        "sha256_semantic": "632a7f228045f89cc92bf98695a4f664e181e214a93236035f0af1a635eab27d"
+      }
+    },
+    {
+      "nome": "ranking.veio_do_retriever",
+      "estado": "PASS",
+      "detecta": "ranking fabricado: ordem de arquivo, ordem alfabetica, ou qualquer sequencia que nao saiu do retriever",
+      "bloqueia": true,
+      "barra": false,
+      "motivo": "",
+      "evidencia": {
+        "n": 50,
+        "score_max": 0.015512,
+        "score_min": 0.008063
+      }
+    },
+    {
+      "nome": "estatistica.unidades_suficientes",
+      "estado": "PASS",
+      "detecta": "intervalo de confianca estreito por construcao: itens correlacionados contados como independentes",
+      "bloqueia": true,
+      "barra": false,
+      "motivo": "",
+      "evidencia": {
+        "unidades": 50,
+        "minimo": 20,
+        "unidade": "query"
+      }
+    }
+  ],
+  "barreiras": [],
+  "invalidados": [],
+  "medicoes": [
+    {
+      "nome": "cardinalidade_do_ranking",
+      "valor": 37.0,
+      "o_que_mede": "documentos DISTINTOS entregues na janela top-k (mediana entre queries). Slots cheios nao implicam documentos distintos.",
+      "N": 50,
+      "unidade": "documentos por query",
+      "snapshot": "d64fcc74a0c7e9b0",
+      "fonte": "ranking real do retriever do sistema auditado",
+      "k": 50,
+      "ic95": [
+        37.0,
+        38.0
+      ],
+      "metodo_ic": "bootstrap percentil da MEDIANA sobre a QUERY (cluster), B=2000 — a mesma estatistica que o valor reporta",
+      "seed_ic": 20260831,
+      "detalhe": {
+        "min": 30,
+        "max": 41,
+        "slots_por_query": 50.0
+      }
+    },
+    {
+      "nome": "duplicacao_intra_query_por_id",
+      "valor": 0.26,
+      "o_que_mede": "fracao dos slots do top-k ocupados por um documento que ja apareceu na MESMA query (mediana entre queries)",
+      "N": 50,
+      "unidade": "fracao dos slots",
+      "snapshot": "d64fcc74a0c7e9b0",
+      "fonte": "ranking real do retriever do sistema auditado",
+      "k": 50,
+      "ic95": [
+        0.24,
+        0.26
+      ],
+      "metodo_ic": "bootstrap percentil da MEDIANA sobre a QUERY (cluster), B=2000 — a mesma estatistica que o valor reporta",
+      "seed_ic": 20260831
+    },
+    {
+      "nome": "duplicacao_por_texto",
+      "valor": 0.0,
+      "o_que_mede": "fracao dos documentos DISTINTOS cujo texto e identico ao de outro documento com id diferente. Sobrevive a deduplicacao por id. ATENCAO: efeito concentrado — leia `queries_afetadas`, nao a mediana.",
+      "N": 50,
+      "unidade": "fracao dos documentos distintos",
+      "snapshot": "d64fcc74a0c7e9b0",
+      "fonte": "ranking real do retriever do sistema auditado",
+      "k": 50,
+      "ic95": [
+        0.0,
+        0.0
+      ],
+      "metodo_ic": "bootstrap percentil da MEDIANA sobre a QUERY (cluster), B=2000 — a mesma estatistica que o valor reporta",
+      "seed_ic": 20260831,
+      "detalhe": {
+        "queries_afetadas": 5,
+        "fracao_das_queries_afetadas": 0.1,
+        "max": 0.36666666666666664
+      }
+    },
+    {
+      "nome": "jaccard_cross_query",
+      "valor": 0.2830188679245283,
+      "o_que_mede": "Jaccard mediano entre os conjuntos top-k de PARES de queries distintas. Alto indica que o retriever devolve o mesmo material independentemente da pergunta.",
+      "N": 1225,
+      "unidade": "Jaccard entre pares de queries",
+      "snapshot": "d64fcc74a0c7e9b0",
+      "fonte": "ranking real do retriever do sistema auditado",
+      "k": 50,
+      "ic95": [
+        0.2759,
+        0.2903
+      ],
+      "metodo_ic": "bootstrap percentil da MEDIANA sobre a QUERY (cluster), B=2000 — a mesma estatistica que o valor reporta",
+      "seed_ic": 20260831,
+      "detalhe": {
+        "queries": 50
+      }
+    },
+    {
+      "nome": "razao_score_topo_cauda",
+      "valor": 1.813556866722796,
+      "o_que_mede": "score mediano das 5 primeiras posicoes dividido pelo das 5 ultimas. Proximo de 1 indica ranking pouco discriminativo.",
+      "N": 50,
+      "unidade": "razao adimensional",
+      "snapshot": "d64fcc74a0c7e9b0",
+      "fonte": "ranking real do retriever do sistema auditado",
+      "k": 50,
+      "ic95": [
+        1.7499,
+        1.8577
+      ],
+      "metodo_ic": "bootstrap percentil da MEDIANA sobre a QUERY (cluster), B=2000 — a mesma estatistica que o valor reporta",
+      "seed_ic": 20260831
+    }
+  ],
+  "custos": {
+    "tempo_por_etapa_s": {
+      "snapshot": 0.045,
+      "entrada": 0.0,
+      "retriever": 18.214,
+      "ranking": 0.022,
+      "estratos": 0.0,
+      "amostragem": 0.0,
+      "julgadores": 0.0,
+      "estatistica": 0.0
+    },
+    "tempo_total_s": 18.281,
+    "chamadas_ao_modelo": 0,
+    "tokens_entrada": 0,
+    "tokens_saida": 0,
+    "modelo": null,
+    "custo_modelo_usd": null,
+    "custo_nao_estimado_porque": "sem preco registrado para o modelo (nenhum). Zero seria mentira; None e a resposta honesta."
+  },
+  "configuracao": {
+    "modo": "AUDIT",
+    "min_unidades": 20,
+    "exemplos_em_claro": false
+  },
+  "privacidade": {
+    "exemplos_em_claro": false,
+    "segredos_removidos": [],
+    "n_ocorrencias": 0,
+    "nota": "query e documento aparecem como hash; texto em claro so com --exemplos-em-claro, e segredo e removido nos dois modos"
+  },
+  "resultado": {
+    "escopo": "diagnostico do material recuperado",
+    "medicoes": {
+      "cardinalidade_do_ranking": 37.0,
+      "duplicacao_intra_query_por_id": 0.26,
+      "duplicacao_por_texto": 0.0,
+      "jaccard_cross_query": 0.2830188679245283,
+      "razao_score_topo_cauda": 1.813556866722796
+    },
+    "NAO_AFIRMA": "nada sobre a qualidade das respostas do sistema. Sem Recall@K, sem ground truth, sem certificacao."
+  },
+  "NOTA_MEDICOES": "`medicoes` sao fatos observaveis sobre o material recuperado (duplicacao, cardinalidade, sobreposicao). NAO sao metrica de qualidade de resposta e nao substituem `resultado`.",
+  "sha256_manifesto": "b7d4e0e02ef996c0a936528001059867386b7655888c7e1a0c0d549a7db8aee7"
+}

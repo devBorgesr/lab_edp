@@ -362,3 +362,65 @@ protocolo pronto, **não executado**) · preço (`UNIDADE_ECONOMICA.md`:
 
 **Continua fora:** dashboard, Reddit, juiz no pipeline, correção do
 `_hybrid_index`. E o MVP-1B **não** é argumento de que Recall@K está validado.
+
+---
+
+# DIAGNOSTICO v1 — a régua com escopo comercial
+
+**31/08/2026.** O entregável comercial estava chegando rotulado como fracasso.
+
+O cliente que quer saber quanto da janela de contexto o retriever desperdiça
+não precisa de estrato, de cauda 20–50 nem de controle negativo — isso é
+aparato do REL-001. Mas o pipeline rodava essas verificações, bloqueava nelas, e
+entregava as cinco medições **debaixo de um `BLOCKED`**. Foi o que aconteceu com
+os três adaptadores do piloto.
+
+## O que mudou
+
+`Protocolo` ganhou `escopo`:
+
+```
+protocolo     mede métrica de protocolo (Recall@K, κ) — precisa do aparato
+diagnostico   mede o MATERIAL RECUPERADO — não usa estrato nem controle
+```
+
+**Não é afrouxamento.** É uma régua diferente, com escopo declarado. A etapa de
+estratos fica `PENDING` com motivo — **nunca `PASS`**: dizer que passou uma
+verificação que não rodou seria a mentira que o serviço existe para evitar.
+
+E o que ela exige continua de pé: **ranking com procedência provada**. Um
+adaptador que devolve ordem de arquivo bloqueia igual, e entrega zero medições.
+
+## Resultado no EDP real
+
+```
+DIAGNOSTICO v1 · 50 queries · COMPLETE
+```
+
+| medição | valor | IC 95% |
+|---|---|---|
+| cardinalidade | 37 documentos por query | [37; 38] |
+| duplicação por id | 0,26 dos slots | [0,24; 0,26] |
+| duplicação por texto | 0 (5 queries afetadas, máx 0,37) | [0; 0] |
+| jaccard cross-query | 0,283 | [0,276; 0,290] |
+| razão topo/cauda | 1,81 | [1,75; 1,86] |
+
+Lido em português: **de 50 slots de contexto, chegam 37 documentos. Um quarto da
+janela vai em documento repetido.**
+
+## Um defeito corrigido no relatório
+
+Sob `COMPLETE`, a seção *"O que NÃO foi medido"* imprimia **"(nada — a auditoria
+completou)"**. Para um diagnóstico isso é **falso** e perigoso: convida a ler
+escopo estreito como auditoria plena.
+
+Agora essa seção é obrigatória e explícita — não foi medida qualidade de
+resposta, nem Recall@K, nem relevância (nenhum julgamento foi feito), nem
+conformidade. Com a frase que separa as duas coisas:
+
+> Os números descrevem **o que foi recuperado**, não **se o que foi recuperado
+> era o certo**.
+
+Há teste que reprova o relatório se qualquer uma dessas ressalvas sumir.
+
+**283 testes.** `REL-001` segue bloqueado; `DECISAO_RANKING.md` segue em branco.

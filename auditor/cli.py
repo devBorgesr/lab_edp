@@ -42,6 +42,14 @@ PROTOCOLOS = {
                    "DISTINTOS no ranking porque a cauda sai das posicoes "
                    "20-50. O experimento esta BLOQUEADO: nenhum resultado "
                    "seu foi validado.")),
+    "DIAGNOSTICO": Protocolo(
+        "DIAGNOSTICO", 1, {}, (0, 0), 50, min_unidades=20, versao=1,
+        tipo="demonstrativo", escopo="diagnostico",
+        descricao=("Descreve o MATERIAL que o retriever devolve: cardinalidade, "
+                   "duplicacao por id e por texto, sobreposicao entre queries e "
+                   "distribuicao de score. NAO mede qualidade de resposta, nao "
+                   "usa estratos, nao usa controle negativo e nao certifica "
+                   "nada. Exige apenas que o ranking tenha procedencia provada.")),
     "BASICO": Protocolo(
         "BASICO", 10, {"topo": 5, "cauda": 3, "controle": 2}, (5, 10), 10,
         min_unidades=10, versao=1, tipo="demonstrativo",

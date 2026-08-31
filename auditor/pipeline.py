@@ -51,10 +51,25 @@ class Protocolo:
     versao:            int = 1
     tipo:              str = "experimental"  # experimental | demonstrativo
     descricao:         str = ""
+    # ESCOPO — o que esta regua se propoe a medir.
+    #
+    #   "protocolo"    mede uma metrica de protocolo (Recall@K, kappa). Precisa
+    #                  de estratos, controle negativo e todo o aparato.
+    #   "diagnostico"  mede o MATERIAL RECUPERADO. Nao precisa de estrato nem
+    #                  de controle, porque nao afirma nada sobre qualidade de
+    #                  resposta — so descreve o que o retriever devolveu.
+    #
+    # Nao e afrouxamento: e uma regua diferente, com escopo declarado. Uma
+    # auditoria de diagnostico que rodasse as verificacoes de estrato
+    # bloquearia em requisito que ela propria nao usa, e entregaria o
+    # resultado dela debaixo de um BLOCKED.
+    escopo:            str = "protocolo"
 
     def __post_init__(self):
         if self.tipo not in ("experimental", "demonstrativo"):
             raise ValueError(f"tipo de protocolo desconhecido: {self.tipo}")
+        if self.escopo not in ("protocolo", "diagnostico"):
+            raise ValueError(f"escopo desconhecido: {self.escopo}")
 
     @property
     def identidade(self) -> str:
@@ -64,6 +79,7 @@ class Protocolo:
     def to_dict(self) -> dict:
         return {"nome": self.nome, "versao": self.versao,
                 "identidade": self.identidade, "tipo": self.tipo,
+                "escopo": self.escopo,
                 "descricao": self.descricao, "top_k": self.top_k,
                 "min_distintos": self.min_distintos,
                 "estratos": dict(self.estratos),
@@ -289,6 +305,15 @@ class Auditoria:
         return pior
 
     def _etapa_estratos(self, m: Manifesto) -> None:
+        if self.protocolo.escopo == "diagnostico":
+            # NAO SE APLICA — registrado como tal, nao como PASS. Dizer que
+            # passou uma verificacao que nao rodou seria a mesma mentira que o
+            # servico existe para nao contar.
+            m.etapa("estratos", Estado.PENDING,
+                    motivo=(f"nao se aplica ao escopo `diagnostico` do "
+                            f"{self.protocolo.identidade}: esta regua nao usa "
+                            f"estratos nem controle negativo"))
+            return
         ini, fim = self.protocolo.janela_cauda
         for q in self.queries:
             rk = self._rank[q["id"]]
@@ -334,6 +359,20 @@ class Auditoria:
             m.registra(CS.prevalencia_permite_acordo(rot, "gate"))
         if m.barreiras:
             return
+
+        if self.protocolo.escopo == "diagnostico":
+            # O RESULTADO DESTA REGUA SAO AS MEDICOES. Nao ha Recall@K nem
+            # indice de acordo aqui, e o `escopo` no manifesto diz isso — o
+            # numero nao pode ser lido como qualidade de resposta.
+            m.publica_resultado({
+                "escopo": "diagnostico do material recuperado",
+                "medicoes": {x.nome: x.valor for x in m.medicoes},
+                "NAO_AFIRMA": ("nada sobre a qualidade das respostas do "
+                               "sistema. Sem Recall@K, sem ground truth, sem "
+                               "certificacao."),
+            })
+            return
+
         calc: Callable | None = getattr(self.sistema, "estatistica", None)
         if calc is None:
             return

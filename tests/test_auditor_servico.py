@@ -295,3 +295,75 @@ def test_demo_A_completa_e_demo_B_bloqueia(tmp_path):
     # nenhuma das duas expoe dado real
     for m in (a, b):
         assert "indexacao postgres" not in json.dumps(m.to_dict(), ensure_ascii=False)
+
+
+# ── escopo `diagnostico`: entrega sem afirmar demais ────────────────────────
+
+def diag(tmp, taxa=0.6, n=24):
+    from auditor.cli import PROTOCOLOS
+    s = ClienteSintetico(tmp, taxa_duplicacao=taxa)
+    return Auditoria(PROTOCOLOS["DIAGNOSTICO"], s, queries_cliente(n)).roda()
+
+
+def test_diagnostico_completa_sem_estratos(tmp_path):
+    """
+    A regua comercial nao usa estrato nem controle negativo. Rodar essas
+    verificacoes bloquearia em requisito que ela mesma nao usa, e entregaria o
+    resultado dela debaixo de um BLOCKED.
+    """
+    m = diag(tmp_path)
+    assert m.status is StatusAuditoria.COMPLETE
+    assert not m.barreiras
+    assert len(m.medicoes) == 5
+
+
+def test_diagnostico_nao_finge_que_verificou_estrato(tmp_path):
+    """
+    A etapa pulada fica PENDING com motivo, nunca PASS. Dizer que passou uma
+    verificacao que nao rodou seria a mentira que o servico existe para evitar.
+    """
+    m = diag(tmp_path)
+    e = next(x for x in m.etapas if x["etapa"] == "estratos")
+    assert e["estado"] == "PENDING" and "nao se aplica" in e["motivo"]
+    assert not any(c.nome.startswith("estratos.") for c in m.checks)
+
+
+def test_diagnostico_ainda_exige_ranking_real(tmp_path):
+    """Escopo estreito nao afrouxa procedencia: e a unica coisa que ele exige."""
+    from auditor.cli import PROTOCOLOS
+    m = Auditoria(PROTOCOLOS["DIAGNOSTICO"],
+                  SistemaFalso(tmp_path, defeito="ordem_de_arquivo"),
+                  queries_cliente(24)).roda()
+    assert m.status is StatusAuditoria.BLOCKED
+    assert "ranking.veio_do_retriever" in [c.nome for c in m.barreiras]
+    assert m.medicoes == []
+
+
+def test_resultado_do_diagnostico_diz_o_que_nao_afirma(tmp_path):
+    r = diag(tmp_path).resultado
+    assert r["escopo"] == "diagnostico do material recuperado"
+    assert set(r["medicoes"]) and "NAO_AFIRMA" in r
+
+
+def test_relatorio_completo_nunca_diz_que_nada_ficou_de_fora(tmp_path):
+    """
+    O defeito corrigido: sob COMPLETE o relatorio imprimia "(nada — a auditoria
+    completou)" na secao do que NAO foi medido. Para um diagnostico isso e
+    falso, e convida a ler escopo estreito como auditoria plena.
+    """
+    md = relatorio.executivo(diag(tmp_path))
+    assert "nada — a auditoria completou" not in md
+    for exigido in ("qualidade das respostas", "Recall@K",
+                    "nenhum julgamento", "certificação"):
+        assert exigido in md, f"relatorio de diagnostico nao ressalva: {exigido}"
+
+
+def test_diagnostico_nao_se_apresenta_como_certificacao(tmp_path):
+    md = relatorio.executivo(diag(tmp_path)).lower()
+    for proibido in ("certificamos", "aprovado", "selo", "validado por recall"):
+        assert proibido not in md
+
+
+def test_escopo_invalido_e_recusado():
+    with pytest.raises(ValueError, match="escopo desconhecido"):
+        Protocolo("X", 10, {"topo": 5}, (5, 10), 10, escopo="auditoria_plena")

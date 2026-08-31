@@ -1,0 +1,13 @@
+{
+  "schema": "AuditInput v1",
+  "snapshot": "/home/kali/Desktop/edp_data_todo/edp_data/sessions/default_cognitive",
+  "queries": "amostra_congelada.json",
+  "protocol": "DIAGNOSTICO",
+  "adapter": "edp",
+  "options": {
+    "mode": "AUDIT",
+    "exemplos_em_claro": false,
+    "dominios": "dominio_congelado_v2.json"
+  },
+  "recebido_como": "AuditInput v1"
+}
