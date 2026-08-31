@@ -138,6 +138,63 @@ def congela_config(preregistro: Path, modelo: str = "", temperatura=None,
     }
 
 
+# §11 das instrucoes de coleta: todo modo de falha e CONTADO, e nenhum vira 0.
+MODOS_DE_FALHA = ("json_invalido", "campo_ausente", "valor_fora_do_dominio",
+                  "timeout", "erro_api", "resposta_vazia")
+
+# §11 do pre-registro: acima disto, para e registra invalidacao.
+MAX_INCLASSIFICAVEIS = 0.10
+
+
+def classifica_falha(texto: Optional[str], erro: Optional[str] = None) -> Optional[str]:
+    """
+    Qual modo de falha, ou None se a resposta e valida.
+
+    Existe para que a taxa de falha do JUIZ nao se esconda dentro da taxa de
+    irrelevancia. Converter erro em 0 faria um juiz que timeouta 30% das vezes
+    parecer um juiz severo.
+    """
+    if erro:
+        return "timeout" if "timeout" in erro.lower() else "erro_api"
+    if not (texto or "").strip():
+        return "resposta_vazia"
+    m = re.search(r"\{.*?\}", texto, re.S)
+    if not m:
+        return "json_invalido"
+    try:
+        d = json.loads(m.group(0))
+    except Exception:
+        return "json_invalido"
+    if "relevant" not in d:
+        return "campo_ausente"
+    if d["relevant"] not in (True, False):
+        return "valor_fora_do_dominio"
+    return None
+
+
+def veredito_de_falhas(falhas: list[Optional[str]]) -> dict:
+    """
+    Aplica o piso do §11 sobre a rodada inteira.
+
+    Acima de MAX_INCLASSIFICAVEIS, a rodada e INVALIDA — nao se descarta o par
+    ruim e segue, porque descartar seletivamente muda a amostra depois do dado.
+    """
+    from collections import Counter
+    n = len(falhas)
+    ruins = [f for f in falhas if f]
+    taxa = len(ruins) / n if n else 0.0
+    return {
+        "n":            n,
+        "inclassificaveis": len(ruins),
+        "taxa":         round(taxa, 4),
+        "limite":       MAX_INCLASSIFICAVEIS,
+        "por_modo":     dict(Counter(ruins)),
+        "veredito": ("INVALIDA — taxa acima do limite do §11; registre a "
+                     "invalidacao em vez de descartar os pares"
+                     if taxa > MAX_INCLASSIFICAVEIS else "dentro do limite"),
+    }
+
+
 def parse_resposta(texto: str) -> Optional[int]:
     """
     Extrai 0/1 da resposta do juiz. Devolve None quando nao consegue.
