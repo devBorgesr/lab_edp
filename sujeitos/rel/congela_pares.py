@@ -28,6 +28,33 @@ from pathlib import Path
 import rel_001 as R
 
 EXPERIMENTO = "REL-001"
+TOP_K_RANKING = 50          # §3.2: a cauda sai das posicoes 20-50
+
+
+def abre_retriever(store: Path):
+    """
+    O MemoryStore real, apontado para o snapshot.
+
+    ERRATA 31/08: a primeira versao deste arquivo NAO usava retriever. Passava
+    `[i for i in txt]` como `ranking` — todos os documentos em ordem de
+    INSERCAO. Consequencia: o estrato `topo` eram os 5 primeiros do arquivo,
+    IGUAIS para as 50 queries, e nenhum deles era top-5 de coisa nenhuma.
+
+    Os 500 pares congelados em 07:22 e os 492 rotulos coletados sobre eles sao
+    INVALIDOS. Ver docs/rel/REL-001_INVALIDACAO_01.md.
+
+    O retriever ja tinha sido rodado de verdade na viabilidade (28cc991,
+    "50/50 queries devolvem 50 candidatos"). O erro nao foi nao saber como; foi
+    nao ligar, e o smoke conferir formato sem perguntar se o topo era o topo.
+    """
+    import os, sys
+    os.environ["EDP_BASE_DIR"] = str(store.parent.parent)
+    import edp.config as cfg
+    cfg.BASE_DIR = store.parent.parent
+    cfg.MEMORY_DIR = store.parent
+    import edp.memory as mm, edp.memory.store as sm, edp.memory.semantic as sem
+    mm.MEMORY_DIR = sm.MEMORY_DIR = sem.MEMORY_DIR = store.parent
+    return mm.MemoryStore("default")
 
 
 def _sha(t: str) -> str:
@@ -45,9 +72,12 @@ def congela(amostra: Path, dominios: Path, store: Path, saida: Path) -> dict:
     epi = json.loads((store / "episodic.json").read_text(encoding="utf-8"))
     txt = {e.get("id"): (e.get("text") or "") for e in epi}
 
+    retr = abre_retriever(store)
     pares = []
     for q in am["queries"]:
-        ranking = [i for i in txt if i != q["id_turno"]]
+        # RANKING REAL do retriever, nao ordem de arquivo (errata 31/08)
+        res = retr.retrieve(q["query"], top_k=TOP_K_RANKING, min_score=0.0)
+        ranking = [r.get("id") for r in res if r.get("id") != q["id_turno"]]
         ctrl = R.corpus_de_outro_dominio(dom, q["dominio"])
         for p in R.monta_pool(q["query"], ranking, ctrl):
             pares.append({
@@ -70,6 +100,7 @@ def congela(amostra: Path, dominios: Path, store: Path, saida: Path) -> dict:
         "n_queries":       len(am["queries"]),
         "sha256_amostra":  _sha(amostra.read_text(encoding="utf-8")),
         "sha256_pares":    _sha(json.dumps([p["par_id"] for p in pares], sort_keys=True)),
+        "ranking":         f"retriever real, top_k={TOP_K_RANKING}, min_score=0.0",
         "por_estrato":     {e: sum(1 for p in pares if p["estrato"] == e)
                             for e in R.ESTRATOS},
         "pares":           pares,

@@ -142,6 +142,28 @@ def monta_pool(query: str,
     if len(corpus_outro_dominio) < N_CONTROLE:
         raise RuntimeError("corpus de outro dominio insuficiente para o controle")
 
+    # O CONTROLE NAO PODE VIR DO RANKING (achado 31/08, ao congelar os pares).
+    # `corpus_de_outro_dominio` devolve todo doc de dominio diferente — e esses
+    # documentos TAMBEM estao no ranking. Resultado medido: 8 colisoes em 500
+    # pares, 6 delas topo ∩ controle. Um documento que o retriever pos no top-5
+    # e, pela medida do proprio retriever, altamente relacionado a query; chama-
+    # lo de "controle negativo de outro dominio" e contradicao, e a previsao do
+    # §3.2 (~100% de acordo em irrelevante) fica errada por construcao.
+    #
+    # Isto IMPLEMENTA o §3.2, nao o altera: um documento no top-50 nunca foi
+    # "outro dominio" no sentido operativo — o rotulo de dominio apenas discorda
+    # do retriever. Mesmo argumento do dedup por id: cinco slots com quatro
+    # documentos distintos nunca foram cinco.
+    no_ranking = set(ranking)
+    corpus_outro_dominio = [d for d in corpus_outro_dominio if d not in no_ranking]
+    if len(corpus_outro_dominio) < N_CONTROLE:
+        raise RuntimeError(
+            f"apos excluir os {len(no_ranking)} do ranking, sobram "
+            f"{len(corpus_outro_dominio)} candidatos a controle — o §3.2 exige "
+            f"{N_CONTROLE}. Pool insuficiente e insuficiente; nao se reaproveita "
+            f"documento do ranking como controle."
+        )
+
     rng = random.Random(f"{seed}:{query}")
     pool = []
     for d in ranking[:N_TOPO]:
