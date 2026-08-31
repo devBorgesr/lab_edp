@@ -139,6 +139,11 @@ def exige_ranking_do_retriever(ranking: Sequence[tuple[str, float]]) -> list[str
     """
     Aceita SO um ranking que o retriever real produziu, e prova por medida.
 
+    DELEGA para `auditor.checks.ranking.veio_do_retriever`. Ter duas
+    implementacoes da mesma verificacao e ter duas que divergem: o servico de
+    auditoria e o harness do REL-001 precisam recusar exatamente as mesmas
+    coisas, senao um experimento passa por um caminho que o produto barra.
+
     POR QUE ISTO EXISTE (invalidacao 01, 31/08)
 
     A primeira versao do `congela_pares.py` passou `[i for i in txt]` — os
@@ -147,41 +152,21 @@ def exige_ranking_do_retriever(ranking: Sequence[tuple[str, float]]) -> list[str
     rotulos coletados sobre eles foram perdidos.
 
     Uma flag `procedencia="retriever"` nao resolveria: string se escreve. O que
-    ordem de arquivo NAO tem e SCORE. O ranking real vem com RRF estritamente
-    positivo e nao-crescente; ordem de insercao nao produz isso sem que alguem
-    fabrique os numeros de proposito. Por isso o contrato passou a ser
-    `(doc_id, score)`, e nao `doc_id`.
-
-    Devolve os ids, na ordem, depois de conferir a evidencia.
+    ordem de arquivo NAO tem e SCORE (NORTE §4.15 — a grandeza precisa ser uma
+    que o defeito moveria). Por isso o contrato e `(doc_id, score)`.
     """
-    if not ranking:
-        raise RuntimeError("ranking vazio")
-    if not all(isinstance(x, (tuple, list)) and len(x) == 2 for x in ranking):
-        raise RuntimeError(
-            "o ranking precisa ser uma sequencia de (doc_id, score). Uma lista "
-            "de ids nua nao prova procedencia — foi assim que a invalidacao 01 "
-            "aconteceu (ordem de arquivo passou por ranking)."
-        )
-    ids    = [d for d, _ in ranking]
-    scores = [float(s) for _, s in ranking]
+    import sys as _sys
+    from pathlib import Path as _P
+    _raiz = str(_P(__file__).resolve().parents[2])
+    if _raiz not in _sys.path:
+        _sys.path.insert(0, _raiz)
+    from auditor.checks.ranking import veio_do_retriever
+    from auditor.estados import Estado as _E
 
-    if any(s <= 0 for s in scores):
-        raise RuntimeError(
-            f"score nao-positivo no ranking (min={min(scores)}). O RRF do "
-            f"retriever e estritamente positivo; zeros indicam ranking "
-            f"fabricado ou score perdido no caminho."
-        )
-    if any(a < b for a, b in zip(scores, scores[1:])):
-        raise RuntimeError(
-            "scores nao sao nao-crescentes — o ranking nao esta na ordem que o "
-            "retriever devolveu, ou nao veio dele."
-        )
-    if len(set(scores)) == 1:
-        raise RuntimeError(
-            "todos os scores identicos: isso e ordem de arquivo com um numero "
-            "constante colado, nao ranking."
-        )
-    return ids
+    r = veio_do_retriever(ranking)
+    if r.estado is not _E.PASS:
+        raise RuntimeError(r.motivo)
+    return [d for d, _ in ranking]
 
 
 def monta_pool(query: str,

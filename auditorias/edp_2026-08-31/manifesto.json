@@ -1,0 +1,108 @@
+{
+  "audit_id": "b3f44a68ce79",
+  "protocolo": "REL-001",
+  "modo": "AUDIT",
+  "criado_em": "2026-08-31T20:48:16+00:00",
+  "status": "BLOCKED",
+  "ambiente": {
+    "python": "3.11.8",
+    "plataforma": "Linux-6.6.9-amd64-x86_64-with-glibc2.40"
+  },
+  "snapshot": {
+    "dir": "/tmp/auditoria_wj5kgj5u/sessions/default_cognitive",
+    "store": "/tmp/auditoria_wj5kgj5u/sessions/default_cognitive",
+    "sha256_episodic": "d64fcc74a0c7e9b08eb3972129a7f5689b008912c3e32abce9e386477d1703be",
+    "sha256_semantic": "632a7f228045f89cc92bf98695a4f664e181e214a93236035f0af1a635eab27d"
+  },
+  "retriever": {
+    "top_k": 50,
+    "origem": "EDPAuditavel"
+  },
+  "dataset": {},
+  "amostra": {
+    "n_queries": 50
+  },
+  "juiz": {},
+  "etapas": [
+    {
+      "etapa": "snapshot",
+      "estado": "PASS"
+    },
+    {
+      "etapa": "entrada",
+      "estado": "PASS"
+    },
+    {
+      "etapa": "retriever",
+      "estado": "PASS"
+    },
+    {
+      "etapa": "ranking",
+      "estado": "BLOCKED",
+      "barrado_por": [
+        "ranking.cardinalidade"
+      ]
+    },
+    {
+      "etapa": "estratos",
+      "estado": "PENDING",
+      "motivo": "nao executada: pipeline interrompido"
+    },
+    {
+      "etapa": "amostragem",
+      "estado": "PENDING",
+      "motivo": "nao executada: pipeline interrompido"
+    },
+    {
+      "etapa": "julgadores",
+      "estado": "PENDING",
+      "motivo": "nao executada: pipeline interrompido"
+    },
+    {
+      "etapa": "estatistica",
+      "estado": "PENDING",
+      "motivo": "nao executada: pipeline interrompido"
+    }
+  ],
+  "checks": [
+    {
+      "nome": "procedencia.snapshot_tem_hash",
+      "estado": "PASS",
+      "detecta": "corpus trocado sob o mesmo caminho entre a auditoria e a contestacao",
+      "bloqueia": true,
+      "barra": false,
+      "motivo": "",
+      "evidencia": {
+        "store": "/tmp/auditoria_wj5kgj5u/sessions/default_cognitive",
+        "sha256_episodic": "d64fcc74a0c7e9b08eb3972129a7f5689b008912c3e32abce9e386477d1703be",
+        "sha256_semantic": "632a7f228045f89cc92bf98695a4f664e181e214a93236035f0af1a635eab27d"
+      }
+    },
+    {
+      "nome": "ranking.cardinalidade",
+      "estado": "BLOCKED",
+      "detecta": "duplicacao no indice consumindo a janela top-k: slots cheios, documentos distintos insuficientes",
+      "bloqueia": true,
+      "barra": true,
+      "motivo": "50 de 50 queries nao alcancam 50 documentos distintos (min=30, mediana=37.0, max=41). Os slots estao cheios; os documentos, nao.",
+      "evidencia": {
+        "slots": 50,
+        "ids_distintos": 30,
+        "exigido": 50,
+        "ids_repetidos": 20,
+        "queries": 50,
+        "distintos_min": 30,
+        "distintos_mediana": 37.0,
+        "distintos_max": 41,
+        "queries_reprovadas": 50
+      }
+    }
+  ],
+  "barreiras": [
+    "ranking.cardinalidade"
+  ],
+  "invalidados": [],
+  "resultado": null,
+  "NAO_HA_RESULTADO": "nenhuma metrica foi calculada. As pre-condicoes listadas em `barreiras` nao foram satisfeitas.",
+  "sha256_manifesto": "9366c32d058d752451d5a2c4544cedc959568b795df9f483413331cd06e1e2f6"
+}
