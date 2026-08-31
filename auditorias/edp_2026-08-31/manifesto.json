@@ -1,16 +1,16 @@
 {
-  "audit_id": "b3f44a68ce79",
+  "audit_id": "e01a62f36d04",
   "protocolo": "REL-001",
   "modo": "AUDIT",
-  "criado_em": "2026-08-31T20:48:16+00:00",
+  "criado_em": "2026-08-31T21:21:14+00:00",
   "status": "BLOCKED",
   "ambiente": {
     "python": "3.11.8",
     "plataforma": "Linux-6.6.9-amd64-x86_64-with-glibc2.40"
   },
   "snapshot": {
-    "dir": "/tmp/auditoria_wj5kgj5u/sessions/default_cognitive",
-    "store": "/tmp/auditoria_wj5kgj5u/sessions/default_cognitive",
+    "dir": "/tmp/auditoria_anpyeril/sessions/default_cognitive",
+    "store": "/tmp/auditoria_anpyeril/sessions/default_cognitive",
     "sha256_episodic": "d64fcc74a0c7e9b08eb3972129a7f5689b008912c3e32abce9e386477d1703be",
     "sha256_semantic": "632a7f228045f89cc92bf98695a4f664e181e214a93236035f0af1a635eab27d"
   },
@@ -73,9 +73,22 @@
       "barra": false,
       "motivo": "",
       "evidencia": {
-        "store": "/tmp/auditoria_wj5kgj5u/sessions/default_cognitive",
+        "store": "/tmp/auditoria_anpyeril/sessions/default_cognitive",
         "sha256_episodic": "d64fcc74a0c7e9b08eb3972129a7f5689b008912c3e32abce9e386477d1703be",
         "sha256_semantic": "632a7f228045f89cc92bf98695a4f664e181e214a93236035f0af1a635eab27d"
+      }
+    },
+    {
+      "nome": "ranking.veio_do_retriever",
+      "estado": "PASS",
+      "detecta": "ranking fabricado: ordem de arquivo, ordem alfabetica, ou qualquer sequencia que nao saiu do retriever",
+      "bloqueia": true,
+      "barra": false,
+      "motivo": "",
+      "evidencia": {
+        "n": 50,
+        "score_max": 0.015512,
+        "score_min": 0.008063
       }
     },
     {
@@ -102,7 +115,114 @@
     "ranking.cardinalidade"
   ],
   "invalidados": [],
+  "medicoes": [
+    {
+      "nome": "cardinalidade_do_ranking",
+      "valor": 37.0,
+      "o_que_mede": "documentos DISTINTOS entregues na janela top-k (mediana entre queries). Slots cheios nao implicam documentos distintos.",
+      "N": 50,
+      "unidade": "documentos por query",
+      "snapshot": "d64fcc74a0c7e9b0",
+      "fonte": "ranking real do retriever do sistema auditado",
+      "k": 50,
+      "ic95": [
+        36.74,
+        37.86
+      ],
+      "detalhe": {
+        "min": 30,
+        "max": 41,
+        "slots_por_query": 50.0
+      }
+    },
+    {
+      "nome": "duplicacao_intra_query_por_id",
+      "valor": 0.26,
+      "o_que_mede": "fracao dos slots do top-k ocupados por um documento que ja apareceu na MESMA query (mediana entre queries)",
+      "N": 50,
+      "unidade": "fracao dos slots",
+      "snapshot": "d64fcc74a0c7e9b0",
+      "fonte": "ranking real do retriever do sistema auditado",
+      "k": 50,
+      "ic95": [
+        0.2428,
+        0.2652
+      ]
+    },
+    {
+      "nome": "duplicacao_por_texto",
+      "valor": 0.0,
+      "o_que_mede": "fracao dos documentos DISTINTOS cujo texto e identico ao de outro documento com id diferente. Sobrevive a deduplicacao por id. ATENCAO: efeito concentrado — leia `queries_afetadas`, nao a mediana.",
+      "N": 50,
+      "unidade": "fracao dos documentos distintos",
+      "snapshot": "d64fcc74a0c7e9b0",
+      "fonte": "ranking real do retriever do sistema auditado",
+      "k": 50,
+      "ic95": [
+        0.003,
+        0.04
+      ],
+      "detalhe": {
+        "queries_afetadas": 5,
+        "fracao_das_queries_afetadas": 0.1,
+        "max": 0.36666666666666664
+      }
+    },
+    {
+      "nome": "sobreposicao_cross_query",
+      "valor": 0.2830188679245283,
+      "o_que_mede": "Jaccard mediano entre os top-k de pares de queries distintas. Alto indica que o retriever devolve o mesmo material independente da pergunta.",
+      "N": 1225,
+      "unidade": "Jaccard entre pares de queries",
+      "snapshot": "d64fcc74a0c7e9b0",
+      "fonte": "ranking real do retriever do sistema auditado",
+      "k": 50,
+      "ic95": [
+        0.2824,
+        0.2946
+      ],
+      "detalhe": {
+        "queries": 50
+      }
+    },
+    {
+      "nome": "razao_score_topo_cauda",
+      "valor": 1.813556866722796,
+      "o_que_mede": "score mediano das 5 primeiras posicoes dividido pelo das 5 ultimas. Proximo de 1 indica ranking pouco discriminativo.",
+      "N": 50,
+      "unidade": "razao adimensional",
+      "snapshot": "d64fcc74a0c7e9b0",
+      "fonte": "ranking real do retriever do sistema auditado",
+      "k": 50,
+      "ic95": [
+        1.7996,
+        2.039
+      ]
+    }
+  ],
+  "custos": {
+    "tempo_por_etapa_s": {
+      "snapshot": 0.045,
+      "entrada": 0.0,
+      "retriever": 55.779,
+      "ranking": 0.019
+    },
+    "tempo_total_s": 55.843,
+    "chamadas_ao_modelo": 0,
+    "tokens_entrada": 0,
+    "tokens_saida": 0,
+    "modelo": null,
+    "custo_modelo_usd": null,
+    "custo_nao_estimado_porque": "sem preco registrado para o modelo (nenhum). Zero seria mentira; None e a resposta honesta."
+  },
+  "privacidade": {
+    "exemplos_em_claro": false,
+    "segredos_removidos": [],
+    "n_ocorrencias": 0,
+    "nota": "query e documento aparecem como hash; texto em claro so com --exemplos-em-claro, e segredo e removido nos dois modos"
+  },
   "resultado": null,
   "NAO_HA_RESULTADO": "nenhuma metrica foi calculada. As pre-condicoes listadas em `barreiras` nao foram satisfeitas.",
-  "sha256_manifesto": "9366c32d058d752451d5a2c4544cedc959568b795df9f483413331cd06e1e2f6"
+  "NOTA_MEDICOES": "`medicoes` sao fatos observaveis sobre o material recuperado (duplicacao, cardinalidade, sobreposicao). NAO sao metrica de qualidade de resposta e nao substituem `resultado`.",
+  "sha256_manifesto": "89686215aafcc8b50c2b6cb1ff892aec80d2eade69a2ccfa7075c02ad8672e95"
 }

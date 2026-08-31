@@ -1,80 +1,33 @@
-# Auditoria `b3f44a68ce79` — REL-001
+# Auditoria — REL-001
 
-**Status: BLOCKED**
+`e01a62f36d04` · 2026-08-31T21:21:14+00:00 · **BLOCKED**
 
-## Resumo executivo
+## O sistema foi auditável?
 
-Esta auditoria **não produziu métricas**. Uma ou mais pré-condições de validade não foram satisfeitas, e o pipeline foi interrompido antes de qualquer cálculo.
+**Não sob este protocolo.** A execução foi interrompida antes de qualquer cálculo, por pré-condição de validade não satisfeita.
 
-Isto não é uma falha do serviço: é o resultado que o serviço deve entregar quando o sistema auditado não sustenta o protocolo pedido.
+## O que foi encontrado
 
-## Motivo
+- **cardinalidade do ranking**: 37 documentos por query (N = 50)
+- **duplicacao intra query por id**: 0,26 fracao dos slots (N = 50)
+- **duplicacao por texto**: 0 fracao dos documentos distintos (N = 50)
+- **sobreposicao cross query**: 0,283 Jaccard entre pares de queries (N = 1225)
+- **razao score topo cauda**: 1,814 razao adimensional (N = 50)
 
-**`ranking.cardinalidade` — BLOCKED**
+- 50 de 50 queries nao alcancam 50 documentos distintos (min=30, mediana=37.0, max=41). Os slots estao cheios; os documentos, nao.
 
-50 de 50 queries nao alcancam 50 documentos distintos (min=30, mediana=37.0, max=41). Os slots estao cheios; os documentos, nao.
+## O que NÃO foi possível concluir
 
-```
-slots = 50
-ids_distintos = 30
-exigido = 50
-ids_repetidos = 20
-queries = 50
-distintos_min = 30
-distintos_mediana = 37
-distintos_max = 41
-queries_reprovadas = 50
-```
+Nenhuma métrica de protocolo foi calculada — sem Recall@K, sem índice de acordo, sem *ground truth*.
 
-*Este check detecta:* duplicacao no indice consumindo a janela top-k: slots cheios, documentos distintos insuficientes
+Etapas não executadas: `estratos`, `amostragem`, `julgadores`, `estatistica`.
 
-## O que NÃO foi concluído
+As medições acima descrevem o material recuperado. Elas **não** autorizam afirmação sobre a qualidade das respostas do sistema.
 
-Nenhuma métrica foi calculada. Especificamente:
+## Qual decisão precisa ser tomada
 
-- etapa `estratos` — não executada
-- etapa `amostragem` — não executada
-- etapa `julgadores` — não executada
-- etapa `estatistica` — não executada
-
-Qualquer número que apareça em outro lugar sobre este sistema **não veio desta auditoria**.
-
-## Próximo passo
-
-Decisão do responsável, entre alterar o objeto auditado e alterar o protocolo. As duas mudam o que está sendo medido e nenhuma pode ser adotada em silêncio.
-
-## Verificações
-
-| check | estado | barra? | detecta |
-|---|---|---|---|
-| `procedencia.snapshot_tem_hash` | PASS | não | corpus trocado sob o mesmo caminho entre a auditoria e a contestacao |
-| `ranking.cardinalidade` | BLOCKED | **sim** | duplicacao no indice consumindo a janela top-k: slots cheios, documentos distintos insuficientes |
-
-## Etapas
-
-| etapa | estado |
-|---|---|
-| `snapshot` | PASS |
-| `entrada` | PASS |
-| `retriever` | PASS |
-| `ranking` | BLOCKED |
-| `estratos` | PENDING |
-| `amostragem` | PENDING |
-| `julgadores` | PENDING |
-| `estatistica` | PENDING |
-
-## Procedência
-
-```
-dir = /tmp/auditoria_wj5kgj5u/sessions/default_cognitive
-store = /tmp/auditoria_wj5kgj5u/sessions/default_cognitive
-sha256_episodic = d64fcc74a0c7e9b08eb3972129a7f5689b008912c3e32abce9e386477d1703be
-sha256_semantic = 632a7f228045f89cc92bf98695a4f664e181e214a93236035f0af1a635eab27d
-retriever.top_k = 50
-retriever.origem = EDPAuditavel
-manifesto.sha256 = 9366c32d058d752451d5a2c4544cedc959568b795df9f483413331cd06e1e2f6
-```
+Entre **alterar o objeto auditado** e **alterar o protocolo**. As duas mudam o que está sendo medido; nenhuma pode ser adotada em silêncio, e a escolha não é do serviço.
 
 ---
 
-Manifesto completo em `manifesto.json`. Modo: `AUDIT`. O sha256 acima cobre o manifesto inteiro e permite contestar cada número deste relatório.
+Evidência detalhada em `relatorio_tecnico.md`. Manifesto `89686215aafcc8b5…` em `manifesto.json`.

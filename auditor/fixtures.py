@@ -86,3 +86,56 @@ class SistemaSaudavel(SistemaFalso):
 def queries(n: int = 3) -> list[dict]:
     return [{"id": f"q{i}", "query": f"pergunta {i} sobre assunto {i % 7}",
              "dominio": f"dom{i % 3}"} for i in range(n)]
+
+
+class ClienteSintetico(SistemaFalso):
+    """
+    Item 11 — um cliente que parece real, sem expor dado real.
+
+    160 documentos, 60 queries, scores decrescentes, duplicacao configuravel.
+    Serve para validar o pipeline inteiro e para demonstracao comercial sem
+    tocar em corpus de ninguem.
+    """
+
+    def __init__(self, tmp: Path, n_docs: int = 160,
+                 taxa_duplicacao: float = 0.0):
+        super().__init__(tmp, n_docs=n_docs, defeito=None)
+        self.taxa_duplicacao = taxa_duplicacao
+        temas = ["indexacao postgres", "acustica de sala", "arquitetura java",
+                 "politica de retencao", "modelo de embeddings", "custo de infra"]
+        self.docs = {
+            f"doc{i:04d}": f"{temas[i % len(temas)]}: nota {i} com detalhe "
+                           f"tecnico {i * 7 % 97} e contexto adicional."
+            for i in range(n_docs)
+        }
+        (self.snapshot_dir / "episodic.json").write_text(
+            json.dumps([{"id": k, "text": v} for k, v in self.docs.items()]),
+            encoding="utf-8")
+
+    # Os ultimos 20 documentos sao RESERVA DE CONTROLE: nunca entram no
+    # ranking. Sem isso o proprio check `controle_fora_do_ranking` barra a
+    # fixture "saudavel" — e ele estaria certo: um documento que o retriever
+    # rankeia nao e controle negativo.
+    N_RESERVA = 20
+
+    def consulta(self, query: str, top_k: int) -> list[tuple[str, float]]:
+        semente = sum(ord(c) for c in query)
+        ids = list(self.docs)[:-self.N_RESERVA]
+        # ordem estavel e dependente da query, como um retriever de verdade
+        ordem = sorted(ids, key=lambda d: (semente * hash(d)) % 10007)
+        base = ordem[:max(1, int(top_k * (1 - self.taxa_duplicacao)))]
+        saida = []
+        while len(saida) < top_k:
+            saida.append(base[len(saida) % len(base)])
+        return [(d, 0.0164 - k * 0.0001) for k, d in enumerate(saida[:top_k])]
+
+    def controle_para(self, q: dict) -> list[str]:
+        return list(self.docs)[-self.N_RESERVA:]
+
+
+def queries_cliente(n: int = 60) -> list[dict]:
+    temas = ["indexacao postgres", "acustica de sala", "arquitetura java",
+             "politica de retencao", "modelo de embeddings", "custo de infra"]
+    return [{"id": f"cq{i:03d}",
+             "query": f"como resolver {temas[i % len(temas)]} no caso {i}?",
+             "dominio": temas[i % len(temas)]} for i in range(n)]

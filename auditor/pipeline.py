@@ -21,7 +21,9 @@ from typing import Any, Callable, Protocol, Sequence
 
 from .checks import (estatistica as CS, estratos as CE,
                      procedencia as CP, ranking as CR)
+from .custos import Contabilidade
 from .estados import Estado, StatusAuditoria
+from .redacao import Politica
 from .manifest import Manifesto
 
 
@@ -50,8 +52,10 @@ class Auditoria:
     sistema:   Any
     queries:   Sequence[dict]
     modo:      str = "AUDIT"                # AUDIT | DIAGNOSTIC
+    politica:  Politica = field(default_factory=Politica)
     audit_id:  str = field(default_factory=lambda: uuid.uuid4().hex[:12])
     manifesto: Manifesto = field(init=False)
+    conta:     Contabilidade = field(default_factory=Contabilidade)
 
     ETAPAS = ("snapshot", "entrada", "retriever", "ranking", "estratos",
               "amostragem", "julgadores", "estatistica")
@@ -70,7 +74,10 @@ class Auditoria:
 
         for etapa in self.ETAPAS:
             fn = getattr(self, f"_etapa_{etapa}")
+            self.conta.inicia(etapa)
             fn(m)
+            self.conta.encerra()
+            self._fecha(m)
             if m.barreiras:
                 # PARA AQUI. As etapas restantes nao rodam — e por isso que
                 # nenhuma metrica pode existir.
@@ -82,6 +89,17 @@ class Auditoria:
                 return m
             m.etapa(etapa, Estado.PASS)
         return m
+
+    def _fecha(self, m: Manifesto) -> None:
+        """Medicoes, custo e privacidade — inclusive quando a auditoria para."""
+        m.custos = self.conta.resumo()
+        m.privacidade = self.politica.relatorio()
+        if getattr(self, "_rank", None) and m.procedencia_ok and not m.medicoes:
+            from . import medicoes as MD
+            m.publica_medicoes(MD.calcula(
+                self._rank, self.sistema.texto,
+                m.snapshot.get("sha256_episodic", "")[:16],
+                self.protocolo.top_k))
 
     # ── etapas ──────────────────────────────────────────────────────────────
 
@@ -126,8 +144,15 @@ class Auditoria:
                             c.evidencia["ids_distintos"] <
                             piores_card.evidencia["ids_distintos"]):
                 piores_card = c
-        if piores_proc is not None:
-            m.registra(piores_proc)
+        # A PROCEDENCIA E SEMPRE REGISTRADA, passando ou nao.
+        #
+        # Defeito 31/08: a versao anterior so registrava o PASS quando nenhum
+        # outro check falhava. Com a cardinalidade barrando, a prova de que o
+        # ranking e real nunca entrava no manifesto — e as medicoes
+        # descritivas, que dependem so dela, desapareciam. A auditoria perdia
+        # a entrega comercial justamente no caso em que ela mais importa.
+        m.registra(piores_proc if piores_proc is not None
+                   else CR.veio_do_retriever(self._rank[self.queries[0]["id"]]))
         if piores_card is not None:
             m.registra(self._agrega_cardinalidade(piores_card))
         if self.modo == "DIAGNOSTIC":
@@ -135,8 +160,6 @@ class Auditoria:
                 m.registra(CR.duplicacao_medida(
                     self._rank[q["id"]],
                     {d: self.sistema.texto(d) for d, _ in self._rank[q["id"]]}))
-        if piores_proc is None and piores_card is None:
-            m.registra(CR.veio_do_retriever(self._rank[self.queries[0]["id"]]))
 
     def _agrega_cardinalidade(self, pior):
         """Uma linha para as N queries: min/mediana/max e quantas reprovam."""

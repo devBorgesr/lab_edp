@@ -37,6 +37,9 @@ class Manifesto:
     checks:     list[Resultado] = field(default_factory=list)
     etapas:     list[dict[str, Any]] = field(default_factory=list)
     invalidados: list[dict[str, Any]] = field(default_factory=list)
+    medicoes:   list[Any] = field(default_factory=list)   # Medicao, descritivas
+    custos:     dict[str, Any] = field(default_factory=dict)
+    privacidade: dict[str, Any] = field(default_factory=dict)
     _resultado: dict[str, Any] | None = None
 
     # ── o portao ─────────────────────────────────────────────────────────────
@@ -52,6 +55,37 @@ class Manifesto:
             return StatusAuditoria.BLOCKED
         return (StatusAuditoria.COMPLETE if self._resultado is not None
                 else StatusAuditoria.READY)
+
+    @property
+    def procedencia_ok(self) -> bool:
+        """
+        As medicoes descritivas dependem SO disto: o ranking e real.
+
+        Nao dependem do status geral. Uma auditoria BLOCKED por cardinalidade
+        ainda entrega duplicacao e sobreposicao medidas — e essa e a entrega
+        comercial do MVP-1. O que nao pode sair de um ranking fabricado e
+        NADA, e por isso o portao das medicoes e a procedencia.
+
+        DEFEITO 31/08: a versao anterior aprovava quando os checks de
+        procedencia AINDA NAO TINHAM RODADO — `all()` sobre lista vazia e True,
+        e `_fecha()` roda apos CADA etapa. Medicao saia calculada sobre ranking
+        fabricado, que e precisamente o que esta propriedade existe para
+        impedir. Agora os checks exigidos precisam estar PRESENTES e PASS.
+        """
+        EXIGIDOS = {"ranking.veio_do_retriever", "procedencia.snapshot_tem_hash"}
+        por_nome = {c.nome: c for c in self.checks}
+        if not EXIGIDOS <= set(por_nome):
+            return False
+        return all(por_nome[n].estado is Estado.PASS for n in EXIGIDOS)
+
+    def publica_medicoes(self, ms: list[Any]) -> None:
+        """Medicao descritiva: exige ranking real, NAO exige protocolo satisfeito."""
+        if not self.procedencia_ok:
+            raise AuditoriaBloqueada(
+                "medicao descritiva exige ranking com procedencia provada; "
+                "medir sobre ranking fabricado nao mede nada"
+            )
+        self.medicoes = list(ms)
 
     def publica_resultado(self, r: dict[str, Any]) -> None:
         """
@@ -118,6 +152,10 @@ class Manifesto:
             ],
             "barreiras":   [c.nome for c in self.barreiras],
             "invalidados": self.invalidados,
+            # DESCRITIVAS — existem sob BLOCKED. Nao sao metrica de protocolo.
+            "medicoes": [m.to_dict() for m in self.medicoes],
+            "custos": self.custos,
+            "privacidade": self.privacidade,
         }
         # o resultado so aparece no manifesto se houver resultado
         if self.status is StatusAuditoria.COMPLETE:
@@ -127,6 +165,12 @@ class Manifesto:
             d["NAO_HA_RESULTADO"] = (
                 "nenhuma metrica foi calculada. As pre-condicoes listadas em "
                 "`barreiras` nao foram satisfeitas."
+            )
+        if self.medicoes:
+            d["NOTA_MEDICOES"] = (
+                "`medicoes` sao fatos observaveis sobre o material recuperado "
+                "(duplicacao, cardinalidade, sobreposicao). NAO sao metrica de "
+                "qualidade de resposta e nao substituem `resultado`."
             )
         d["sha256_manifesto"] = hashlib.sha256(
             json.dumps({k: v for k, v in d.items()},
