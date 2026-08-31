@@ -43,6 +43,7 @@ class Manifesto:
     protocolo_spec: dict[str, Any] = field(default_factory=dict)
     medicoes:   list[Any] = field(default_factory=list)   # Medicao, descritivas
     custos:     dict[str, Any] = field(default_factory=dict)
+    configuracao: dict[str, Any] = field(default_factory=dict)
     privacidade: dict[str, Any] = field(default_factory=dict)
     _resultado: dict[str, Any] | None = None
 
@@ -163,6 +164,7 @@ class Manifesto:
             # DESCRITIVAS — existem sob BLOCKED. Nao sao metrica de protocolo.
             "medicoes": [m.to_dict() for m in self.medicoes],
             "custos": self.custos,
+            "configuracao": self.configuracao,
             "privacidade": self.privacidade,
         }
         # o resultado so aparece no manifesto se houver resultado
@@ -186,8 +188,36 @@ class Manifesto:
                        ).encode("utf-8")).hexdigest()
         return d
 
-    def salva(self, caminho) -> None:
+    def salva(self, caminho, politica=None) -> None:
+        """
+        ULTIMA BARREIRA antes de persistir (item 9).
+
+            objeto -> sanitizacao -> verificacao -> persistencia
+
+        A sanitizacao roda aqui, no unico ponto por onde o manifesto vira
+        arquivo, e nao em cada chamador. Segredo que escape de um campo que
+        ninguem previu ainda passa por esta varredura — e se sobrar algum, a
+        gravacao FALHA em vez de escrever.
+        """
         from pathlib import Path
-        Path(caminho).write_text(
-            json.dumps(self.to_dict(), ensure_ascii=False, indent=2, default=str),
-            encoding="utf-8")
+
+        from .redacao import Politica, varre_segredos
+
+        pol = politica or Politica()
+        d = pol.sanitiza(self.to_dict())
+        d["privacidade"] = pol.relatorio()
+        # o hash precisa cobrir o que foi REALMENTE gravado
+        d["sha256_manifesto"] = hashlib.sha256(
+            json.dumps({k: v for k, v in d.items() if k != "sha256_manifesto"},
+                       sort_keys=True, ensure_ascii=False, default=str
+                       ).encode("utf-8")).hexdigest()
+
+        texto = json.dumps(d, ensure_ascii=False, indent=2, default=str)
+        restou = varre_segredos(texto)
+        if restou:
+            raise RuntimeError(
+                f"segredo sobreviveu a sanitizacao do manifesto: {restou}. "
+                f"Nao gravo — vazamento e irreversivel."
+            )
+        Path(caminho).write_text(texto, encoding="utf-8")
+        return d

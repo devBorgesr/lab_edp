@@ -29,6 +29,7 @@ from pathlib import Path
 from . import relatorio
 from .estados import Estado, StatusAuditoria
 from .pipeline import Auditoria, Protocolo
+from .esquemas import ENTRADA_VERSAO, EntradaInvalida
 from .redacao import Politica
 
 EXIT = {"COMPLETE": 0, "BLOCKED": 2, "INVALID": 3, "ERRO": 4}
@@ -72,27 +73,35 @@ def carrega_queries(caminho: Path) -> list[dict]:
     return out
 
 
-def _sistema(a):
-    if a.adaptador == "edp":
-        from .adaptadores.edp import EDPAuditavel
-        return EDPAuditavel(Path(a.input),
-                            Path(a.dominios) if a.dominios else None)
-    raise SystemExit(f"adaptador desconhecido: {a.adaptador}")
+def _entrada(a) -> dict:
+    """Argumentos do CLI -> `AuditInput v1`. Um formato so, duas portas."""
+    op = {"mode": a.mode, "exemplos_em_claro": bool(a.exemplos_em_claro)}
+    if getattr(a, "dominios", None):
+        op["dominios"] = a.dominios
+    if getattr(a, "taxa_duplicacao", None) is not None:
+        op["taxa_duplicacao"] = a.taxa_duplicacao
+    return {"schema": ENTRADA_VERSAO, "snapshot": a.input,
+            "queries": a.queries, "protocol": a.protocol,
+            "adapter": a.adaptador, "options": op}
 
 
-def _roda(a):
-    prot = PROTOCOLOS[a.protocol]
-    pol = Politica(exemplos_em_claro=getattr(a, "exemplos_em_claro", False))
-    aud = Auditoria(prot, _sistema(a), carrega_queries(Path(a.queries)),
-                    modo=a.mode, politica=pol)
-    aud.origem_do_dataset = str(Path(a.queries).name)
-    return aud.roda()
+def _roda(a, so_check: bool):
+    """
+    CLI e HTTP entram pelo MESMO `servico.executa`.
+
+    Nenhuma regra de auditoria mora no CLI. Duas implementacoes da mesma regra
+    sao duas que divergem, e a divergencia aparece quando o cliente compara o
+    que o CLI disse com o que a API disse.
+    """
+    from .servico import executa
+    raiz = Path(getattr(a, "output", None) or ".auditorias")
+    return executa(_entrada(a), raiz, PROTOCOLOS, so_check=so_check)
 
 
-def _codigo(m) -> int:
-    if any(c.estado is Estado.INVALID for c in m.checks):
+def _codigo(r: dict) -> int:
+    if r.get("invalido"):
         return EXIT["INVALID"]
-    if m.status is StatusAuditoria.BLOCKED:
+    if r["status"] == StatusAuditoria.BLOCKED.value:
         return EXIT["BLOCKED"]
     # COMPLETE e READY nao tem problema bloqueante. READY significa "auditavel,
     # sem metrica de protocolo configurada" — e o caso comercial do MVP-1:
@@ -100,41 +109,37 @@ def _codigo(m) -> int:
     return EXIT["COMPLETE"]
 
 
-def _imprime(m) -> None:
-    print(f"\nstatus ....... {m.status.value}")
-    for c in m.barreiras:
-        print(f"  BARRA  {c.nome}\n         {c.motivo}")
-    for x in m.medicoes:
-        d = x.to_dict()
+def _imprime(r: dict) -> None:
+    print(f"\nprotocolo .... {r['protocolo_identidade']} "
+          f"({r['protocolo_spec']['tipo']})")
+    print(f"status ....... {r['status']}")
+    for nome in r["barreiras"]:
+        c = next(x for x in r["checks"] if x["nome"] == nome)
+        print(f"  BARRA  {nome}\n         {c['motivo']}")
+    for d in r["medicoes"]:
         print(f"  medido {d['nome']:<32} {round(d['valor'], 4)} "
               f"{d['unidade']} (N={d['N']})")
 
 
 def cmd_check(a) -> int:
     """Dry-run: READY ou BLOCKED, sem julgador e sem metrica de protocolo."""
-    m = _roda(a)
-    _imprime(m)
-    pronto = not m.barreiras
-    print(f"\n{'READY — a infraestrutura sustenta o protocolo' if pronto else 'BLOCKED — ver motivos acima'}")
-    print("(dry-run: nenhum julgador executado, nenhuma metrica de protocolo calculada)")
-    return _codigo(m)
+    r = _roda(a, so_check=True)
+    _imprime(r)
+    pronto = not r["barreiras"]
+    print("\n" + ("READY — a infraestrutura sustenta este protocolo"
+                  if pronto else "BLOCKED — ver motivos acima"))
+    print("(dry-run: nenhum julgador executado, nenhuma metrica de protocolo "
+          "calculada, nenhum relatorio gravado)")
+    return _codigo(r)
 
 
 def cmd_run(a) -> int:
-    m = _roda(a)
-    out = Path(a.output)
-    (out / "artefatos").mkdir(parents=True, exist_ok=True)
-    m.salva(out / "manifesto.json")
-    (out / "relatorio.md").write_text(relatorio.executivo(m), encoding="utf-8")
-    (out / "relatorio_tecnico.md").write_text(relatorio.markdown(m), encoding="utf-8")
-    (out / "artefatos" / "checks.json").write_text(
-        json.dumps([{"nome": c.nome, "estado": c.estado.value,
-                     "detecta": c.detecta, "evidencia": c.evidencia}
-                    for c in m.checks], ensure_ascii=False, indent=2),
-        encoding="utf-8")
-    _imprime(m)
-    print(f"\n{out/'relatorio.md'}\n{out/'relatorio_tecnico.md'}\n{out/'manifesto.json'}")
-    return _codigo(m)
+    r = _roda(a, so_check=False)
+    _imprime(r)
+    w = Path(r["workspace"])
+    print(f"\n{w/'reports'/'executive.md'}\n{w/'reports'/'technical.md'}"
+          f"\n{w/'manifest.json'}")
+    return _codigo(r)
 
 
 def main(argv=None) -> int:
@@ -146,15 +151,20 @@ def main(argv=None) -> int:
         p.add_argument("--input",    required=True, help="snapshot do sistema")
         p.add_argument("--protocol", required=True, choices=sorted(PROTOCOLOS))
         p.add_argument("--queries",  required=True)
-        p.add_argument("--adaptador", default="edp")
+        p.add_argument("--adaptador", default="edp",
+                       choices=["edp", "sintetico"])
+        p.add_argument("--taxa-duplicacao", type=float, default=None,
+                       dest="taxa_duplicacao",
+                       help="so para o adaptador sintetico (demonstracao)")
         p.add_argument("--dominios", default=None)
         p.add_argument("--mode", default="AUDIT", choices=["AUDIT", "DIAGNOSTIC"])
         p.add_argument("--exemplos-em-claro", action="store_true",
                        dest="exemplos_em_claro",
                        help="mostra texto do cliente nos artefatos (segredo "
                             "continua removido). Default: so hash.")
-        if com_output:
-            p.add_argument("--output", required=True)
+        p.add_argument("--output", default=".auditorias",
+                       help="raiz do servico; cada auditoria ganha "
+                            "<raiz>/<audit_id>/ proprio")
 
     comum(sub.add_parser("check", help="dry-run: READY ou BLOCKED"), False)
     comum(sub.add_parser("run", help="auditoria completa"), True)
@@ -162,6 +172,9 @@ def main(argv=None) -> int:
 
     try:
         return cmd_check(a) if a.cmd == "check" else cmd_run(a)
+    except EntradaInvalida as e:
+        print(f"\nENTRADA INVALIDA ({ENTRADA_VERSAO}): {e}", file=sys.stderr)
+        return EXIT["INVALID"]
     except Exception:
         traceback.print_exc()
         print("\nERRO OPERACIONAL do servico — nao e veredito sobre o sistema "

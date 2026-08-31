@@ -99,33 +99,47 @@ class Auditoria:
 
     # ── execucao ────────────────────────────────────────────────────────────
 
-    def roda(self) -> Manifesto:
-        m = self.manifesto
+    # Tudo que identifica a auditoria. Se um campo faltar na abertura, o
+    # manifesto de um BLOCKED nasce incompleto — e um bloqueio sem identidade
+    # nao e contestavel.
+    IDENTIDADE = ("snapshot", "dataset", "protocolo_spec", "retriever",
+                  "privacidade", "configuracao")
+
+    def _abertura(self, m: Manifesto) -> None:
+        """
+        TODA a identidade e registrada ANTES da primeira etapa.
+
+        Regra aprendida em 31/08: o hash do dataset ficava na etapa
+        `amostragem` e SUMIA quando o pipeline bloqueava antes — o manifesto de
+        uma auditoria bloqueada nao dizia sobre quais queries o bloqueio
+        aconteceu. A regra virou geral: fato de ENTRADA nao depende de o
+        pipeline chegar ate ele.
+
+        A partir daqui, qualquer BLOCKED ja nasce com identidade completa.
+        """
+        import hashlib
+
         m.snapshot = {"dir": str(getattr(self.sistema, "snapshot_dir", "?"))}
-        m.retriever = {"top_k": self.protocolo.top_k,
-                       "origem": type(self.sistema).__name__,
-                       "adaptador": type(self.sistema).__name__,
-                       "versao_adaptador": getattr(self.sistema, "VERSAO", "?")}
+
+        m.retriever = {
+            "top_k":            self.protocolo.top_k,
+            "origem":           type(self.sistema).__name__,
+            "adaptador":        type(self.sistema).__name__,
+            "versao_adaptador": getattr(self.sistema, "VERSAO", "?"),
+        }
         if hasattr(self.sistema, "telemetria_do_ranking") and self.queries:
             try:
                 m.retriever["telemetria"] = self.sistema.telemetria_do_ranking(
                     self.queries[0]["query"], self.protocolo.top_k)
             except Exception as e:
                 m.retriever["telemetria_falhou"] = str(e)
+
         m.amostra = {"n_queries": len(self.queries)}
-        # PROCEDENCIA DE ENTRADA — registrada na ABERTURA, nao numa etapa.
-        # Se ficasse em `_etapa_amostragem`, um BLOCKED anterior a apagaria, e
-        # o manifesto de uma auditoria bloqueada nao diria sobre QUAIS queries
-        # o bloqueio aconteceu. Fato de entrada nao depende de o pipeline
-        # chegar la.
-        #
+
         # PONTO DE EXTENSAO (item 18): o dataset e entrada do protocolo, nao
         # responsabilidade do nucleo.
         #     Question Dataset -> Benchmark -> Protocol -> Audit
-        # Quando existir um gerador de perguntas, ele entra como fonte com
-        # procedencia propria; trocar a fonte muda `sha256_queries` e fica
-        # visivel aqui em vez de invisivel.
-        import hashlib
+        # Trocar a fonte muda `sha256_queries` e fica visivel aqui.
         m.dataset = {
             "n_queries": len(self.queries),
             "sha256_queries": hashlib.sha256(
@@ -135,6 +149,30 @@ class Auditoria:
             "nota": ("o conjunto de queries e entrada do protocolo; trocar a "
                      "fonte muda `sha256_queries` e fica visivel aqui"),
         }
+
+        m.protocolo_spec = self.protocolo.to_dict()
+        m.privacidade = self.politica.relatorio()
+        # NAO repetir `audit_id` aqui: ele ja e campo de topo do manifesto, e
+        # o mesmo identificador em dois lugares convida a divergir. Como efeito
+        # colateral util, `configuracao` fica deterministica — duas execucoes
+        # da mesma entrada produzem a mesma configuracao, e o teste de
+        # reprodutibilidade consegue afirmar isso.
+        m.configuracao = {
+            "modo":              self.modo,
+            "min_unidades":      self.protocolo.min_unidades,
+            "exemplos_em_claro": self.politica.exemplos_em_claro,
+        }
+
+        faltando = [c for c in self.IDENTIDADE if not getattr(m, c, None)]
+        if faltando:
+            raise RuntimeError(
+                f"abertura incompleta: {faltando}. Um BLOCKED com identidade "
+                f"parcial nao e contestavel."
+            )
+
+    def roda(self) -> Manifesto:
+        m = self.manifesto
+        self._abertura(m)
 
         for etapa in self.ETAPAS:
             fn = getattr(self, f"_etapa_{etapa}")

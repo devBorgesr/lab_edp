@@ -206,26 +206,21 @@ def test_cli_exit_codes(tmp_path, monkeypatch):
 
 def test_dry_run_nao_calcula_metrica_de_protocolo(tmp_path, capsys):
     """
-    `check` valida infraestrutura sem consumir modelo. E o comando que teria
-    barrado o REL-001 antes das 492 chamadas.
+    `check` valida infraestrutura sem consumir modelo e SEM gravar relatorio.
+    E o comando que teria barrado o REL-001 antes das 492 chamadas.
     """
-    from auditor.cli import cmd_check
-    sis = ClienteSintetico(tmp_path / "s", taxa_duplicacao=0.6)
+    from auditor.cli import EXIT, main
+
     q = tmp_path / "q.json"
-    q.write_text(json.dumps({"queries": queries_cliente(60)}), encoding="utf-8")
-
-    class A:
-        input, protocol, queries = str(tmp_path), "BASICO", str(q)
-        adaptador, dominios, mode = "sintetico", None, "AUDIT"
-        exemplos_em_claro = False
-
-    import auditor.cli as C
-    orig = C._sistema
-    C._sistema = lambda a: sis
-    try:
-        cod = cmd_check(A())
-    finally:
-        C._sistema = orig
+    q.write_text(json.dumps({"queries": queries_cliente(24)}), encoding="utf-8")
+    cod = main(["check", "--input", str(tmp_path / "corpus"),
+                "--queries", str(q), "--protocol", "BASICO",
+                "--adaptador", "sintetico", "--taxa-duplicacao", "0.6",
+                "--output", str(tmp_path / "svc")])
     assert cod == EXIT["BLOCKED"]
     out = capsys.readouterr().out
     assert "BLOCKED" in out and "dry-run" in out
+    assert "nenhum relatorio gravado" in out
+    w = next(p for p in (tmp_path / "svc").iterdir() if p.is_dir())
+    assert not list((w / "reports").iterdir()), "dry-run nao grava relatorio"
+    assert (w / "manifest.json").exists(), "mas registra a evidencia do check"

@@ -1,14 +1,22 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=64"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "lab-edp"
-version = "0.1.0"
+name = "auditor-retrieval"
+version = "0.3.0"
+description = "Auditoria tecnica reproduzivel de retrieval: encontra problemas de ranking, duplicacao e condicoes que impedem uma avaliacao valida."
 requires-python = ">=3.10"
+# O NUCLEO NAO TEM DEPENDENCIA. E deliberado: o engine, os checks, as medicoes
+# e o CLI rodam com a biblioteca padrao. Quem quiser HTTP instala o extra.
+dependencies = []
 
 [project.optional-dependencies]
-edp = ["edp @ git+https://github.com/devBorgesr/edp_v5@exp017/fase1-dedup"]
+http = ["fastapi>=0.100", "uvicorn>=0.23"]
+dev  = ["pytest>=7"]
 
-[tool.setuptools.packages.find]
-include = ["bancada*", "sujeitos*"]
+[project.scripts]
+auditor = "auditor.cli:main"
+
+[tool.setuptools]
+packages = ["auditor", "auditor.checks", "auditor.adaptadores"]

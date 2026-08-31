@@ -234,3 +234,131 @@ entre clientes · correção do `_hybrid_index`.
 
 **E continua valendo:** a existência do MVP-1 **não** é argumento de que
 Recall@K está validado. O registro em `DECISAO_RANKING.md` segue em branco.
+
+
+---
+
+# MVP-1B — productização
+
+**31/08/2026.** O núcleo validado foi preservado; nenhum experimento científico
+novo foi aberto. `REL-001` segue bloqueado, Recall@K segue fora da oferta.
+
+## A mudança imediata: identidade completa na abertura
+
+A regra que valia só para o `sha256_queries` virou geral. Antes da primeira
+etapa, o manifesto já carrega:
+
+```
+snapshot (hash) · dataset (hash, origem) · protocolo + versão
+adaptador + versão · configuração · política de privacidade
+```
+
+Há verificação que **levanta** se algum faltar. Qualquer `BLOCKED` nasce
+contestável: o cliente sabe sobre qual corpus, quais queries e qual régua.
+
+## Uma implementação, duas portas
+
+```
+AuditInput v1 → valida → workspace isolado → engine → redação
+              → manifesto + relatórios → AuditResult v1
+```
+
+CLI e HTTP entram por `servico.executa`. Há teste que **falha** se `api.py`
+mencionar qualquer regra de auditoria — duas implementações da mesma regra
+divergem, e a divergência apareceria quando o cliente comparasse o CLI com a API.
+
+## Formatos versionados
+
+`AuditInput v1` recusa **antes** de qualquer trabalho: campo faltando, campo
+desconhecido, schema de outra versão, protocolo ou adaptador inexistente. Um
+`protocolo` escrito no lugar de `protocol` rodaria com a régua errada em
+silêncio.
+
+`AuditResult v1` tem 17 campos obrigatórios, verificados por teste.
+
+## Isolamento por auditoria
+
+```
+<raiz>/<audit_id>/
+    input/  artifacts/  reports/  manifest.json
+```
+
+Reaproveitar diretório é recusado. Escrever fora da raiz é recusado. A fronteira
+é a **raiz da auditoria**, não o subdiretório — `reports/../input/x` continua
+dentro do mesmo cliente e é legítimo.
+
+## Retenção por classe
+
+```
+input 7d · artifacts 30d · reports 90d · manifest 365d
+```
+
+O material bruto do cliente é o mais sensível e expira primeiro. A expiração
+**lista por padrão e só apaga quando mandado** — apagar dado de cliente é
+irreversível.
+
+## Redação como última barreira
+
+A sanitização roda dentro de `Manifesto.salva`, o único ponto por onde o
+manifesto vira arquivo. Se um segredo sobreviver, a gravação **falha** em vez
+de escrever: vazamento é irreversível, e não gravar é melhor que corrigir
+depois. O hash cobre o que foi realmente gravado.
+
+## API HTTP
+
+```
+POST /v1/audits            202, assíncrona
+GET  /v1/audits/{id}       AuditResult v1
+GET  /v1/audits/{id}/status
+GET  /v1/audits/{id}/report?tipo=executive|technical
+GET  /v1/audits/{id}/manifest
+```
+
+Job não depende da conexão ficar aberta. `request_id` garante idempotência —
+um retry de rede não vira duas auditorias cobradas. O estado do job **deriva**
+do estado da auditoria: um job não pode dizer `COMPLETE` sobre auditoria
+`BLOCKED`.
+
+`fastapi` é importado só em `api.py`; o núcleo roda sem ele, verificado em
+subprocesso.
+
+## Pacote
+
+`pyproject.toml` com **`dependencies = []`** — engine, checks, medições e CLI
+rodam com a biblioteca padrão. HTTP é extra opcional. Entry point `auditor`.
+
+## Observabilidade separada do resultado
+
+`observabilidade` carrega tempo de serviço e por etapa, com nota explícita de
+que **não é resultado da auditoria** e não deve ser lido como medição do
+sistema do cliente.
+
+## Critério de saída (item 20) — conferido
+
+Um terceiro instala, fornece inputs, roda `check` (que **não grava relatório**),
+recebe `BLOCKED`, roda `run`, obtém manifesto e os dois relatórios, verifica o
+`sha256`, e roda de novo **sem alterar o snapshot** — tudo com teste nomeado.
+
+Impedidos automaticamente: ranking fabricado · snapshot trocado · artefato
+inválido · dado vazando · métrica sob `BLOCKED` · contaminação entre clientes.
+
+**276 testes.**
+
+## Dois defeitos meus, achados pelos próprios testes
+
+**O teste de fronteira do workspace assertava demais**: reprovava
+`reports/../input/x`, que fica dentro do mesmo cliente. A fronteira é a raiz,
+não o subdiretório.
+
+**`configuracao` duplicava o `audit_id`**, que já é campo de topo. O teste de
+reprodutibilidade pegou como fonte de variação não declarada. Removi a
+duplicata — identificador em dois lugares convida a divergir.
+
+## Pendente, e não é do agente
+
+`DECISAO_RANKING.md` em branco · piloto externo (`PILOTO_EXTERNO.md` tem o
+protocolo pronto, **não executado**) · preço (`UNIDADE_ECONOMICA.md`:
+`PRECO_POR_MTOK` vazio de propósito).
+
+**Continua fora:** dashboard, Reddit, juiz no pipeline, correção do
+`_hybrid_index`. E o MVP-1B **não** é argumento de que Recall@K está validado.
