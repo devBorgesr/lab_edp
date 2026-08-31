@@ -1,0 +1,15 @@
+{
+  "experimento": "REL-001",
+  "modelo": "claude-haiku-4-5",
+  "versao": "nao exposta pelo provedor",
+  "temperatura": 0,
+  "justificativa": "O REL-001 avalia concordancia em uma tarefa binaria de relevancia, nao capacidade geral de raciocinio. A escolha prioriza aderencia a instrucoes, saida estruturada, baixa latencia e baixo custo por julgamento. Temperatura 0 e utilizada para reduzir variabilidade entre chamadas; NAO e interpretada como determinismo garantido nem como evidencia de maior correcao.",
+  "formato_saida": "{\"relevant\": bool}",
+  "system_prompt": "Voce julga relevancia de documento para query, e nada mais.\n\nPERGUNTA UNICA: Este documento é materialmente útil para responder ESTA query?\n\nRELEVANTE (1): contribui materialmente; contem informacao necessaria ou evidencia diretamente utilizavel para responder a query.\nNAO_RELEVANTE (0): pode ser do mesmo assunto, usar palavras parecidas ou ser topicalmente proximo, e ainda assim nao contribuir.\n\nSimilaridade tematica NAO e relevancia. Documento sobre exatamente o mesmo assunto pode receber 0.\nDocumento sem informacao suficiente para decidir recebe 0.\n\nResponda APENAS o JSON: {\"relevant\": true} ou {\"relevant\": false}. Sem explicacao, sem escala, sem 'parcialmente'.",
+  "sha256_system": "c9b34b614155758d769df5a2237b743ce5491f9d591177e2f6ef62e333c01aed",
+  "sha256_rubric_§4": "38af584c5ca233cd050c3b44ec14ef5a92557b728b08f522c7ed39aeb87bf60a",
+  "pergunta_unica": "Este documento é materialmente útil para responder ESTA query?",
+  "nao_diz": "congelar a config nao valida o juiz. Mede-se a concordancia dele com UM anotador, sob ESTE rubric (NORTE §4.14).",
+  "congelado_em": "2026-08-31",
+  "comparacao_previa": "nenhuma — item 1 das instrucoes proibe rodada exploratoria"
+}

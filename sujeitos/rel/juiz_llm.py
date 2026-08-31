@@ -106,14 +106,20 @@ def monta_user_prompt(query: str, documento: str) -> str:
 
 
 def congela_config(preregistro: Path, modelo: str = "", temperatura=None,
-                   versao: str = "") -> dict:
+                   versao: str = "", justificativa: str = "") -> dict:
     """
-    A configuracao congelada do §7. RECUSA sem modelo e sem temperatura.
+    A configuracao congelada do §7. RECUSA sem modelo, temperatura e justificativa.
+
+    A JUSTIFICATIVA e obrigatoria pelo item 2 das instrucoes de coleta: a
+    escolha do modelo precisa existir ANTES da coleta, com razao operacional
+    escrita. Sem o campo, seria possivel registrar a config depois de ja ter
+    visto o comportamento — que e a rodada exploratoria que o item proibe.
 
     O sha256 do rubric entra no registro: se o §4 mudar depois, a config
     congelada deixa de bater e a divergencia aparece em vez de passar.
     """
-    faltando = [c for c, v in (("modelo", modelo), ("temperatura", temperatura))
+    faltando = [c for c, v in (("modelo", modelo), ("temperatura", temperatura),
+                               ("justificativa", justificativa))
                 if v is None or v == ""]
     if faltando:
         raise RuntimeError(
@@ -128,6 +134,7 @@ def congela_config(preregistro: Path, modelo: str = "", temperatura=None,
         "modelo":            modelo,
         "versao":            versao or "nao exposta pelo provedor",
         "temperatura":       temperatura,
+        "justificativa":     justificativa,
         "formato_saida":     '{"relevant": bool}',
         "system_prompt":     sysp,
         "sha256_system":     hashlib.sha256(sysp.encode("utf-8")).hexdigest(),
