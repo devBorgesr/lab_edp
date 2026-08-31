@@ -34,6 +34,7 @@ import time
 from pathlib import Path
 
 import juiz_llm as J
+import rel_001 as R
 
 SAIDA_A = "rotulos_humano.json"
 
@@ -68,7 +69,7 @@ def coleta(pares_path: Path, config_path: Path, saida: Path,
            max_doc_chars: int = 1500) -> dict:
     exige_independencia(saida.parent if saida.parent.name else Path("."))
 
-    art = json.loads(pares_path.read_text(encoding="utf-8"))
+    art = R.carrega_pares(pares_path)   # recusa INVALIDO e sem procedencia
     cfg = json.loads(config_path.read_text(encoding="utf-8"))
     pares = art["pares"]
 

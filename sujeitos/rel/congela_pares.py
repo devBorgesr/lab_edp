@@ -61,6 +61,19 @@ def _sha(t: str) -> str:
     return hashlib.sha256(t.encode("utf-8")).hexdigest()
 
 
+def _procedencia(store: Path) -> dict:
+    """De qual corpus, exatamente, estes pares sairam."""
+    def h(p: Path) -> str | None:
+        return _sha(p.read_text(encoding="utf-8")) if p.exists() else None
+    return {
+        "store":            str(store.resolve()),
+        "sha256_episodic":  h(store / "episodic.json"),
+        "sha256_semantic":  h(store / "semantic.json"),
+        "ranking_origem":   "MemoryStore.retrieve",
+        "top_k":            TOP_K_RANKING,
+    }
+
+
 def congela(amostra: Path, dominios: Path, store: Path, saida: Path) -> dict:
     if saida.exists():
         raise RuntimeError(
@@ -77,7 +90,10 @@ def congela(amostra: Path, dominios: Path, store: Path, saida: Path) -> dict:
     for q in am["queries"]:
         # RANKING REAL do retriever, nao ordem de arquivo (errata 31/08)
         res = retr.retrieve(q["query"], top_k=TOP_K_RANKING, min_score=0.0)
-        ranking = [r.get("id") for r in res if r.get("id") != q["id_turno"]]
+        # (id, score) — o score e a PROVA de que veio do retriever; ver
+        # rel_001.exige_ranking_do_retriever e a invalidacao 01.
+        ranking = [(r.get("id"), r.get("ranking_score"))
+                   for r in res if r.get("id") != q["id_turno"]]
         ctrl = R.corpus_de_outro_dominio(dom, q["dominio"])
         for p in R.monta_pool(q["query"], ranking, ctrl):
             pares.append({
@@ -101,6 +117,10 @@ def congela(amostra: Path, dominios: Path, store: Path, saida: Path) -> dict:
         "sha256_amostra":  _sha(amostra.read_text(encoding="utf-8")),
         "sha256_pares":    _sha(json.dumps([p["par_id"] for p in pares], sort_keys=True)),
         "ranking":         f"retriever real, top_k={TOP_K_RANKING}, min_score=0.0",
+        # PROCEDENCIA (invalidacao 01): o artefato anterior nao registrava de
+        # qual store saiu, e ha 17 stores em edp_data_todo/. Sem isto, "qual
+        # corpus produziu estes pares" so se responde por adivinhacao.
+        "procedencia":     _procedencia(store),
         "por_estrato":     {e: sum(1 for p in pares if p["estrato"] == e)
                             for e in R.ESTRATOS},
         "pares":           pares,

@@ -102,20 +102,104 @@ def corpus_de_outro_dominio(dominios: dict, dominio_da_query: str) -> list[str]:
     return [doc_id for doc_id, dom in dominios.items()
             if dom != MARCADOR_SEM_TEMA and normaliza_dominio(dom) != alvo]
 
+def carrega_pares(caminho) -> dict:
+    """
+    Unico caminho por onde os pares entram na analise ou na coleta.
+
+    RECUSA (item 1 do auditor): um artefato marcado `INVALIDO` nunca vira dado
+    do REL-001. A marca sozinha e decorativa — quem impede e este guard, porque
+    o proximo a rodar `coleta_llm.py --pares pares_congelados.json` nao vai ler
+    o cabecalho do JSON antes.
+
+    RECUSA TAMBEM o artefato sem `procedencia`: sem ele nao da para dizer de
+    qual dos 17 stores de `edp_data_todo/` os pares sairam, e "qual corpus
+    produziu isto" nao pode depender de memoria de quem executou.
+    """
+    import json
+    from pathlib import Path
+    art = json.loads(Path(caminho).read_text(encoding="utf-8"))
+    if art.get("INVALIDO"):
+        raise RuntimeError(
+            f"{caminho} esta marcado INVALIDO ({art.get('invalidado_em')}).\n"
+            f"  motivo: {art.get('motivo')}\n"
+            f"  {art.get('documento')}\n"
+            f"Este arquivo e proveniencia da falha, nao dado."
+        )
+    if not art.get("procedencia"):
+        raise RuntimeError(
+            f"{caminho} nao registra `procedencia` (store, sha256 do corpus, "
+            f"origem do ranking). Artefato sem procedencia nao entra: foi "
+            f"exatamente o que impediu de saber, na invalidacao 01, de qual "
+            f"store os pares tinham saido."
+        )
+    return art
+
+
+def exige_ranking_do_retriever(ranking: Sequence[tuple[str, float]]) -> list[str]:
+    """
+    Aceita SO um ranking que o retriever real produziu, e prova por medida.
+
+    POR QUE ISTO EXISTE (invalidacao 01, 31/08)
+
+    A primeira versao do `congela_pares.py` passou `[i for i in txt]` — os
+    documentos em ORDEM DE INSERCAO DO ARQUIVO — como se fosse ranking. Nada
+    reclamou: uma lista de ids e uma lista de ids. Os 500 pares e os 492
+    rotulos coletados sobre eles foram perdidos.
+
+    Uma flag `procedencia="retriever"` nao resolveria: string se escreve. O que
+    ordem de arquivo NAO tem e SCORE. O ranking real vem com RRF estritamente
+    positivo e nao-crescente; ordem de insercao nao produz isso sem que alguem
+    fabrique os numeros de proposito. Por isso o contrato passou a ser
+    `(doc_id, score)`, e nao `doc_id`.
+
+    Devolve os ids, na ordem, depois de conferir a evidencia.
+    """
+    if not ranking:
+        raise RuntimeError("ranking vazio")
+    if not all(isinstance(x, (tuple, list)) and len(x) == 2 for x in ranking):
+        raise RuntimeError(
+            "o ranking precisa ser uma sequencia de (doc_id, score). Uma lista "
+            "de ids nua nao prova procedencia — foi assim que a invalidacao 01 "
+            "aconteceu (ordem de arquivo passou por ranking)."
+        )
+    ids    = [d for d, _ in ranking]
+    scores = [float(s) for _, s in ranking]
+
+    if any(s <= 0 for s in scores):
+        raise RuntimeError(
+            f"score nao-positivo no ranking (min={min(scores)}). O RRF do "
+            f"retriever e estritamente positivo; zeros indicam ranking "
+            f"fabricado ou score perdido no caminho."
+        )
+    if any(a < b for a, b in zip(scores, scores[1:])):
+        raise RuntimeError(
+            "scores nao sao nao-crescentes — o ranking nao esta na ordem que o "
+            "retriever devolveu, ou nao veio dele."
+        )
+    if len(set(scores)) == 1:
+        raise RuntimeError(
+            "todos os scores identicos: isso e ordem de arquivo com um numero "
+            "constante colado, nao ranking."
+        )
+    return ids
+
+
 def monta_pool(query: str,
-               ranking: Sequence[str],
+               ranking: Sequence[tuple[str, float]],
                corpus_outro_dominio: Sequence[str],
                seed: int = SEED) -> list[dict]:
     """
     Os 10 candidatos de uma query, por estrato.
 
-    `ranking` e a saida do retriever REAL, em ordem. `corpus_outro_dominio` sao
-    documentos de dominio distinto — o controle negativo do §4.5, cuja previsao
-    (irrelevante nos dois julgadores) esta escrita no pre-registro ANTES do dado.
+    `ranking` e a saida do retriever REAL como `(doc_id, score)`, em ordem —
+    ver `exige_ranking_do_retriever`. `corpus_outro_dominio` sao documentos de
+    dominio distinto — o controle negativo do §4.5, cuja previsao (irrelevante
+    nos dois julgadores) esta escrita no pre-registro ANTES do dado.
 
     Falha alto se o ranking nao alcancar a cauda: pool incompleto muda a
     prevalencia e portanto muda o kappa, e isso nao pode acontecer em silencio.
     """
+    ranking = exige_ranking_do_retriever(ranking)
     # DEDUP POR ID ANTES DE FATIAR (achado 30/08).
     # Todos os 61 ids da camada semantica tambem estao na episodica — a
     # consolidacao promove e nao remove, e `_hybrid_index` varre as duas sem
@@ -125,8 +209,17 @@ def monta_pool(query: str,
     # MESMO documento pode cair em `topo` e em `cauda` — julgado duas vezes,
     # entrando duas vezes no kappa.
     #
-    # Nao altera o protocolo: o §3.2 diz "top-5 do retriever", e cinco slots
-    # com quatro documentos distintos nunca foram cinco.
+    # ERRATA 31/08 — a versao anterior deste comentario dizia "nao altera o
+    # protocolo". Isso estava ERRADO, e o erro custou a rodada.
+    #
+    # O dedup nao muda o TEXTO do §3.2, mas torna o §3.2 INSATISFAZIVEL neste
+    # corpus: medido, o top-50 colapsa para 29-40 documentos distintos
+    # (mediana 36), e a `cauda` sai das posicoes 20-50. Zero das 50 queries
+    # atende. Ver docs/rel/REL-001_STATUS.md.
+    #
+    # O dedup em si continua certo — cinco slots com quatro documentos
+    # distintos nunca foram cinco. O que estava errado era concluir que uma
+    # correcao no harness nao podia esbarrar no protocolo.
     vistos, unico = set(), []
     for d in ranking:
         if d not in vistos:

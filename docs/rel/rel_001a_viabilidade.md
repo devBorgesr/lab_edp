@@ -28,6 +28,21 @@ pares exigidos. A ordem certa é **pré-registro → viabilidade → armar**.
 **66 de 66 queries** com domínio conseguem fornecer os 2 documentos de outro
 domínio. Zero descartados por falta de embedding.
 
+> ## ERRATA 31/08 — ESTE VEREDITO ESTÁ ERRADO
+>
+> **O corpus não sustenta o protocolo.** As duas checagens abaixo usaram o
+> número que a duplicação infla:
+>
+> - a tabela conta **198**, que são as *entradas do índice*, não documentos.
+>   Documentos distintos: **137** no arquivo, **133** no índice;
+> - a verificação empírica (linhas 83–89) conta **slots devolvidos** — 50/50 —
+>   e slot repetido é exatamente o que a duplicação produz.
+>
+> Medido com o retriever real e dedup por id: **29–40 documentos distintos por
+> query, mediana 36. Zero das 50 queries atende os 50 exigidos pelo §3.2.**
+>
+> O texto original fica (§4.4). Ver `REL-001_STATUS.md`.
+
 **Veredito: o corpus sustenta o protocolo. Nenhuma constante precisa mudar.**
 
 ## Um erro meu, no meio da própria checagem

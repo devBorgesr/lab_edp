@@ -36,6 +36,8 @@ import random
 import textwrap
 from pathlib import Path
 
+import rel_001 as R
+
 SEED = 20260830          # espelhado do §8
 SAIDA_B = "rotulos_llm.json"     # o caminho B; a presença dele bloqueia este
 
@@ -65,7 +67,7 @@ def _mostra(txt: str, larg: int = 78) -> str:
 def rotula(pares_path: Path, saida: Path) -> dict:
     exige_independencia(saida.parent if saida.parent.name else Path("."))
 
-    art = json.loads(pares_path.read_text(encoding="utf-8"))
+    art = R.carrega_pares(pares_path)   # recusa INVALIDO e sem procedencia
     pares = art["pares"]
 
     feitos = {}

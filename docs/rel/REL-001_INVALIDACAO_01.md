@@ -17,12 +17,20 @@ ranking = [i for i in txt if i != q["id_turno"]]
 ```
 
 Isso é **todos os documentos em ordem de inserção do arquivo**, não a saída do
-retriever. Consequência: o estrato `topo` eram os **cinco primeiros documentos
-do `episodic.json`, iguais para as 50 queries** — e são justamente as saudações
-e o timestamp que marcamos `SEM_TEMA` na pré-condição.
+retriever. Consequência: o estrato `topo` eram os cinco primeiros documentos do
+`episodic.json` — as saudações, o aniversário e o timestamp que marcamos
+`SEM_TEMA` na pré-condição.
+
+**Correção de contagem (31/08, conferida no artefato).** A primeira versão deste
+documento disse "iguais para as 50 queries". O número certo, medido em
+`pares_congelados.json`, é **4 conjuntos `topo` distintos, um deles em 47 das 50
+queries**. A variação vem do próprio código defeituoso: ele excluía `id_turno`
+da lista, então uma query cujo turno estivesse entre os cinco primeiros
+deslocava a janela em um. Quatro conjuntos, não um — e nenhum deles é top-5 de
+coisa alguma. O veredito não muda; o número tinha que estar certo.
 
 Os 492 julgamentos do caminho B avaliaram, como "top-5 do retriever", o mesmo
-`"oi / Oi! Tudo bem?"` contra 50 queries diferentes.
+`"oi bom dia / Bom dia! Tudo bem?"` contra 47 queries diferentes.
 
 **O retriever já tinha sido rodado de verdade** na viabilidade (`28cc991`,
 *"50/50 queries devolvem 50 candidatos"*). O erro não foi não saber como. Foi

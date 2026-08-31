@@ -66,11 +66,18 @@ def roda(config: Path, amostra: Path, dominios: Path, store: Path) -> dict:
 
     # SO as 3 primeiras queries do conjunto congelado — ordem estavel por hash
     registros, falhas = [], []
+    # ERRATA 31/08 (invalidacao 01): esta linha era
+    #     ranking = [i for i in txt_de if i != q["id_turno"]]
+    # ou seja, ORDEM DE INSERCAO DO ARQUIVO passando por ranking — o mesmo
+    # defeito do congela_pares.py. A coluna `estrato` do REL-001_SMOKE.md foi
+    # produzida assim e NAO significa nada; conectividade, formato, parse e
+    # latencia daquele smoke continuam validos.
+    import congela_pares as C
+    retr = C.abre_retriever(store)
     for q in am["queries"][:N_SMOKE]:
-        ranking = [i for i in txt_de if i != q["id_turno"]]
-        if len(ranking) < 50:
-            return {"veredito": "FALHA — ranking com menos de 50 distintos",
-                    "n": len(ranking)}
+        res = retr.retrieve(q["query"], top_k=50, min_score=0.0)
+        ranking = [(r.get("id"), r.get("ranking_score"))
+                   for r in res if r.get("id") != q["id_turno"]]
         ctrl = R.corpus_de_outro_dominio(dom, q["dominio"])
         pool = R.monta_pool(q["query"], ranking, ctrl)
 
