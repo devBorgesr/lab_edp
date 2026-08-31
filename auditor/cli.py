@@ -34,10 +34,20 @@ from .redacao import Politica
 EXIT = {"COMPLETE": 0, "BLOCKED": 2, "INVALID": 3, "ERRO": 4}
 
 PROTOCOLOS = {
-    "REL-001": Protocolo("REL-001", 50, {"topo": 5, "cauda": 3, "controle": 2},
-                         (19, 50), 50, min_unidades=30),
-    "BASICO":  Protocolo("BASICO", 10, {"topo": 5, "cauda": 3, "controle": 2},
-                         (5, 10), 10, min_unidades=10),
+    "REL-001": Protocolo(
+        "REL-001", 50, {"topo": 5, "cauda": 3, "controle": 2}, (19, 50), 50,
+        min_unidades=30, versao=1, tipo="experimental",
+        descricao=("regua do experimento REL-001. Exige 50 documentos "
+                   "DISTINTOS no ranking porque a cauda sai das posicoes "
+                   "20-50. O experimento esta BLOQUEADO: nenhum resultado "
+                   "seu foi validado.")),
+    "BASICO": Protocolo(
+        "BASICO", 10, {"topo": 5, "cauda": 3, "controle": 2}, (5, 10), 10,
+        min_unidades=10, versao=1, tipo="demonstrativo",
+        descricao=("protocolo DEMONSTRATIVO. Serve para exercitar o pipeline "
+                   "e produzir demonstracao; NAO sustenta afirmacao cientifica "
+                   "e NAO substitui o REL-001. Nenhum resultado sob esta regua "
+                   "certifica coisa alguma.")),
 }
 
 
@@ -75,6 +85,7 @@ def _roda(a):
     pol = Politica(exemplos_em_claro=getattr(a, "exemplos_em_claro", False))
     aud = Auditoria(prot, _sistema(a), carrega_queries(Path(a.queries)),
                     modo=a.mode, politica=pol)
+    aud.origem_do_dataset = str(Path(a.queries).name)
     return aud.roda()
 
 

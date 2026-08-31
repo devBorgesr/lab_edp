@@ -1,6 +1,6 @@
-# Auditoria `e29d1d53376d` — REL-001 v1
+# Auditoria `00be28f8a3a3` — BASICO v1
 
-**Status: BLOCKED** · protocolo *experimental* · serviço `0.2.0`
+**Status: BLOCKED** · protocolo *demonstrativo* · serviço `0.2.0`
 
 ## Resumo executivo
 
@@ -12,18 +12,18 @@ Isto não é uma falha do serviço: é o resultado que o serviço deve entregar 
 
 **`ranking.cardinalidade` — BLOCKED**
 
-sob o protocolo REL-001 v1: 50 de 50 queries nao alcancam os 50 documentos distintos que ELE exige (min=30, mediana=37.0, max=41). Os slots estao cheios; os documentos, nao. Isto NAO diz que o sistema e inauditavel — diz que esta regua nao se aplica a ele.
+sob o protocolo BASICO v1: 24 de 24 queries nao alcancam os 10 documentos distintos que ELE exige (min=4, mediana=4.0, max=4). Os slots estao cheios; os documentos, nao. Isto NAO diz que o sistema e inauditavel — diz que esta regua nao se aplica a ele.
 
 ```
-slots = 50
-ids_distintos = 30
-exigido = 50
-ids_repetidos = 20
-queries = 50
-distintos_min = 30
-distintos_mediana = 37
-distintos_max = 41
-queries_reprovadas = 50
+slots = 10
+ids_distintos = 4
+exigido = 10
+ids_repetidos = 6
+queries = 24
+distintos_min = 4
+distintos_mediana = 4
+distintos_max = 4
+queries_reprovadas = 24
 ```
 
 *Este check detecta:* duplicacao no indice consumindo a janela top-k: slots cheios, documentos distintos insuficientes
@@ -49,31 +49,31 @@ Fatos observáveis sobre o material recuperado. **Não são métricas de qualida
 
 | medição | valor | IC 95% | N | unidade |
 |---|---|---|---|---|
-| `cardinalidade_do_ranking` | 37 | [37, 38] | 50 | documentos por query |
-| `duplicacao_intra_query_por_id` | 0,26 | [0,24, 0,26] | 50 | fracao dos slots |
-| `duplicacao_por_texto` | 0 | [0, 0] | 50 | fracao dos documentos distintos |
-| `jaccard_cross_query` | 0,283 | [0,2759, 0,2903] | 1225 | Jaccard entre pares de queries |
-| `razao_score_topo_cauda` | 1,814 | [1,75, 1,858] | 50 | razao adimensional |
+| `cardinalidade_do_ranking` | 4 | [4, 4] | 24 | documentos por query |
+| `duplicacao_intra_query_por_id` | 0,6 | [0,6, 0,6] | 24 | fracao dos slots |
+| `duplicacao_por_texto` | 0 | [0, 0] | 24 | fracao dos documentos distintos |
+| `jaccard_cross_query` | 0 | [0, 0] | 276 | Jaccard entre pares de queries |
+| `razao_score_topo_cauda` | 1,032 | [1,032, 1,032] | 24 | razao adimensional |
 
 **`cardinalidade_do_ranking`** — documentos DISTINTOS entregues na janela top-k (mediana entre queries). Slots cheios nao implicam documentos distintos.
 
-*N = 50 · k = 50 · snapshot `d64fcc74a0c7e9b0` · fonte: ranking real do retriever do sistema auditado*
+*N = 24 · k = 10 · snapshot `ddbc8cacc43ae374` · fonte: ranking real do retriever do sistema auditado*
 
 **`duplicacao_intra_query_por_id`** — fracao dos slots do top-k ocupados por um documento que ja apareceu na MESMA query (mediana entre queries)
 
-*N = 50 · k = 50 · snapshot `d64fcc74a0c7e9b0` · fonte: ranking real do retriever do sistema auditado*
+*N = 24 · k = 10 · snapshot `ddbc8cacc43ae374` · fonte: ranking real do retriever do sistema auditado*
 
 **`duplicacao_por_texto`** — fracao dos documentos DISTINTOS cujo texto e identico ao de outro documento com id diferente. Sobrevive a deduplicacao por id. ATENCAO: efeito concentrado — leia `queries_afetadas`, nao a mediana.
 
-*N = 50 · k = 50 · snapshot `d64fcc74a0c7e9b0` · fonte: ranking real do retriever do sistema auditado*
+*N = 24 · k = 10 · snapshot `ddbc8cacc43ae374` · fonte: ranking real do retriever do sistema auditado*
 
 **`jaccard_cross_query`** — Jaccard mediano entre os conjuntos top-k de PARES de queries distintas. Alto indica que o retriever devolve o mesmo material independentemente da pergunta.
 
-*N = 1225 · k = 50 · snapshot `d64fcc74a0c7e9b0` · fonte: ranking real do retriever do sistema auditado*
+*N = 276 · k = 10 · snapshot `ddbc8cacc43ae374` · fonte: ranking real do retriever do sistema auditado*
 
 **`razao_score_topo_cauda`** — score mediano das 5 primeiras posicoes dividido pelo das 5 ultimas. Proximo de 1 indica ranking pouco discriminativo.
 
-*N = 50 · k = 50 · snapshot `d64fcc74a0c7e9b0` · fonte: ranking real do retriever do sistema auditado*
+*N = 24 · k = 10 · snapshot `ddbc8cacc43ae374` · fonte: ranking real do retriever do sistema auditado*
 
 ## Verificações
 
@@ -99,22 +99,22 @@ Fatos observáveis sobre o material recuperado. **Não são métricas de qualida
 ## Procedência
 
 ```
-dir = /tmp/auditoria_0poj8zut/sessions/default_cognitive
-store = /tmp/auditoria_0poj8zut/sessions/default_cognitive
-sha256_episodic = d64fcc74a0c7e9b08eb3972129a7f5689b008912c3e32abce9e386477d1703be
-sha256_semantic = 632a7f228045f89cc92bf98695a4f664e181e214a93236035f0af1a635eab27d
-retriever.top_k = 50
-retriever.origem = EDPAuditavel
-retriever.adaptador = EDPAuditavel
-retriever.versao_adaptador = edp-1
-retriever.telemetria = {'origem_do_ranking': 'EDPAuditavel.consulta', 'top_k_solicitado': 50, 'n_slots_recebidos': 50, 'n_ids_distintos': 37, 'n_textos_distintos': 37, 'formato_valido': True}
-manifesto.sha256 = ae7b5f037fd2112425a5459144214b33382c83a7ebcf1c71d9fc52c11a1dcf22
+dir = demos/B_bloqueada/_corpus/sessions/default_cognitive
+store = demos/B_bloqueada/_corpus/sessions/default_cognitive
+sha256_episodic = ddbc8cacc43ae37490bbc42bfab8577e166621f5056bd1b3ebcc3127b171400a
+sha256_semantic = 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+retriever.top_k = 10
+retriever.origem = ClienteSintetico
+retriever.adaptador = ClienteSintetico
+retriever.versao_adaptador = fixture-1
+retriever.telemetria = {'origem_do_ranking': 'ClienteSintetico.consulta', 'top_k_solicitado': 10, 'n_slots_recebidos': 10, 'n_ids_distintos': 4, 'n_textos_distintos': 4, 'formato_valido': True}
+manifesto.sha256 = d8e0aab1eefa01c06199a208892c370e1f73357586b2f5d6e76ecc271d347c23
 ```
 
 ## Custo desta auditoria
 
 ```
-tempo_total_s = 18.121
+tempo_total_s = 0.03
 chamadas_ao_modelo = 0
 tokens_entrada = 0
 tokens_saida = 0

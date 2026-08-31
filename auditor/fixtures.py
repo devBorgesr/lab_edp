@@ -10,21 +10,35 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from .contrato import SistemaAuditavel
 
-class SistemaFalso:
-    """Corpus sintetico com defeito injetavel."""
+
+class SistemaFalso(SistemaAuditavel):
+    """
+    Corpus sintetico com defeito injetavel.
+
+    Herda de `SistemaAuditavel` de proposito: se o contrato formal mudar, as
+    fixtures quebram junto, e a demonstracao nunca fica passando por uma
+    interface que os clientes reais nao teriam.
+    """
+
+    VERSAO = "fixture-1"
 
     def __init__(self, tmp: Path, n_docs: int = 120, defeito: str | None = None):
         self.defeito = defeito
-        self.snapshot_dir = tmp / "sessions" / "default_cognitive"
-        self.snapshot_dir.mkdir(parents=True, exist_ok=True)
+        self._snapshot_dir = tmp / "sessions" / "default_cognitive"
+        self._snapshot_dir.mkdir(parents=True, exist_ok=True)
         self.docs = {f"d{i:03d}": f"documento {i} sobre assunto {i % 7}"
                      for i in range(n_docs)}
         if defeito != "sem_snapshot":
-            (self.snapshot_dir / "episodic.json").write_text(
+            (self._snapshot_dir / "episodic.json").write_text(
                 json.dumps([{"id": k, "text": v} for k, v in self.docs.items()]),
                 encoding="utf-8")
-            (self.snapshot_dir / "semantic.json").write_text("[]", encoding="utf-8")
+            (self._snapshot_dir / "semantic.json").write_text("[]", encoding="utf-8")
+
+    @property
+    def snapshot_dir(self) -> Path:
+        return self._snapshot_dir
 
     # ── o que o pipeline consome ────────────────────────────────────────────
 
@@ -108,7 +122,7 @@ class ClienteSintetico(SistemaFalso):
                            f"tecnico {i * 7 % 97} e contexto adicional."
             for i in range(n_docs)
         }
-        (self.snapshot_dir / "episodic.json").write_text(
+        (self._snapshot_dir / "episodic.json").write_text(
             json.dumps([{"id": k, "text": v} for k, v in self.docs.items()]),
             encoding="utf-8")
 

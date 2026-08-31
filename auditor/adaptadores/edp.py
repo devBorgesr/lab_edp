@@ -12,8 +12,17 @@ import shutil
 import tempfile
 from pathlib import Path
 
+from ..contrato import SistemaAuditavel
 
-class EDPAuditavel:
+
+class EDPAuditavel(SistemaAuditavel):
+    VERSAO = "edp-1"
+    nome = "EDP"
+
+    @property
+    def snapshot_dir(self) -> Path:
+        return self._snapshot_dir
+
     def __init__(self, store: Path, dominios: Path | None = None,
                  copia: bool = True):
         origem = Path(store)
@@ -22,10 +31,10 @@ class EDPAuditavel:
             destino = tmp / "sessions" / origem.name
             destino.parent.mkdir(parents=True, exist_ok=True)
             shutil.copytree(origem, destino)
-            self.snapshot_dir = destino
+            self._snapshot_dir = destino
             self.origem = origem
         else:
-            self.snapshot_dir = origem
+            self._snapshot_dir = origem
             self.origem = origem
 
         self._store = self._abre(self.snapshot_dir)

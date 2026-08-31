@@ -19,6 +19,9 @@ from .checks.base import Resultado
 from .estados import AuditoriaBloqueada, Estado, StatusAuditoria
 
 
+VERSAO_SERVICO = "0.2.0"      # MVP-1. Muda quando o contrato muda.
+
+
 def _agora() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
@@ -37,6 +40,7 @@ class Manifesto:
     checks:     list[Resultado] = field(default_factory=list)
     etapas:     list[dict[str, Any]] = field(default_factory=list)
     invalidados: list[dict[str, Any]] = field(default_factory=list)
+    protocolo_spec: dict[str, Any] = field(default_factory=dict)
     medicoes:   list[Any] = field(default_factory=list)   # Medicao, descritivas
     custos:     dict[str, Any] = field(default_factory=dict)
     privacidade: dict[str, Any] = field(default_factory=dict)
@@ -133,6 +137,10 @@ class Manifesto:
         d = {
             "audit_id":  self.audit_id,
             "protocolo": self.protocolo,
+            "protocolo_spec": self.protocolo_spec,
+            "protocolo_identidade": self.protocolo_spec.get(
+                "identidade", self.protocolo),
+            "versao_servico": VERSAO_SERVICO,
             "modo":      self.modo,
             "criado_em": self.criado_em,
             "status":    self.status.value,

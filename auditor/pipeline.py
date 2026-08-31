@@ -29,13 +29,46 @@ from .manifest import Manifesto
 
 @dataclass(frozen=True)
 class Protocolo:
-    """A regua, congelada. O pipeline nunca a ajusta para caber."""
+    """
+    A regua, congelada. O pipeline nunca a ajusta para caber.
+
+    UM PROTOCOLO E UMA REGUA ESPECIFICA, NAO UMA VERDADE UNIVERSAL.
+
+    `min_distintos=50` e uma escolha do REL-001, nao uma propriedade de RAGs em
+    geral. Quando um sistema nao a satisfaz, a unica afirmacao autorizada e
+    "nao pode ser auditado SOB O PROTOCOLO REL-001 v1" — nunca "este RAG e
+    impossivel de auditar". Por isso `nome` e `versao` acompanham todo
+    BLOCKED, em relatorio e em manifesto.
+
+    `tipo` separa o que pode e o que nao pode sustentar afirmacao cientifica.
+    """
     nome:              str
     min_distintos:     int                  # documentos DISTINTOS no ranking
     estratos:          dict[str, int]       # {"topo":5,"cauda":3,"controle":2}
     janela_cauda:      tuple[int, int]      # (inicio, fim) 0-based
     top_k:             int
     min_unidades:      int = 30            # clusters p/ bootstrap, nao itens
+    versao:            int = 1
+    tipo:              str = "experimental"  # experimental | demonstrativo
+    descricao:         str = ""
+
+    def __post_init__(self):
+        if self.tipo not in ("experimental", "demonstrativo"):
+            raise ValueError(f"tipo de protocolo desconhecido: {self.tipo}")
+
+    @property
+    def identidade(self) -> str:
+        """`REL-001 v1`. Duas versoes NUNCA sao a mesma regua."""
+        return f"{self.nome} v{self.versao}"
+
+    def to_dict(self) -> dict:
+        return {"nome": self.nome, "versao": self.versao,
+                "identidade": self.identidade, "tipo": self.tipo,
+                "descricao": self.descricao, "top_k": self.top_k,
+                "min_distintos": self.min_distintos,
+                "estratos": dict(self.estratos),
+                "janela_cauda": list(self.janela_cauda),
+                "min_unidades": self.min_unidades}
 
 
 class SistemaAuditado(Protocol):
@@ -62,6 +95,7 @@ class Auditoria:
 
     def __post_init__(self):
         self.manifesto = Manifesto(self.audit_id, self.protocolo.nome, self.modo)
+        self.manifesto.protocolo_spec = self.protocolo.to_dict()
 
     # ── execucao ────────────────────────────────────────────────────────────
 
@@ -69,8 +103,38 @@ class Auditoria:
         m = self.manifesto
         m.snapshot = {"dir": str(getattr(self.sistema, "snapshot_dir", "?"))}
         m.retriever = {"top_k": self.protocolo.top_k,
-                       "origem": type(self.sistema).__name__}
+                       "origem": type(self.sistema).__name__,
+                       "adaptador": type(self.sistema).__name__,
+                       "versao_adaptador": getattr(self.sistema, "VERSAO", "?")}
+        if hasattr(self.sistema, "telemetria_do_ranking") and self.queries:
+            try:
+                m.retriever["telemetria"] = self.sistema.telemetria_do_ranking(
+                    self.queries[0]["query"], self.protocolo.top_k)
+            except Exception as e:
+                m.retriever["telemetria_falhou"] = str(e)
         m.amostra = {"n_queries": len(self.queries)}
+        # PROCEDENCIA DE ENTRADA — registrada na ABERTURA, nao numa etapa.
+        # Se ficasse em `_etapa_amostragem`, um BLOCKED anterior a apagaria, e
+        # o manifesto de uma auditoria bloqueada nao diria sobre QUAIS queries
+        # o bloqueio aconteceu. Fato de entrada nao depende de o pipeline
+        # chegar la.
+        #
+        # PONTO DE EXTENSAO (item 18): o dataset e entrada do protocolo, nao
+        # responsabilidade do nucleo.
+        #     Question Dataset -> Benchmark -> Protocol -> Audit
+        # Quando existir um gerador de perguntas, ele entra como fonte com
+        # procedencia propria; trocar a fonte muda `sha256_queries` e fica
+        # visivel aqui em vez de invisivel.
+        import hashlib
+        m.dataset = {
+            "n_queries": len(self.queries),
+            "sha256_queries": hashlib.sha256(
+                "\n".join(sorted(q["query"] for q in self.queries)
+                          ).encode("utf-8")).hexdigest(),
+            "origem": getattr(self, "origem_do_dataset", "fornecido"),
+            "nota": ("o conjunto de queries e entrada do protocolo; trocar a "
+                     "fonte muda `sha256_queries` e fica visivel aqui"),
+        }
 
         for etapa in self.ETAPAS:
             fn = getattr(self, f"_etapa_{etapa}")
@@ -177,10 +241,12 @@ class Auditoria:
             "queries_reprovadas": reprovam,
         })
         pior.motivo = (
-            f"{reprovam} de {len(d)} queries nao alcancam "
-            f"{self.protocolo.min_distintos} documentos distintos "
-            f"(min={min(d)}, mediana={st.median(d)}, max={max(d)}). "
-            f"Os slots estao cheios; os documentos, nao."
+            f"sob o protocolo {self.protocolo.identidade}: {reprovam} de "
+            f"{len(d)} queries nao alcancam os {self.protocolo.min_distintos} "
+            f"documentos distintos que ELE exige (min={min(d)}, "
+            f"mediana={st.median(d)}, max={max(d)}). Os slots estao cheios; os "
+            f"documentos, nao. Isto NAO diz que o sistema e inauditavel — diz "
+            f"que esta regua nao se aplica a ele."
         )
         return pior
 
@@ -206,8 +272,8 @@ class Auditoria:
                 return
 
     def _etapa_amostragem(self, m: Manifesto) -> None:
-        m.dataset = {"n_queries": len(self.queries),
-                     "pool_por_query": sum(self.protocolo.estratos.values())}
+        """A procedencia do dataset ja foi registrada na abertura (`roda`)."""
+        m.dataset["pool_por_query"] = sum(self.protocolo.estratos.values())
 
     def _etapa_julgadores(self, m: Manifesto) -> None:
         juiz = getattr(self.sistema, "juiz", None)

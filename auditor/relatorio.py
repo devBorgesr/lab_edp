@@ -71,52 +71,78 @@ def _medicoes(m: Manifesto, L: list) -> None:
 
 def executivo(m: Manifesto) -> str:
     """
-    REPORT_EXECUTIVE. Quatro perguntas, nesta ordem.
+    REPORT_EXECUTIVE.
+
+    Todo BLOCKED nomeia A REGUA. "BLOCKED" sozinho leria como "este sistema e
+    inauditavel", e o que a execucao mostrou foi outra coisa: que ESTE
+    protocolo nao se aplica a ESTE sistema. Sao afirmacoes muito diferentes, e
+    a segunda e a unica que a evidencia sustenta.
 
     Nunca simplifica removendo o referente: um numero aqui aparece com N e
     unidade, ou nao aparece.
     """
     d = m.to_dict()
+    ident = d.get("protocolo_identidade", m.protocolo)
+    spec = d.get("protocolo_spec") or {}
     L: list[str] = []
     A = L.append
-    A(f"# Auditoria — {m.protocolo}")
+
+    A(f"# Auditoria — {ident}")
     A("")
-    A(f"`{m.audit_id}` · {d['criado_em']} · **{d['status']}**")
+    A(f"`{m.audit_id}` · {d['criado_em']}")
+    A("")
+    A("## Status")
+    A("")
+    A(f"**{d['status']}**")
     A("")
 
-    A("## O sistema foi auditável?")
+    A("## Protocolo")
     A("")
+    A(f"**{ident}** — protocolo *{spec.get('tipo', '?')}*")
+    A("")
+    if spec.get("descricao"):
+        A(spec["descricao"])
+        A("")
+    if spec.get("tipo") == "demonstrativo":
+        A("> Esta régua é **demonstrativa**. Não sustenta afirmação científica "
+          "e não certifica nada.")
+        A("")
+
     if m.status is StatusAuditoria.BLOCKED:
-        A("**Não sob este protocolo.** A execução foi interrompida antes de "
-          "qualquer cálculo, por pré-condição de validade não satisfeita.")
-    elif m.status is StatusAuditoria.READY:
-        A("**Sim.** Todas as pré-condições foram satisfeitas. Nenhuma métrica "
-          "de protocolo estava configurada para esta execução — o que segue "
-          "são medições descritivas.")
-    else:
-        A("**Sim.** Todas as pré-condições de validade foram satisfeitas.")
-    A("")
+        A("## Por que bloqueou")
+        A("")
+        for c in m.barreiras:
+            A(f"- **`{c.nome}`** — {c.motivo}")
+        A("")
+        A(f"`BLOCKED` significa que **o protocolo {ident} não pôde ser "
+          f"executado sobre este sistema**. Não é uma falha do serviço, e "
+          f"tampouco afirma que o sistema seja inauditável: outra régua pode "
+          f"se aplicar a ele.")
+        A("")
 
-    A("## O que foi encontrado")
+    A("## O que foi medido mesmo assim")
     A("")
     if m.medicoes:
+        A("Fatos observáveis sobre o material recuperado. **Não são métricas "
+          "de qualidade de resposta.**")
+        A("")
         for x in m.medicoes:
             dd = x.to_dict()
-            A(f"- **{dd['nome'].replace('_', ' ')}**: "
-              f"{_num(round(dd['valor'], 4))} {dd['unidade']} "
-              f"(N = {dd['N']})")
+            ic = (f", IC 95% [{dd['ic95'][0]:.4g}, {dd['ic95'][1]:.4g}]"
+                  if dd.get("ic95") and dd["ic95"][0] == dd["ic95"][0] else "")
+            A(f"- **{dd['nome']}**: {_num(round(dd['valor'], 4))} "
+              f"{dd['unidade']} (N = {dd['N']}{ic})")
         A("")
-    for c in m.barreiras:
-        A(f"- {c.motivo}")
-    if not m.medicoes and not m.barreiras:
-        A("- (nada a relatar)")
-    A("")
+    else:
+        A("Nada. O ranking não tinha procedência provada, e medir sobre "
+          "ranking não verificado não mede nada.")
+        A("")
 
-    A("## O que NÃO foi possível concluir")
+    A("## O que NÃO foi medido")
     A("")
     if m.status is not StatusAuditoria.COMPLETE:
-        A("Nenhuma métrica de protocolo foi calculada — sem Recall@K, sem "
-          "índice de acordo, sem *ground truth*.")
+        A(f"Nenhuma métrica de protocolo do {ident} foi calculada — sem "
+          f"Recall@K, sem índice de acordo, sem *ground truth*.")
         A("")
         pend = [e["etapa"] for e in d["etapas"] if e["estado"] == "PENDING"]
         if pend:
@@ -128,19 +154,20 @@ def executivo(m: Manifesto) -> str:
         A("(nada — a auditoria completou)")
     A("")
 
-    A("## Qual decisão precisa ser tomada")
+    A("## Qual decisão está pendente")
     A("")
     if m.status is StatusAuditoria.BLOCKED:
-        A("Entre **alterar o objeto auditado** e **alterar o protocolo**. As "
-          "duas mudam o que está sendo medido; nenhuma pode ser adotada em "
-          "silêncio, e a escolha não é do serviço.")
+        A(f"Entre **alterar o objeto auditado** e **alterar a régua**. As duas "
+          f"mudam o que está sendo medido; nenhuma pode ser adotada em "
+          f"silêncio, e a escolha não é do serviço.")
     else:
         A("Nenhuma pendente.")
     A("")
     A("---")
     A("")
-    A(f"Evidência detalhada em `relatorio_tecnico.md`. Manifesto "
-      f"`{d['sha256_manifesto'][:16]}…` em `manifesto.json`.")
+    A(f"Evidência detalhada em `relatorio_tecnico.md`. **Fonte de verdade: "
+      f"`manifesto.json`** (`{d['sha256_manifesto'][:16]}…`) — tudo neste "
+      f"documento está representado lá.")
     return "\n".join(L)
 
 
@@ -149,9 +176,12 @@ def markdown(m: Manifesto) -> str:
     L: list[str] = []
     A = L.append
 
-    A(f"# Auditoria `{m.audit_id}` — {m.protocolo}")
+    A(f"# Auditoria `{m.audit_id}` — "
+      f"{d.get('protocolo_identidade', m.protocolo)}")
     A("")
-    A(f"**Status: {d['status']}**")
+    A(f"**Status: {d['status']}** · protocolo "
+      f"*{(d.get('protocolo_spec') or {}).get('tipo', '?')}* · "
+      f"serviço `{d.get('versao_servico', '?')}`")
     A("")
 
     if m.status is StatusAuditoria.BLOCKED:
