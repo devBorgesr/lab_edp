@@ -367,3 +367,128 @@ def test_diagnostico_nao_se_apresenta_como_certificacao(tmp_path):
 def test_escopo_invalido_e_recusado():
     with pytest.raises(ValueError, match="escopo desconhecido"):
         Protocolo("X", 10, {"topo": 5}, (5, 10), 10, escopo="auditoria_plena")
+
+
+# ── matriz de claims: o texto entregue nao afirma mais do que se mediu ──────
+
+from auditor import claims                                          # noqa: E402
+
+RESSALVAS = (" qualidade das respostas Recall@K nenhum julgamento certificação ")
+
+
+@pytest.mark.parametrize("frase,esperado", [
+    # permitidos — NIVEL 1, com referente
+    ("37 documentos distintos por query (N=50)",                        []),
+    ("26% dos slots foram ocupados por id repetido",                    []),
+    ("Esta régua não certifica nada.",                                  []),
+    ("documentos duplicados e sobrepostos foram observados",            []),
+    # proibidos — consequencia nao medida
+    ("26% do contexto é desperdiçado",              ["desperdicio"]),
+    ("um quarto da janela vai em documento repetido", ["consumo por repeticao"]),
+    ("a duplicação prejudica a resposta",           ["prejuizo"]),
+    ("metade do contexto é inútil",                 ["inutilidade"]),
+    # proibidos — NIVEL 3
+    ("Certificamos a qualidade do seu retrieval",   ["certificacao"]),
+    ("seu RAG está aprovado",                       ["aprovacao"]),
+])
+def test_matriz_de_claims(frase, esperado):
+    achados = [v["termo"] for v in claims.verifica(frase + RESSALVAS)]
+    assert achados == esperado, f"{frase!r} -> {achados}"
+
+
+def test_a_frase_que_eu_escrevi_e_reprovada():
+    """
+    Regressao da violacao real: esta frase saiu em documento commitado, depois
+    de eu ja ter escrito a regra que ela quebra.
+    """
+    minha = ("de 50 slots de contexto, chegam 37 documentos. "
+             "Um quarto da janela vai em documento repetido.")
+    assert claims.verifica(minha + RESSALVAS)
+
+
+def test_ressalva_ausente_e_violacao(tmp_path):
+    """Faltar a ressalva pesa igual a afirmar demais."""
+    v = claims.verifica("37 documentos distintos por query.")
+    assert {x["tipo"] for x in v} == {"ressalva_ausente"}
+    assert len(v) == 4
+
+
+def test_relatorios_de_diagnostico_passam_na_trava(tmp_path):
+    m = diag(tmp_path)
+    esc = m.protocolo_spec["escopo"]
+    for txt in (relatorio.executivo(m), relatorio.markdown(m)):
+        claims.exige_limpo(txt, esc, "relatorio")
+
+
+def test_relatorio_tecnico_tambem_carrega_as_ressalvas(tmp_path):
+    """
+    Um documento mais detalhado que ressalva menos e pior: parece mais
+    autoritativo justamente onde afirma menos.
+    """
+    md = relatorio.markdown(diag(tmp_path))
+    assert "Limites desta régua" in md and "não há linha de base" in md
+
+
+def test_relatorio_diz_que_nao_ha_linha_de_base(tmp_path):
+    """
+    NIVEL 2 exige saber o que e normal. Um sistema real medido nao e
+    distribuicao de referencia, e o cliente precisa saber disso.
+    """
+    assert "linha de base" in relatorio.markdown(diag(tmp_path))
+
+
+def test_servico_recusa_entregar_relatorio_com_claim_proibido(tmp_path, monkeypatch):
+    """A barreira e antes da entrega, como a de segredo, e falha alto."""
+    import auditor.servico as S
+    monkeypatch.setattr(S.relatorio, "executivo",
+                        lambda m: "26% do contexto é desperdiçado" + RESSALVAS)
+    q = tmp_path / "q.json"
+    q.write_text(json.dumps({"queries": queries_cliente(24)}), encoding="utf-8")
+    with pytest.raises(claims.ClaimProibido, match="desperdicio"):
+        S.executa({"snapshot": str(tmp_path / "c"), "queries": str(q),
+                   "protocol": "DIAGNOSTICO", "adapter": "sintetico",
+                   "options": {"taxa_duplicacao": 0.6}},
+                  tmp_path / "svc", PROTOCOLOS)
+
+
+# ── adaptador de referencia: o caminho do cliente ───────────────────────────
+
+def test_referencia_resolve_o_caso_L2_que_reprovava(tmp_path):
+    """
+    Um indice L2 devolve distancia CRESCENTE e reprova em veio_do_retriever.
+    A conversao monotona preserva a ordem e muda so a escala.
+    """
+    from auditor.adaptadores.referencia import AdaptadorDeReferencia, de_distancia
+    from auditor.cli import PROTOCOLOS
+
+    corpus = {f"d{i:03d}": f"texto {i}" for i in range(120)}
+    l2 = lambda q, k: [(f"d{(abs(hash(q)) + i * 7) % 120:03d}", float(i) * 0.1)
+                       for i in range(k)]
+    sis = AdaptadorDeReferencia(corpus, l2, tmp_path / "ref",
+                                converte_score=de_distancia,
+                                nota_da_conversao="L2 -> 1/(1+d), monotona")
+    qs = [{"id": f"q{i}", "query": f"p {i}", "dominio": ""} for i in range(24)]
+    m = Auditoria(PROTOCOLOS["DIAGNOSTICO"], sis, qs).roda()
+    assert m.status is StatusAuditoria.COMPLETE and len(m.medicoes) == 5
+
+
+def test_conversao_de_score_sem_nota_e_recusada(tmp_path):
+    """
+    Conversao nao-monotona mudaria o ranking em silencio. Quem le o manifesto
+    precisa poder conferir o que foi feito.
+    """
+    from auditor.adaptadores.referencia import AdaptadorDeReferencia, de_distancia
+    with pytest.raises(ValueError, match="sem nota"):
+        AdaptadorDeReferencia({"a": "x"}, lambda q, k: [], tmp_path / "r",
+                              converte_score=de_distancia)
+
+
+def test_exemplos_publicos_nao_tem_dado_real(tmp_path):
+    from auditor.demo import gera
+    st = gera(tmp_path / "ex")
+    assert st == {"complete": "COMPLETE", "blocked": "BLOCKED"}
+    for rot in ("complete", "blocked"):
+        d = tmp_path / "ex" / rot
+        for f in ("input.json", "manifesto.json", "relatorio.md",
+                  "relatorio_tecnico.md", "COMO_LER.md"):
+            assert (d / f).exists(), f"{rot}/{f} ausente"

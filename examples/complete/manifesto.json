@@ -1,64 +1,65 @@
 {
-  "audit_id": "00be28f8a3a3",
-  "protocolo": "BASICO",
+  "audit_id": "1044b31119a7",
+  "protocolo": "DIAGNOSTICO",
   "protocolo_spec": {
-    "nome": "BASICO",
+    "nome": "DIAGNOSTICO",
     "versao": 1,
-    "identidade": "BASICO v1",
+    "identidade": "DIAGNOSTICO v1",
     "tipo": "demonstrativo",
-    "descricao": "protocolo DEMONSTRATIVO. Serve para exercitar o pipeline e produzir demonstracao; NAO sustenta afirmacao cientifica e NAO substitui o REL-001. Nenhum resultado sob esta regua certifica coisa alguma.",
-    "top_k": 10,
-    "min_distintos": 10,
-    "estratos": {
-      "topo": 5,
-      "cauda": 3,
-      "controle": 2
-    },
+    "escopo": "diagnostico",
+    "descricao": "Descreve o MATERIAL que o retriever devolve: cardinalidade, duplicacao por id e por texto, sobreposicao entre queries e distribuicao de score. NAO mede qualidade de resposta, nao usa estratos, nao usa controle negativo e nao certifica nada. Exige apenas que o ranking tenha procedencia provada.",
+    "top_k": 50,
+    "min_distintos": 1,
+    "estratos": {},
     "janela_cauda": [
-      5,
-      10
+      0,
+      0
     ],
-    "min_unidades": 10
+    "min_unidades": 20
   },
-  "protocolo_identidade": "BASICO v1",
+  "protocolo_identidade": "DIAGNOSTICO v1",
   "versao_servico": "0.2.0",
   "modo": "AUDIT",
-  "criado_em": "2026-08-31T21:41:50+00:00",
-  "status": "BLOCKED",
+  "criado_em": "2026-09-01T05:38:04+00:00",
+  "status": "COMPLETE",
   "ambiente": {
     "python": "3.11.8",
     "plataforma": "Linux-6.6.9-amd64-x86_64-with-glibc2.40"
   },
   "snapshot": {
-    "dir": "demos/B_bloqueada/_corpus/sessions/default_cognitive",
-    "store": "demos/B_bloqueada/_corpus/sessions/default_cognitive",
+    "dir": "examples/complete/_corpus/sessions/default_cognitive",
+    "store": "examples/complete/_corpus/sessions/default_cognitive",
     "sha256_episodic": "ddbc8cacc43ae37490bbc42bfab8577e166621f5056bd1b3ebcc3127b171400a",
     "sha256_semantic": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
   "retriever": {
-    "top_k": 10,
+    "top_k": 50,
     "origem": "ClienteSintetico",
     "adaptador": "ClienteSintetico",
     "versao_adaptador": "fixture-1",
     "telemetria": {
       "origem_do_ranking": "ClienteSintetico.consulta",
-      "top_k_solicitado": 10,
-      "n_slots_recebidos": 10,
-      "n_ids_distintos": 4,
-      "n_textos_distintos": 4,
+      "top_k_solicitado": 50,
+      "n_slots_recebidos": 50,
+      "n_ids_distintos": 20,
+      "n_textos_distintos": 20,
       "formato_valido": true
     }
   },
   "dataset": {
     "n_queries": 24,
     "sha256_queries": "42efbe67251e76eb32b465a242aab305a6099cdfa4cacbd6e116ab103d240556",
-    "origem": "fornecido",
-    "nota": "o conjunto de queries e entrada do protocolo; trocar a fonte muda `sha256_queries` e fica visivel aqui"
+    "origem": "exemplo sintetico",
+    "nota": "o conjunto de queries e entrada do protocolo; trocar a fonte muda `sha256_queries` e fica visivel aqui",
+    "pool_por_query": 0
   },
   "amostra": {
     "n_queries": 24
   },
-  "juiz": {},
+  "juiz": {
+    "configurado": false,
+    "nota": "MVP-0: execucao de juiz fora de escopo"
+  },
   "etapas": [
     {
       "etapa": "snapshot",
@@ -74,30 +75,28 @@
     },
     {
       "etapa": "ranking",
-      "estado": "BLOCKED",
-      "barrado_por": [
-        "ranking.cardinalidade"
-      ]
+      "estado": "PASS"
     },
     {
       "etapa": "estratos",
       "estado": "PENDING",
-      "motivo": "nao executada: pipeline interrompido"
+      "motivo": "nao se aplica ao escopo `diagnostico` do DIAGNOSTICO v1: esta regua nao usa estratos nem controle negativo"
+    },
+    {
+      "etapa": "estratos",
+      "estado": "PASS"
     },
     {
       "etapa": "amostragem",
-      "estado": "PENDING",
-      "motivo": "nao executada: pipeline interrompido"
+      "estado": "PASS"
     },
     {
       "etapa": "julgadores",
-      "estado": "PENDING",
-      "motivo": "nao executada: pipeline interrompido"
+      "estado": "PASS"
     },
     {
       "etapa": "estatistica",
-      "estado": "PENDING",
-      "motivo": "nao executada: pipeline interrompido"
+      "estado": "PASS"
     }
   ],
   "checks": [
@@ -109,7 +108,7 @@
       "barra": false,
       "motivo": "",
       "evidencia": {
-        "store": "demos/B_bloqueada/_corpus/sessions/default_cognitive",
+        "store": "examples/complete/_corpus/sessions/default_cognitive",
         "sha256_episodic": "ddbc8cacc43ae37490bbc42bfab8577e166621f5056bd1b3ebcc3127b171400a",
         "sha256_semantic": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
       }
@@ -122,55 +121,47 @@
       "barra": false,
       "motivo": "",
       "evidencia": {
-        "n": 10,
+        "n": 50,
         "score_max": 0.0164,
-        "score_min": 0.015500000000000002
+        "score_min": 0.011500000000000002
       }
     },
     {
-      "nome": "ranking.cardinalidade",
-      "estado": "BLOCKED",
-      "detecta": "duplicacao no indice consumindo a janela top-k: slots cheios, documentos distintos insuficientes",
+      "nome": "estatistica.unidades_suficientes",
+      "estado": "PASS",
+      "detecta": "intervalo de confianca estreito por construcao: itens correlacionados contados como independentes",
       "bloqueia": true,
-      "barra": true,
-      "motivo": "sob o protocolo BASICO v1: 24 de 24 queries nao alcancam os 10 documentos distintos que ELE exige (min=4, mediana=4.0, max=4). Os slots estao cheios; os documentos, nao. Isto NAO diz que o sistema e inauditavel — diz que esta regua nao se aplica a ele.",
+      "barra": false,
+      "motivo": "",
       "evidencia": {
-        "slots": 10,
-        "ids_distintos": 4,
-        "exigido": 10,
-        "ids_repetidos": 6,
-        "queries": 24,
-        "distintos_min": 4,
-        "distintos_mediana": 4.0,
-        "distintos_max": 4,
-        "queries_reprovadas": 24
+        "unidades": 24,
+        "minimo": 20,
+        "unidade": "query"
       }
     }
   ],
-  "barreiras": [
-    "ranking.cardinalidade"
-  ],
+  "barreiras": [],
   "invalidados": [],
   "medicoes": [
     {
       "nome": "cardinalidade_do_ranking",
-      "valor": 4.0,
+      "valor": 20.0,
       "o_que_mede": "documentos DISTINTOS entregues na janela top-k (mediana entre queries). Slots cheios nao implicam documentos distintos.",
       "N": 24,
       "unidade": "documentos por query",
       "snapshot": "ddbc8cacc43ae374",
       "fonte": "ranking real do retriever do sistema auditado",
-      "k": 10,
+      "k": 50,
       "ic95": [
-        4.0,
-        4.0
+        20.0,
+        20.0
       ],
       "metodo_ic": "bootstrap percentil da MEDIANA sobre a QUERY (cluster), B=2000 — a mesma estatistica que o valor reporta",
       "seed_ic": 20260831,
       "detalhe": {
-        "min": 4,
-        "max": 4,
-        "slots_por_query": 10.0
+        "min": 20,
+        "max": 20,
+        "slots_por_query": 50.0
       }
     },
     {
@@ -181,7 +172,7 @@
       "unidade": "fracao dos slots",
       "snapshot": "ddbc8cacc43ae374",
       "fonte": "ranking real do retriever do sistema auditado",
-      "k": 10,
+      "k": 50,
       "ic95": [
         0.6,
         0.6
@@ -197,7 +188,7 @@
       "unidade": "fracao dos documentos distintos",
       "snapshot": "ddbc8cacc43ae374",
       "fonte": "ranking real do retriever do sistema auditado",
-      "k": 10,
+      "k": 50,
       "ic95": [
         0.0,
         0.0
@@ -212,16 +203,16 @@
     },
     {
       "nome": "jaccard_cross_query",
-      "valor": 0.0,
+      "valor": 0.08108108108108109,
       "o_que_mede": "Jaccard mediano entre os conjuntos top-k de PARES de queries distintas. Alto indica que o retriever devolve o mesmo material independentemente da pergunta.",
       "N": 276,
       "unidade": "Jaccard entre pares de queries",
       "snapshot": "ddbc8cacc43ae374",
       "fonte": "ranking real do retriever do sistema auditado",
-      "k": 10,
+      "k": 50,
       "ic95": [
-        0.0,
-        0.0
+        0.0811,
+        0.0811
       ],
       "metodo_ic": "bootstrap percentil da MEDIANA sobre a QUERY (cluster), B=2000 — a mesma estatistica que o valor reporta",
       "seed_ic": 20260831,
@@ -231,16 +222,16 @@
     },
     {
       "nome": "razao_score_topo_cauda",
-      "valor": 1.0318471337579618,
+      "valor": 1.3846153846153846,
       "o_que_mede": "score mediano das 5 primeiras posicoes dividido pelo das 5 ultimas. Proximo de 1 indica ranking pouco discriminativo.",
       "N": 24,
       "unidade": "razao adimensional",
       "snapshot": "ddbc8cacc43ae374",
       "fonte": "ranking real do retriever do sistema auditado",
-      "k": 10,
+      "k": 50,
       "ic95": [
-        1.0318,
-        1.0318
+        1.3846,
+        1.3846
       ],
       "metodo_ic": "bootstrap percentil da MEDIANA sobre a QUERY (cluster), B=2000 — a mesma estatistica que o valor reporta",
       "seed_ic": 20260831
@@ -248,12 +239,16 @@
   ],
   "custos": {
     "tempo_por_etapa_s": {
-      "snapshot": 0.021,
+      "snapshot": 0.025,
       "entrada": 0.0,
-      "retriever": 0.006,
-      "ranking": 0.003
+      "retriever": 0.01,
+      "ranking": 0.005,
+      "estratos": 0.0,
+      "amostragem": 0.0,
+      "julgadores": 0.0,
+      "estatistica": 0.0
     },
-    "tempo_total_s": 0.03,
+    "tempo_total_s": 0.04,
     "chamadas_ao_modelo": 0,
     "tokens_entrada": 0,
     "tokens_saida": 0,
@@ -261,14 +256,28 @@
     "custo_modelo_usd": null,
     "custo_nao_estimado_porque": "sem preco registrado para o modelo (nenhum). Zero seria mentira; None e a resposta honesta."
   },
+  "configuracao": {
+    "modo": "AUDIT",
+    "min_unidades": 20,
+    "exemplos_em_claro": false
+  },
   "privacidade": {
     "exemplos_em_claro": false,
     "segredos_removidos": [],
     "n_ocorrencias": 0,
     "nota": "query e documento aparecem como hash; texto em claro so com --exemplos-em-claro, e segredo e removido nos dois modos"
   },
-  "resultado": null,
-  "NAO_HA_RESULTADO": "nenhuma metrica foi calculada. As pre-condicoes listadas em `barreiras` nao foram satisfeitas.",
+  "resultado": {
+    "escopo": "diagnostico do material recuperado",
+    "medicoes": {
+      "cardinalidade_do_ranking": 20.0,
+      "duplicacao_intra_query_por_id": 0.6,
+      "duplicacao_por_texto": 0.0,
+      "jaccard_cross_query": 0.08108108108108109,
+      "razao_score_topo_cauda": 1.3846153846153846
+    },
+    "NAO_AFIRMA": "nada sobre a qualidade das respostas do sistema. Sem Recall@K, sem ground truth, sem certificacao."
+  },
   "NOTA_MEDICOES": "`medicoes` sao fatos observaveis sobre o material recuperado (duplicacao, cardinalidade, sobreposicao). NAO sao metrica de qualidade de resposta e nao substituem `resultado`.",
-  "sha256_manifesto": "d8e0aab1eefa01c06199a208892c370e1f73357586b2f5d6e76ecc271d347c23"
+  "sha256_manifesto": "96f7e7e13835f576aab1743a4e9a865e6ec62cc54af51f35f6aaf01103906b74"
 }

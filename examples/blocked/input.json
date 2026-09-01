@@ -1,0 +1,7 @@
+{
+  "schema": "AuditInput v1",
+  "snapshot": "<corpus sintetico>",
+  "queries": "<24 perguntas sinteticas>",
+  "protocol": "BASICO",
+  "adapter": "sintetico"
+}

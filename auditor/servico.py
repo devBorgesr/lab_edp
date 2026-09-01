@@ -16,7 +16,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from . import relatorio
+from . import claims, relatorio
 from .esquemas import RESULTADO_VERSAO, valida_entrada
 from .estados import Estado, StatusAuditoria
 from .pipeline import Auditoria
@@ -81,11 +81,17 @@ def executa(entrada: dict[str, Any], raiz_servico: Path,
                    for c in m.checks])
 
     if not so_check:
+        escopo = (m.protocolo_spec or {}).get("escopo", "protocolo")
         for nome, txt in (("executive.md", relatorio.executivo(m)),
                           ("technical.md", relatorio.markdown(m))):
             restou = varre_segredos(txt)
             if restou:
                 raise RuntimeError(f"segredo no relatorio {nome}: {restou}")
+            # BARREIRA DE CLAIM, no mesmo ponto da redacao e pelo mesmo motivo:
+            # e o ultimo lugar antes de o texto virar entregavel. Verifica o
+            # TEXTO GERADO, nao o codigo-fonte — foi assim que duas violacoes
+            # minhas passaram por revisao e por 283 testes.
+            claims.exige_limpo(txt, escopo, f"relatorio {nome}")
             ws.grava("reports", nome, txt)
 
     return {

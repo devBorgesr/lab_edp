@@ -1,6 +1,6 @@
 # Auditoria — BASICO v1
 
-`00be28f8a3a3` · 2026-08-31T21:41:50+00:00
+`342b892cef0c` · 2026-09-01T05:38:05+00:00
 
 ## Status
 
@@ -44,4 +44,4 @@ Entre **alterar o objeto auditado** e **alterar a régua**. As duas mudam o que 
 
 ---
 
-Evidência detalhada em `relatorio_tecnico.md`. **Fonte de verdade: `manifesto.json`** (`d8e0aab1eefa01c0…`) — tudo neste documento está representado lá.
+Evidência detalhada em `relatorio_tecnico.md`. **Fonte de verdade: `manifesto.json`** (`f1ea0a30996643f0…`) — tudo neste documento está representado lá.

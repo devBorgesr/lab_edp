@@ -1,4 +1,4 @@
-# Auditoria `00be28f8a3a3` — BASICO v1
+# Auditoria `342b892cef0c` — BASICO v1
 
 **Status: BLOCKED** · protocolo *demonstrativo* · serviço `0.2.0`
 
@@ -99,8 +99,8 @@ Fatos observáveis sobre o material recuperado. **Não são métricas de qualida
 ## Procedência
 
 ```
-dir = demos/B_bloqueada/_corpus/sessions/default_cognitive
-store = demos/B_bloqueada/_corpus/sessions/default_cognitive
+dir = examples/blocked/_corpus/sessions/default_cognitive
+store = examples/blocked/_corpus/sessions/default_cognitive
 sha256_episodic = ddbc8cacc43ae37490bbc42bfab8577e166621f5056bd1b3ebcc3127b171400a
 sha256_semantic = 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
 retriever.top_k = 10
@@ -108,13 +108,13 @@ retriever.origem = ClienteSintetico
 retriever.adaptador = ClienteSintetico
 retriever.versao_adaptador = fixture-1
 retriever.telemetria = {'origem_do_ranking': 'ClienteSintetico.consulta', 'top_k_solicitado': 10, 'n_slots_recebidos': 10, 'n_ids_distintos': 4, 'n_textos_distintos': 4, 'formato_valido': True}
-manifesto.sha256 = d8e0aab1eefa01c06199a208892c370e1f73357586b2f5d6e76ecc271d347c23
+manifesto.sha256 = f1ea0a30996643f070020fc7b492873ccfde2e1f03e704e387fbce5bdf83b5e1
 ```
 
 ## Custo desta auditoria
 
 ```
-tempo_total_s = 0.03
+tempo_total_s = 0.029
 chamadas_ao_modelo = 0
 tokens_entrada = 0
 tokens_saida = 0

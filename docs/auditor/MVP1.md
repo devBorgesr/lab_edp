@@ -405,8 +405,15 @@ DIAGNOSTICO v1 · 50 queries · COMPLETE
 | jaccard cross-query | 0,283 | [0,276; 0,290] |
 | razão topo/cauda | 1,81 | [1,75; 1,86] |
 
-Lido em português: **de 50 slots de contexto, chegam 37 documentos. Um quarto da
-janela vai em documento repetido.**
+Lido em português: **de 50 slots recuperados, chegam 37 documentos distintos;
+26% dos slots foram ocupados por um id que já havia aparecido na mesma query.**
+
+> **Errata 01/09.** A primeira versão desta linha dizia *"um quarto da janela
+> **vai em** documento repetido"*. Isso afirma consequência — que a repetição
+> **consome** a janela útil — e consequência não foi medida. O
+> `NUMEROS_DE_DUPLICACAO.md` já registrava a regra quando escrevi a frase:
+> *"nenhum é 'X% do contexto do RAG é inútil'; todos medem repetição de slot"*.
+> Saber a regra não impediu de violá-la, e é por isso que ela virou teste.
 
 ## Um defeito corrigido no relatório
 

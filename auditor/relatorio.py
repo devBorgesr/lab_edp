@@ -183,10 +183,18 @@ def executivo(m: Manifesto) -> str:
           f"mudam o que está sendo medido; nenhuma pode ser adotada em "
           f"silêncio, e a escolha não é do serviço.")
     elif diag:
-        A("Se algum número acima indicar desperdício — janela de contexto "
-          "ocupada por documento repetido, por exemplo — a decisão sobre o que "
-          "fazer é de quem opera o sistema. Este relatório mede; não "
-          "recomenda correção nem estima o efeito de corrigi-la.")
+        # ERRATA 01/09: a versao anterior dizia "se algum numero acima indicar
+        # DESPERDICIO". Nao ha medicao de desperdicio aqui — ha medicao de
+        # repeticao de slot. Que repetir custe contexto, latencia ou qualidade
+        # e inferencia plausivel e NAO MEDIDA, e o proprio
+        # NUMEROS_DE_DUPLICACAO.md ja dizia isso quando escrevi a frase.
+        A("O que fazer com estes números é de quem opera o sistema. Este "
+          "relatório **mede o que foi recuperado**; não estima efeito sobre "
+          "custo, latência ou qualidade, e não recomenda correção.")
+        A("")
+        A("Medir esse efeito exigiria um experimento comparativo — o mesmo "
+          "sistema com e sem a repetição, com desfecho definido antes — que "
+          "**não foi feito**.")
     else:
         A("Nenhuma pendente.")
     A("")
@@ -265,6 +273,28 @@ def markdown(m: Manifesto) -> str:
         A("")
 
     _medicoes(m, L)
+
+    # As ressalvas valem para OS DOIS relatorios. O tecnico tambem e entregue
+    # ao cliente, e um documento mais detalhado que ressalva menos e pior: ele
+    # parece mais autoritativo justamente onde afirma menos.
+    if (d.get("protocolo_spec") or {}).get("escopo") == "diagnostico":
+        A("## Limites desta régua")
+        A("")
+        A(f"O {d.get('protocolo_identidade', '')} descreve o material que o "
+          f"retriever devolveu. **Não foi medido, e este relatório não permite "
+          f"afirmar:**")
+        A("")
+        A("- qualidade das respostas do sistema;")
+        A("- Recall@K, precisão ou qualquer comparação com conjunto de "
+          "referência;")
+        A("- relevância dos documentos — nenhum julgamento, humano ou "
+          "automático, foi feito;")
+        A("- conformidade, certificação ou aprovação.")
+        A("")
+        A("Também **não há linha de base**: com um único sistema real medido, "
+          "não é possível dizer se um valor observado é alto ou baixo em "
+          "relação a outros sistemas.")
+        A("")
 
     A("## Verificações")
     A("")
