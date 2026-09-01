@@ -64,6 +64,11 @@ class Protocolo:
     # bloquearia em requisito que ela propria nao usa, e entregaria o
     # resultado dela debaixo de um BLOCKED.
     escopo:            str = "protocolo"
+    # Oferecido pelo SERVICO. Uma regua pode existir no laboratorio e nao ser
+    # oferecida: o REL-001 esta bloqueado e nenhum resultado seu foi validado,
+    # entao expo-lo na API sugeriria que ele produz resultado. Decisao de
+    # produto, declarada como DADO no protocolo — nao como `if` no handler.
+    exposto:           bool = False
 
     def __post_init__(self):
         if self.tipo not in ("experimental", "demonstrativo"):
@@ -79,7 +84,7 @@ class Protocolo:
     def to_dict(self) -> dict:
         return {"nome": self.nome, "versao": self.versao,
                 "identidade": self.identidade, "tipo": self.tipo,
-                "escopo": self.escopo,
+                "escopo": self.escopo, "exposto": self.exposto,
                 "descricao": self.descricao, "top_k": self.top_k,
                 "min_distintos": self.min_distintos,
                 "estratos": dict(self.estratos),

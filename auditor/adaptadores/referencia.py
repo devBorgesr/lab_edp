@@ -26,6 +26,8 @@ conversao, e o servico barra.
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 from pathlib import Path
 from typing import Callable, Sequence
 
@@ -48,7 +50,7 @@ class AdaptadorDeReferencia(SistemaAuditavel):
 
     def __init__(self, corpus: dict[str, str],
                  buscar: Callable[[str, int], Sequence[tuple[str, float]]],
-                 snapshot: Path,
+                 snapshot: Path | None = None,
                  converte_score: Callable[[float], float] | None = None,
                  nota_da_conversao: str = ""):
         self.docs = dict(corpus)
@@ -61,12 +63,35 @@ class AdaptadorDeReferencia(SistemaAuditavel):
                 "conversao nao-monotona mudaria o ranking em silencio, e quem "
                 "le o manifesto precisa poder conferir."
             )
-        self._dir = Path(snapshot) / "sessions" / "default_cognitive"
+        # DOIS DEFEITOS CORRIGIDOS AQUI (01/09), achados por um teste flaky —
+        # 3 de 5 rodadas da suite HTTP falhavam com JSONDecodeError.
+        #
+        # 1. O snapshot era gravado DENTRO da pasta que o cliente forneceu.
+        #    Isso viola a propriedade que o servico afirma garantir: auditar
+        #    nao altera o auditado. O diretorio do cliente e entrada, e
+        #    entrada nao se escreve.
+        #
+        # 2. Duas auditorias concorrentes do MESMO corpus escreviam o mesmo
+        #    arquivo ao mesmo tempo, e um leitor via JSON pela metade. Medido:
+        #    10 falhas em 60 leituras concorrentes.
+        #
+        # Agora cada instancia tem diretorio proprio, e a escrita e atomica
+        # (tmp + replace) para que ninguem leia arquivo incompleto nem mesmo
+        # dentro da propria instancia.
+        base = Path(snapshot) if snapshot is not None else Path(
+            tempfile.mkdtemp(prefix="auditor_snapshot_"))
+        self._dir = base / "sessions" / "default_cognitive"
         self._dir.mkdir(parents=True, exist_ok=True)
-        (self._dir / "episodic.json").write_text(
-            json.dumps([{"id": i, "text": t} for i, t in self.docs.items()]),
-            encoding="utf-8")
-        (self._dir / "semantic.json").write_text("[]", encoding="utf-8")
+        self._grava(self._dir / "episodic.json",
+                    json.dumps([{"id": i, "text": t}
+                                for i, t in self.docs.items()]))
+        self._grava(self._dir / "semantic.json", "[]")
+
+    @staticmethod
+    def _grava(alvo: Path, conteudo: str) -> None:
+        tmp = alvo.with_suffix(alvo.suffix + ".tmp")
+        tmp.write_text(conteudo, encoding="utf-8")
+        os.replace(tmp, alvo)          # o arquivo so aparece completo
 
     @property
     def snapshot_dir(self) -> Path:

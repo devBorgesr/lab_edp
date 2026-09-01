@@ -116,8 +116,22 @@ def test_cada_auditoria_tem_workspace_proprio(tmp_path, q):
 
 def test_reaproveitar_diretorio_e_recusado(tmp_path):
     Workspace.cria(tmp_path / "svc", "aud1")
-    with pytest.raises(ForaDoWorkspace, match="ja existe"):
+    with pytest.raises(ForaDoWorkspace, match="ja abrigou"):
         Workspace.cria(tmp_path / "svc", "aud1")
+
+
+def test_job_json_previo_nao_conta_como_workspace_ocupado(tmp_path):
+    """
+    O registro grava `job.json` ANTES da execucao, para haver rastro se o
+    processo morrer. Um guard que olhasse so `dir.exists()` transformaria esse
+    rastro em colisao e derrubaria toda auditoria vinda da fila — foi o que
+    aconteceu.
+    """
+    d = tmp_path / "svc" / "aud9"
+    d.mkdir(parents=True)
+    (d / "job.json").write_text("{}", encoding="utf-8")
+    w = Workspace.cria(tmp_path / "svc", "aud9")
+    assert (w.raiz / "input").is_dir()
 
 
 def test_nao_se_escreve_fora_do_proprio_workspace(tmp_path):
@@ -147,6 +161,7 @@ def test_uma_auditoria_nao_le_artefato_de_outra(tmp_path, q):
     assert ma["audit_id"] not in json.dumps(mb)
     assert not set(Path(a["workspace"]).rglob("*")) & set(
         Path(b["workspace"]).rglob("*"))
+    assert Path(a["workspace"]).name != Path(b["workspace"]).name
     # os dois corpora sinteticos tem o MESMO conteudo, logo o mesmo hash — e
     # isso e correto: a identidade do corpus e o conteudo, nao o caminho.
     assert ma["snapshot"]["sha256_episodic"] == mb["snapshot"]["sha256_episodic"]
@@ -201,79 +216,15 @@ def test_gravacao_falha_se_segredo_sobreviver(tmp_path):
         m.salva(tmp_path / "m.json", politica=PoliticaCega())
 
 
-# ── itens 10-12: API HTTP orquestra, nao decide ─────────────────────────────
-
-@pytest.fixture
-def cliente_http(tmp_path):
-    fastapi = pytest.importorskip("fastapi")
-    from fastapi.testclient import TestClient
-    from auditor.api import cria_app
-    return TestClient(cria_app(tmp_path / "svc", PROTOCOLOS))
-
-
-def _espera(c, aid, limite=90):
-    for _ in range(limite):
-        s = c.get(f"/v1/audits/{aid}/status").json()
-        if s["status"] not in ("QUEUED", "RUNNING"):
-            return s
-        time.sleep(0.3)
-    raise AssertionError("job nao terminou")
-
-
-def test_api_cria_job_assincrono(cliente_http, tmp_path, q):
-    r = cliente_http.post("/v1/audits", json=entrada(tmp_path, q))
-    assert r.status_code == 202
-    aid = r.json()["audit_id"]
-    assert r.json()["status"] in ("QUEUED", "RUNNING")
-    assert _espera(cliente_http, aid)["status"] == "BLOCKED"
-
-
-def test_api_e_idempotente(cliente_http, tmp_path, q):
-    """Um retry de rede nao pode virar duas auditorias cobradas."""
-    body = {**entrada(tmp_path, q), "request_id": "req-42"}
-    a = cliente_http.post("/v1/audits", json=body).json()
-    b = cliente_http.post("/v1/audits", json=body).json()
-    assert a["audit_id"] == b["audit_id"] and b["idempotente"] is True
-    assert len(cliente_http.get("/v1/audits").json()["audits"]) == 1
-
-
-def test_api_devolve_manifesto_e_relatorios(cliente_http, tmp_path, q):
-    aid = cliente_http.post("/v1/audits", json=entrada(tmp_path, q)).json()["audit_id"]
-    _espera(cliente_http, aid)
-    m = cliente_http.get(f"/v1/audits/{aid}/manifest").json()
-    assert confere_resultado(m) == [] and m["resultado"] is None
-    for tipo in ("executive", "technical"):
-        t = cliente_http.get(f"/v1/audits/{aid}/report?tipo={tipo}").text
-        assert "BASICO v1" in t
-
-
-def test_api_nao_entrega_resultado_antes_de_terminar(cliente_http, tmp_path, q):
-    aid = cliente_http.post("/v1/audits", json=entrada(tmp_path, q)).json()["audit_id"]
-    r = cliente_http.get(f"/v1/audits/{aid}")
-    assert r.status_code in (200, 409)
-
-
-def test_api_entrada_invalida_vira_INVALID_nao_ERROR(cliente_http):
-    aid = cliente_http.post("/v1/audits", json={"snapshot": "/x"}).json()["audit_id"]
-    assert _espera(cliente_http, aid)["status"] == "INVALID"
-
-
-def test_status_do_job_deriva_da_auditoria(tmp_path, q):
-    """
-    Se fossem independentes, um job diria COMPLETE sobre auditoria BLOCKED e o
-    cliente leria "terminou bem" onde nao houve metrica.
-    """
-    r = executa(entrada(tmp_path, q), tmp_path / "svc", PROTOCOLOS)
-    assert status_do_job(r) == r["status"] == "BLOCKED"
-
-
-def test_api_nao_reimplementa_regra_de_auditoria():
-    """A API orquestra. Se ela decidir algo, ha duas implementacoes."""
-    txt = (RAIZ / "auditor" / "api.py").read_text(encoding="utf-8")
-    for proibido in ("min_distintos", "cardinalidade", "Medicao",
-                     "veio_do_retriever", "publica_resultado"):
-        assert proibido not in txt, f"api.py decide sobre auditoria: {proibido}"
-
+# ── itens 10-12: API HTTP ───────────────────────────────────────────────────
+#
+# Os testes de API que estavam AQUI foram removidos, nao apagados por
+# conveniencia: `tests/test_http.py` os substitui como suite CAIXA-PRETA, com
+# autenticacao, isolamento entre clientes e reinicializacao — coisas que estes
+# nao cobriam porque foram escritos antes de a API ter inquilinos.
+#
+# Manter as duas versoes daria duas suites testando a mesma coisa sob
+# pressupostos diferentes, e a que ficasse desatualizada passaria a mentir.
 
 # ── item 13: log operacional nao e resultado ────────────────────────────────
 

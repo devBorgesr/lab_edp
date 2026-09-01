@@ -188,3 +188,89 @@ def test_pagina_nao_chama_o_produto_de_auditoria_no_titulo():
     """
     t = (RAIZ / "docs" / "auditor" / "produto" / "COMO_FUNCIONA.md").read_text()
     assert t.splitlines()[0].strip() == "# Diagnóstico de Retrieval"
+
+
+# ── regressao: concorrencia e mutacao da entrada ────────────────────────────
+
+def test_adaptador_nao_escreve_na_pasta_do_cliente(clientes, tmp_path):
+    """
+    A pasta que o cliente fornece e ENTRADA, e entrada nao se escreve. O
+    adaptador gravava o snapshot dentro dela — violando a propriedade que o
+    servico afirma garantir.
+    """
+    from auditor.fixtures_cliente import constroi_cliente
+    d = clientes["customer_a"]
+    antes = {p.name for p in d.iterdir()}
+    sis = constroi_cliente({"snapshot": str(d)})
+    assert str(d) not in str(sis.snapshot_dir)
+    assert {p.name for p in d.iterdir()} == antes
+
+
+def test_auditorias_concorrentes_do_mesmo_corpus_nao_se_corrompem(clientes):
+    """
+    Duas auditorias do mesmo snapshot escreviam o mesmo arquivo ao mesmo tempo,
+    e um leitor via JSON pela metade. Medido antes do fix: 10 falhas em 60
+    leituras. Aparecia como suite HTTP flaky — 3 de 5 rodadas.
+    """
+    import threading
+    from auditor.fixtures_cliente import constroi_cliente
+
+    erros: list[str] = []
+
+    def roda():
+        for _ in range(15):
+            try:
+                s = constroi_cliente({"snapshot": str(clientes["customer_a"])})
+                json.loads((s.snapshot_dir / "episodic.json").read_text())
+            except Exception as e:
+                erros.append(type(e).__name__)
+
+    ts = [threading.Thread(target=roda) for _ in range(4)]
+    [t.start() for t in ts]
+    [t.join() for t in ts]
+    assert erros == [], f"corrupcao sob concorrencia: {set(erros)}"
+
+
+def test_job_json_e_gravado_atomicamente():
+    """
+    Terceira ocorrencia da mesma causa-raiz: fila e adaptador ja tinham escrita
+    atomica, e o registro de jobs nao. `por_request_id` varre TODOS os jobs, e
+    lia JSON pela metade enquanto um worker gravava — aparecia como suite
+    instavel, nao como bug.
+    """
+    import tempfile
+    import threading
+
+    from auditor import jobs as J
+
+    raiz = Path(tempfile.mkdtemp())
+    reg = J.Registro(raiz)
+    for i in range(6):
+        reg.grava(J.Job(f"aud{i}", request_id=f"r{i}"))
+
+    erros: list[str] = []
+    parar = threading.Event()
+
+    def escreve():
+        while not parar.is_set():
+            for i in range(6):
+                j = reg.ver(f"aud{i}")
+                if j and j.status == J.QUEUED:
+                    reg.grava(j)
+
+    def le():
+        for _ in range(150):
+            try:
+                reg.por_request_id("r3")
+                reg.lista()
+            except Exception as e:
+                erros.append(type(e).__name__)
+
+    w = threading.Thread(target=escreve, daemon=True)
+    w.start()
+    ls = [threading.Thread(target=le) for _ in range(3)]
+    [t.start() for t in ls]
+    [t.join() for t in ls]
+    parar.set()
+    w.join(timeout=5)
+    assert erros == [], f"leitura concorrente viu job.json incompleto: {set(erros)}"

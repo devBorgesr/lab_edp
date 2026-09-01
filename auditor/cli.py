@@ -38,6 +38,11 @@ EXIT = {"COMPLETE": 0, "BLOCKED": 2, "INVALID": 3, "ERRO": 4}
 
 ADAPTADORES = sorted(conhecidos())
 
+
+def publicos(protocolos: dict) -> dict:
+    """As reguas que o SERVICO oferece. O CLI ve todas; a API, so estas."""
+    return {n: p for n, p in protocolos.items() if p.exposto}
+
 PROTOCOLOS = {
     "REL-001": Protocolo(
         "REL-001", 50, {"topo": 5, "cauda": 3, "controle": 2}, (19, 50), 50,
@@ -48,7 +53,7 @@ PROTOCOLOS = {
                    "seu foi validado.")),
     "DIAGNOSTICO": Protocolo(
         "DIAGNOSTICO", 1, {}, (0, 0), 50, min_unidades=20, versao=1,
-        tipo="demonstrativo", escopo="diagnostico",
+        tipo="demonstrativo", escopo="diagnostico", exposto=True,
         descricao=("Descreve o MATERIAL que o retriever devolve: cardinalidade, "
                    "duplicacao por id e por texto, sobreposicao entre queries e "
                    "distribuicao de score. NAO mede qualidade de resposta, nao "
@@ -56,7 +61,7 @@ PROTOCOLOS = {
                    "nada. Exige apenas que o ranking tenha procedencia provada.")),
     "BASICO": Protocolo(
         "BASICO", 10, {"topo": 5, "cauda": 3, "controle": 2}, (5, 10), 10,
-        min_unidades=10, versao=1, tipo="demonstrativo",
+        min_unidades=10, versao=1, tipo="demonstrativo", exposto=True,
         descricao=("protocolo DEMONSTRATIVO. Serve para exercitar o pipeline "
                    "e produzir demonstracao; NAO sustenta afirmacao cientifica "
                    "e NAO substitui o REL-001. Nenhum resultado sob esta regua "
@@ -166,7 +171,7 @@ def cmd_status(a) -> int:
         for k, v in job.to_dict().items():
             if v not in (None, "", {}, []):
                 print(f"{k:<18} {v}")
-        return EXIT["COMPLETE"] if job.status == J.COMPLETE else (
+        return EXIT["COMPLETE"] if job.status in (J.COMPLETE, J.READY) else (
             EXIT["BLOCKED"] if job.status == J.BLOCKED else
             EXIT["INVALID"] if job.status == J.INVALID else EXIT["ERRO"])
     jobs = reg.lista()
@@ -200,7 +205,12 @@ def cmd_report(a) -> int:
 
 def main(argv=None) -> int:
     import argparse
-    ap = argparse.ArgumentParser("audit", description="servico de auditoria (MVP-1)")
+    from . import __version__
+    ap = argparse.ArgumentParser(
+        "auditor", description="Diagnostico de Retrieval — medicao tecnica "
+                               "reproduzivel do que seu sistema recupera")
+    ap.add_argument("--version", action="version",
+                    version=f"auditor {__version__}")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     def comum(p, com_output: bool):

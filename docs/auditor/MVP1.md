@@ -523,3 +523,161 @@ intenção de renovação · tempo humano de integração · dificuldade percebi
 ```
 
 Todos exigem usuário real. **318 testes.**
+
+---
+
+# MVP-1E — serviço executável
+
+**01/09/2026.** `DIAGNOSTICO v1`, `CLAIMS.md`, lógica de medição e `REL-001`
+intactos. Só productização operacional.
+
+## Instalação limpa
+
+`pip install -e .` com **`dependencies = []`** — engine, checks, medições e CLI
+com biblioteca padrão; HTTP é extra. Instalado num diretório neutro, importa e
+roda: `auditor 0.4.0`.
+
+`fixtures/` e `examples/` **não entram no pacote**, e `gera_fixtures` perdeu o
+default que apontava para `../fixtures`: um default silencioso esconde a
+dependência do laboratório até o dia em que alguém instala de verdade.
+
+Versão em **fonte única** — `auditor.__version__` alimenta `--version`, o
+manifesto e o job. Versão divergente entre manifesto e pacote é um manifesto
+que mente sobre quem o produziu.
+
+## Estado impossível não chega ao disco
+
+```
+QUEUED → RUNNING → COMPLETE | READY | BLOCKED | INVALID | ERROR
+```
+
+Terminal não volta: `COMPLETE → RUNNING` é recusado. E o job é conferido antes
+de gravar — `COMPLETE` sem manifesto, `ERROR` sem descrição, `updated_at` antes
+de `created_at`. Um job inconsistente é pior que um job com erro: **parece
+válido** para quem consome o registro.
+
+A validação é contra o estado **persistido**, então cada transição precisa ser
+gravada. É deliberado: se o disco não viu o `RUNNING`, então para quem lê o
+registro depois a auditoria pulou de enfileirada para pronta — e isso não
+aconteceu.
+
+**`READY` faltava** na máquina de estados, e uma auditoria que terminava assim
+derrubava o job.
+
+## Multi-inquilino
+
+```
+data/<client_id>/<audit_id>/{input,artifacts,reports}/manifest.json job.json
+```
+
+Isolamento **por caminho**, não por checagem: o `client_id` autenticado entra
+na raiz, então um `audit_id` de outro cliente não existe onde o handler
+procura. Não depende de alguém lembrar de comparar.
+
+Chave guardada como **hash**, comparada com `compare_digest`. `404` idêntico
+para "não existe" e "é de outro cliente" — dizer a diferença já entrega a
+existência do id. Log carrega `audit_id`, `client_id`, status, tempo e erro
+técnico; nunca query, documento ou chave.
+
+Limites por cliente. Excedê-los é `INVALID` com o número — **a auditoria não
+roda truncada**: medir metade do material daria um número sobre outro sistema.
+
+## Fila em disco, sem Celery
+
+Reivindicação por `rename`, atômico: dois workers não pegam a mesma tarefa. A
+interface é estreita (`enfileira`, `reivindica`, `conclui`) para que trocar o
+backend depois não mexa em mais nada.
+
+Uma dependência de infraestrutura escolhida antes da carga é uma aposta sobre
+um número que ninguém mediu.
+
+## A API transporta, não decide
+
+Nenhum `GET` executa auditoria — todos leem artefato já produzido. Um `GET` que
+recalculasse devolveria, para a mesma URL, número diferente do que o cliente
+recebeu, e o `sha256` deixaria de significar algo. Há teste que reprova
+`api.py` se ele mencionar qualquer regra de auditoria, e outro que confirma que
+opção de requisição **não muda `top_k`**.
+
+`/v1/protocols` expõe `DIAGNOSTICO` e `BASICO`. **`REL-001` não é exposto** — o
+experimento está bloqueado, e publicar a régua sugeriria que ela produz
+resultado.
+
+## Dois defeitos reais, achados por um teste instável
+
+A suíte HTTP falhava em **3 de 5 rodadas** com `JSONDecodeError`. Não era ruído.
+
+**O adaptador de referência gravava o snapshot dentro da pasta do cliente** —
+violando a propriedade que o serviço afirma garantir: auditar não altera o
+auditado. A pasta do cliente é entrada, e entrada não se escreve.
+
+**E duas auditorias concorrentes do mesmo corpus escreviam o mesmo arquivo**, e
+um leitor via JSON pela metade. Medido: **10 falhas em 60 leituras
+concorrentes**; depois do fix, **0**. Escrita atômica e diretório próprio por
+instância, com teste de regressão que roda 4 threads.
+
+Uma instabilidade de 3 em 5 é defeito de serviço, não ruído de teste — e o
+defeito era exatamente o tipo que só aparece quando dois clientes usam o
+sistema no mesmo dia.
+
+### E havia um terceiro, da mesma causa-raiz
+
+Depois de corrigir a atomicidade na fila e no adaptador, a suíte ainda falhava
+com `JSONDecodeError` — agora em `test_mesmo_request_id_nao_cria_duas`.
+
+`Registro.grava` usava `write_text`, que não é atômico. E `por_request_id`
+**varre todos os jobs**: um leitor concorrente via `job.json` pela metade
+enquanto um worker gravava.
+
+Três lugares, a mesma causa. Corrigi dois e deixei o terceiro, e só um teste
+instável apontou. Agora os três usam `tmp` + `os.replace`, e `lista()` ignora
+um registro ilegível em vez de derrubar a consulta inteira.
+
+### Testes de API do MVP-1B retirados
+
+Cinco testes de API do `test_auditor_mvp1b.py` passaram a falhar com `401`:
+foram escritos antes de a API ter inquilinos. `tests/test_http.py` os substitui
+como suíte **caixa-preta**, com autenticação, isolamento entre clientes e
+reinicialização.
+
+Retirei os antigos em vez de adaptá-los: duas suítes testando a mesma coisa sob
+pressupostos diferentes acabam com uma desatualizada, e a desatualizada mente.
+
+## Entregas
+
+`docs/api/{README,API,ERRORS}.md` · `Dockerfile` (usuário sem privilégio,
+`HEALTHCHECK` no `/ready`) · `README.md` · `/health` e `/ready`, que não
+executam auditoria.
+
+**O `Dockerfile` não foi construído nem executado** — não há Docker nesta
+máquina. Ele está escrito e revisado; não está testado, e a diferença importa.
+
+A instalação limpa também não usou `venv` (sem `ensurepip` aqui): foi feita com
+`pip install --target` a partir de um diretório neutro, o que prova que o
+pacote instala e roda sem os caminhos do laboratório, mas não isola
+dependências como um `venv` isolaria.
+
+## A doc afirmou antes de o código garantir
+
+Escrevi em `docs/api/API.md` que **`REL-001` não é exposto**. Fui conferir: era
+falso. `/v1/protocols` devolvia todas as réguas, e um cliente podia fazer
+`POST` com `"protocol": "REL-001"` e rodar o experimento bloqueado — recebendo
+um relatório que parece produto.
+
+Agora `Protocolo.exposto` é **dado, não `if` no handler**: `DIAGNOSTICO` e
+`BASICO` são oferecidos, `REL-001` não. `GET /v1/protocols/REL-001` dá 404 e o
+`POST` é recusado com `INVALID`.
+
+Ao corrigir, o primeiro patch não casou e deixou o `DIAGNOSTICO` de fora — a
+régua principal teria sumido da API. Pego na verificação seguinte, e agora há
+teste que exige que toda régua exposta declare escopo, tipo, versão e
+descrição.
+
+## O que continua faltando, e nenhum código resolve
+
+```
+satisfação · utilidade percebida · disposição de pagar
+tempo humano de integração · dificuldade percebida
+```
+
+Um engenheiro, um RAG, uma execução.

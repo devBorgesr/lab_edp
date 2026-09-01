@@ -16,10 +16,18 @@ from datetime import datetime, timezone
 from typing import Any
 
 from .checks.base import Resultado
+from .esquemas import RESULTADO_VERSAO
 from .estados import AuditoriaBloqueada, Estado, StatusAuditoria
 
 
-VERSAO_SERVICO = "0.2.0"      # MVP-1. Muda quando o contrato muda.
+def _versao() -> str:
+    """Uma fonte so. Versao divergente entre manifesto e pacote e um manifesto
+    que mente sobre quem o produziu."""
+    from . import __version__
+    return __version__
+
+
+VERSAO_SERVICO = _versao()
 
 
 def _agora() -> str:
@@ -136,6 +144,10 @@ class Manifesto:
 
     def to_dict(self) -> dict[str, Any]:
         d = {
+            # O artefato PERSISTIDO precisa se descrever. Sem isto o
+            # `manifest.json` em disco nao dizia qual contrato cumpre — e era
+            # justamente ele que a API servia como `AuditResult v1`.
+            "schema":    RESULTADO_VERSAO,
             "audit_id":  self.audit_id,
             "protocolo": self.protocolo,
             "protocolo_spec": self.protocolo_spec,

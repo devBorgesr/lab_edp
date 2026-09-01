@@ -41,7 +41,8 @@ def constroi_sistema(nome: str, entrada: dict) -> Any:
 
 def executa(entrada: dict[str, Any], raiz_servico: Path,
             protocolos: dict, audit_id: str | None = None,
-            so_check: bool = False) -> dict[str, Any]:
+            so_check: bool = False,
+            client_id: str = "default") -> dict[str, Any]:
     """
     Uma auditoria, do schema ao AuditResult. Isolada em workspace proprio.
 
@@ -68,10 +69,13 @@ def executa(entrada: dict[str, Any], raiz_servico: Path,
     # registro de que a auditoria comecou — um servico que esquece o que
     # executou nao e auditavel.
     reg = J.Registro(Path(raiz_servico))
-    job = reg.grava(J.Job(audit_id=aid, status=J.RUNNING,
-                          request_id=entrada.get("request_id"),
-                          protocol=entrada["protocol"],
-                          adapter=entrada["adapter"]))
+    job = reg.ver(aid)
+    if job is None:
+        job = reg.grava(J.Job(audit_id=aid, client_id=client_id,
+                              request_id=entrada.get("request_id"),
+                              protocol=entrada["protocol"],
+                              adapter=entrada["adapter"]))
+    reg.grava(job.transita(J.RUNNING))
     m = aud.roda()
 
     ws.grava_json("input", "audit_input.json",
@@ -96,6 +100,7 @@ def executa(entrada: dict[str, Any], raiz_servico: Path,
             claims.exige_limpo(txt, escopo, f"relatorio {nome}")
             ws.grava("reports", nome, txt)
 
+    job.client_id = client_id
     reg.grava(J.de_resultado(job, {"schema": RESULTADO_VERSAO, **d,
                                    "audit_id": aid, "workspace": str(ws.raiz),
                                    "invalido": any(c.estado is Estado.INVALID
@@ -104,6 +109,7 @@ def executa(entrada: dict[str, Any], raiz_servico: Path,
         "schema":      RESULTADO_VERSAO,
         **d,
         "audit_id":    aid,
+        "client_id":   client_id,
         "workspace":   str(ws.raiz),
         "retencao":    ws.politica_de_retencao(),
         "invalido":    any(c.estado is Estado.INVALID for c in m.checks),

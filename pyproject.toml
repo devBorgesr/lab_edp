@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "auditor-retrieval"
-version = "0.3.0"
+version = "0.4.0"
 description = "Auditoria tecnica reproduzivel de retrieval: encontra problemas de ranking, duplicacao e condicoes que impedem uma avaliacao valida."
 requires-python = ">=3.10"
 # O NUCLEO NAO TEM DEPENDENCIA. E deliberado: o engine, os checks, as medicoes
@@ -19,4 +19,9 @@ dev  = ["pytest>=7"]
 auditor = "auditor.cli:main"
 
 [tool.setuptools]
+# fixtures/ e examples/ NAO entram: sao material de demonstracao do
+# laboratorio, nao runtime. O pacote instalado precisa funcionar sem eles.
 packages = ["auditor", "auditor.checks", "auditor.adaptadores"]
+
+[tool.setuptools.dynamic]
+version = {attr = "auditor.__version__"}

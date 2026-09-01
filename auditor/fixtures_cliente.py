@@ -21,7 +21,10 @@ from pathlib import Path
 
 from .adaptadores.referencia import AdaptadorDeReferencia, de_distancia
 
-RAIZ_FIXTURES = Path(__file__).resolve().parent.parent / "fixtures"
+# NAO ha raiz default apontando para o laboratorio. `gera_fixtures` exige
+# destino explicito: um pacote instalado em outra maquina nao pode depender de
+# `../fixtures` existir, e um default silencioso esconde essa dependencia ate
+# o dia em que alguem instala de verdade.
 
 TEMAS = ["indexacao de banco", "acustica de sala", "arquitetura de servicos",
          "politica de retencao", "modelos de embedding", "custo de nuvem",
@@ -33,9 +36,9 @@ def _h(t: str) -> int:
     return int(hashlib.sha256(t.encode("utf-8")).hexdigest()[:8], 16)
 
 
-def gera_fixtures(raiz: Path | None = None) -> dict[str, Path]:
+def gera_fixtures(raiz: Path) -> dict[str, Path]:
     """Materializa os tres clientes em disco. Deterministico."""
-    raiz = Path(raiz or RAIZ_FIXTURES)
+    raiz = Path(raiz)
     perfis = {
         "customer_a": {"n_docs": 220, "duplicacao": 0.0,  "metrica": "similaridade"},
         "customer_b": {"n_docs": 220, "duplicacao": 0.55, "metrica": "similaridade"},
@@ -89,8 +92,11 @@ def constroi_cliente(entrada: dict):
 
     op = entrada.get("options") or {}
     converte = de_distancia if (distancia and op.get("converter_score")) else None
+    # SEM `snapshot=`: o adaptador cria diretorio proprio. Passar `d/"_snapshot"`
+    # escrevia dentro da pasta do cliente e fazia duas auditorias concorrentes
+    # do mesmo corpus corromperem uma a outra.
     return AdaptadorDeReferencia(
-        corpus, buscar, d / "_snapshot",
+        corpus, buscar,
         converte_score=converte,
         nota_da_conversao=("distancia L2 -> 1/(1+d), monotona decrescente"
                            if converte else ""))

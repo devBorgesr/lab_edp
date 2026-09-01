@@ -45,10 +45,20 @@ class Workspace:
     @classmethod
     def cria(cls, raiz_servico: Path, audit_id: str) -> "Workspace":
         r = Path(raiz_servico) / audit_id
-        if r.exists():
+        # A grandeza certa e o que o diretorio CONTEM, nao se ele existe
+        # (NORTE §4.15). O registro de jobs grava `job.json` aqui ANTES de a
+        # execucao comecar — de proposito, para que exista rastro se o processo
+        # morrer. Um guard que olhava so `r.exists()` transformava esse rastro
+        # em colisao e derrubava toda auditoria vinda da fila.
+        #
+        # O que nao pode e reaproveitar diretorio que JA ABRIGOU uma auditoria.
+        ocupado = [n for n in ("input", "artifacts", "reports", "manifest.json")
+                   if (r / n).exists()]
+        if ocupado:
             raise ForaDoWorkspace(
-                f"workspace {audit_id} ja existe. Reaproveitar diretorio entre "
-                f"auditorias e como um cliente le artefato do outro."
+                f"workspace {audit_id} ja abrigou uma auditoria (achei "
+                f"{ocupado}). Reaproveitar diretorio entre auditorias e como "
+                f"um cliente ler artefato do outro."
             )
         for sub in ("input", "artifacts", "reports"):
             (r / sub).mkdir(parents=True)

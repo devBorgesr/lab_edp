@@ -1,52 +1,52 @@
-# lab_edp
+# Diagnóstico de Retrieval
 
-Laboratório experimental do EDP — experimentos, pré-registros e relatórios.
+Medição técnica reproduzível do que o seu sistema de retrieval está
+recuperando — com evidências, hashes e limites explícitos.
 
-Extraído de edp_v5 (https://github.com/devBorgesr/edp_v5) preservando histórico
-via git subtree split -P edp/lab.
+**Não é auditoria de qualidade.** Ver [`O que não fazemos`](docs/auditor/produto/O_QUE_NAO_FAZEMOS.md).
 
-## Estrutura
+## Instalar
 
-- `bancada/` — núcleo agnóstico de sujeito (prontuário, isolamento, scorer, sampler, repeater, rodízio, formatos); proibido importar `edp.*`
-- `sujeitos/edp/` — adaptador que ensina a bancada a falar EDP + `experimentos/` (exp001-010, run_once, calibrações) + `analise/` (análises pós-coleta específicas por experimento)
-- `docs_edp_v5/` — **herdado**: pré-registros, estados, relatórios de fase e documentos fundadores importados do edp_v5 (cópias de referência, não editar)
-- `docs/` — **nativo** deste repo: template de pré-registro, acervo de experimentos, proveniência
-  - `docs/instrumentos/` — o que serve a **outro pesquisador, medindo outro sujeito**
-  - `docs/sujeito_edp/` — achados sobre **este** EDP (o prontuário do paciente)
-  - critério e classificação em [docs/DIVISAO.md](docs/DIVISAO.md) — é a mesma
-    linha que `bancada/` ↔ `sujeitos/` já traça no código, aplicada a
-    documento a partir de 12/08/2026
-- `tests/` — smoke tests e invariante de fronteira bancada/sujeito
+```bash
+pip install -e .            # engine + CLI, sem dependência externa
+pip install -e ".[http]"    # + API HTTP
+auditor --version
+```
 
-## Dependência
+## Usar
 
-O runtime edp é dependência opcional do adaptador. Instalação:
+```bash
+auditor check --input <corpus> --queries <perguntas.json> \
+              --protocol DIAGNOSTICO --adaptador cliente
+auditor run   ... --output ./auditorias
+auditor status --output ./auditorias
+auditor report <audit_id> --output ./auditorias
+```
 
-    pip install .            # telescópio puro, sem edp
-    pip install ".[edp]"     # com o adaptador EDP
+`check` é dry-run: responde `READY` ou `BLOCKED` em segundos, sem processar.
 
-A ref muda para main quando o PR do empacotamento entrar.
+## O que você recebe
 
-## Convenção
+`manifest.json` (fonte de verdade, com `sha256`), relatório executivo de uma
+página, relatório técnico, e o registro de cada verificação com o defeito que
+ela detecta.
 
-Todo experimento tem pré-registro antes da execução. Hipótese, métricas e
-critério de decisão são congelados antes de qualquer dado.
+## Documentação
 
-## Metodologia
+| | |
+|---|---|
+| [Como funciona](docs/auditor/produto/COMO_FUNCIONA.md) | o fluxo |
+| [O que você recebe](docs/auditor/produto/O_QUE_VOCE_RECEBE.md) | os artefatos |
+| [O que não fazemos](docs/auditor/produto/O_QUE_NAO_FAZEMOS.md) | os limites |
+| [Quickstart](docs/auditor/onboarding/QUICKSTART.md) | integrar em 5 minutos |
+| [Contrato](docs/auditor/SERVICE_CONTRACT.md) | normativo |
+| [Claims](docs/auditor/CLAIMS.md) | o que pode ser afirmado |
+| [API](docs/api/README.md) | HTTP |
 
-Novo pré-registro? Comece por [docs/TEMPLATE_PREREGISTRO.md](docs/TEMPLATE_PREREGISTRO.md)
-— estrutura derivada dos 4 pré-registros existentes (008/009/010/017), com
-checklist para colar. [docs/ACERVO_EXPERIMENTOS.md](docs/ACERVO_EXPERIMENTOS.md)
-mostra qual experimento tem pré-registro em arquivo e qual não tem (a
-disciplina começou no 008 — os anteriores não são reconstruídos
-retroativamente). [docs_edp_v5/edp_metodologia.md](docs_edp_v5/edp_metodologia.md)
-é a metodologia fundadora **herdada** do edp_v5 (princípios, checklist de
-commit, padrão de testes) — referência de método, não deste repo.
-[docs/PROVENIENCIA_LAB.md](docs/PROVENIENCIA_LAB.md) resolve qual das duas
-cópias (`lab_edp` vs `edp/lab/` no edp_v5) é a canônica. Em suma: `docs/` é
-nativo daqui; `docs_edp_v5/` é herdado, cópia de referência.
+## Estado
 
-## License
+`DIAGNOSTICO v1` mede o material recuperado. Não mede qualidade de resposta,
+Recall@K nem relevância, e não certifica nada.
 
-MIT — see [LICENSE](LICENSE). The `bancada/` ↔ `sujeitos/` boundary (bancada
-never imports `edp.*` or `sujeitos.*`) is enforced by `tests/test_fronteira.py`.
+`REL-001` — a régua experimental de relevância — está **bloqueada**, e nenhum
+resultado seu foi validado.
