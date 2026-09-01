@@ -262,9 +262,18 @@ def test_terceiro_consegue_usar_pelo_cli(tmp_path, q, capsys):
             "--adaptador", "sintetico", "--taxa-duplicacao", "0.6",
             "--output", str(tmp_path / "svc")]
 
-    assert main(["check", *base]) == EXIT["BLOCKED"]
+    # `check` e dry-run REAL: nao cria workspace nenhum.
+    #
+    # E ele pode dizer READY onde o `run` diz BLOCKED — o dry-run confere
+    # procedencia em UMA query e NAO confere cardinalidade. Isso e correto e
+    # esta declarado em `NAO_VERIFICADO`, mas e a diferenca que mais pode
+    # surpreender um cliente, entao fica afirmada aqui.
+    assert main(["check", *base]) == EXIT["COMPLETE"]
     saida = capsys.readouterr().out
-    assert "BASICO v1" in saida and "dry-run" in saida
+    assert "READY" in saida
+    assert "cardinalidade do ranking em todas as queries" in saida, \
+        "o check precisa avisar que nao verificou cardinalidade"
+    assert not (tmp_path / "svc").exists(), "dry-run criou workspace"
 
     assert main(["run", *base]) == EXIT["BLOCKED"]
     saida = capsys.readouterr().out
@@ -273,12 +282,9 @@ def test_terceiro_consegue_usar_pelo_cli(tmp_path, q, capsys):
     # `check` e `run` sao auditorias distintas, cada uma com workspace
     # proprio; a do dry-run nao grava relatorio, de proposito.
     workspaces = [p for p in (tmp_path / "svc").iterdir() if p.is_dir()]
-    assert len(workspaces) == 2, "check e run precisam de workspaces separados"
-    com_relatorio = [p for p in workspaces
-                     if (p / "reports" / "executive.md").exists()]
-    assert len(com_relatorio) == 1, "so o `run` grava relatorio"
-
-    w = com_relatorio[0]
+    assert len(workspaces) == 1, "so o `run` cria workspace; o check nao cria"
+    w = workspaces[0]
+    assert (w / "reports" / "executive.md").exists()
     d = json.loads((w / "manifest.json").read_text())
     assert d["resultado"] is None and len(d["sha256_manifesto"]) == 64
     assert (w / "reports" / "technical.md").exists()

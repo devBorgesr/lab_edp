@@ -133,7 +133,10 @@ class Registro:
         self.raiz = Path(raiz)
 
     def _arq(self, audit_id: str) -> Path:
-        return self.raiz / audit_id / "job.json"
+        # O audit_id COMPOE O CAMINHO. Sem validacao, `../outro/id` lia o job
+        # de outro cliente — ver `tenancy.exige_audit_id`.
+        from .tenancy import exige_audit_id
+        return self.raiz / exige_audit_id(audit_id) / "job.json"
 
     def grava(self, job: Job) -> Job:
         """
@@ -170,7 +173,13 @@ class Registro:
         return job
 
     def ver(self, audit_id: str) -> Job | None:
-        p = self._arq(audit_id)
+        from .tenancy import NaoAutorizado
+        try:
+            p = self._arq(audit_id)
+        except NaoAutorizado:
+            # id hostil e tratado como inexistente: distinguir "invalido" de
+            # "nao existe" ja diz ao atacante que o formato dele passou.
+            return None
         if not p.exists():
             return None
         return Job(**json.loads(p.read_text(encoding="utf-8")))

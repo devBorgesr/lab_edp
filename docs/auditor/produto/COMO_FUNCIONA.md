@@ -11,7 +11,7 @@ deve caber no que a medição sustenta.
 
 ```
 1. você fornece acesso ao retrieval
-2. validamos a integração          (check — segundos, sem processar)
+2. validamos a integração          (check — milissegundos)
 3. rodamos o diagnóstico
 4. entregamos relatório + manifesto
 ```
@@ -34,8 +34,18 @@ está** — e dizemos isso em vez de inventar um número.
 auditor check ...
 ```
 
-Responde `READY` ou `BLOCKED` em segundos, sem processar nada. Serve para você
-descobrir um problema antes do trabalho, não depois.
+Responde `READY` ou `BLOCKED` em **milissegundos**. Ele valida o schema e os
+limites, confere o snapshot e pede **uma** consulta ao seu retriever para
+verificar a procedência do ranking.
+
+Não copia o seu corpus, não calcula medição, não grava relatório e não chama
+julgador. O que ele **não** decide — cardinalidade em todas as perguntas,
+estratos, pré-condições estatísticas — está dito na resposta, em vez de deixar
+você supor que foi verificado.
+
+*Errata 01/09: até esta data o `check` rodava o pipeline inteiro (medido: 1,81 s
+contra 1,74 s do `run`) enquanto esta página prometia "sem processar nada".
+Agora são 0,009 s.*
 
 ### 3. Diagnóstico
 

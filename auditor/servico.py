@@ -122,6 +122,75 @@ def executa(entrada: dict[str, Any], raiz_servico: Path,
     }
 
 
+def verifica_integracao(entrada: dict[str, Any], protocolos: dict,
+                       cliente=None) -> dict[str, Any]:
+    """
+    DRY-RUN DE VERDADE. Responde READY ou BLOCKED sem auditar.
+
+    DEFEITO CORRIGIDO 01/09. O `check` anterior chamava `executa(so_check=True)`,
+    que rodava o pipeline INTEIRO e so deixava de gravar os dois relatorios.
+    Medido: 1,81 s no check contra 1,74 s no run — o mesmo trabalho. E a
+    documentacao entregue ao cliente prometia "responde em segundos, SEM
+    PROCESSAR NADA".
+
+    O que esta funcao faz, e so isso:
+
+        valida o schema e os limites
+        confere que o snapshot existe e hasheia
+        constroi o adaptador
+        pede UMA consulta e verifica a procedencia do ranking
+
+    O que ela NAO faz: copiar corpus para workspace, medir, montar estrato,
+    gravar manifesto, gravar relatorio, chamar julgador.
+
+    UMA consulta basta para o que o check promete: procedencia e propriedade do
+    formato do score, e um retriever que devolve distancia crua na primeira
+    query devolve nas outras. O que UMA consulta nao decide e cardinalidade —
+    e a resposta diz isso, em vez de deixar o cliente supor que verificou.
+    """
+    from .checks import procedencia as CP, ranking as CR
+    from .cli import carrega_queries
+    from .estados import Estado
+
+    entrada = valida_entrada(entrada, protocolos, _adaptadores())
+    prot = protocolos[entrada["protocol"]]
+    verificado: list[dict[str, Any]] = []
+
+    def reg(r):
+        verificado.append({"nome": r.nome, "estado": r.estado.value,
+                           "detecta": r.detecta, "motivo": r.motivo,
+                           "evidencia": r.evidencia})
+        return r
+
+    sistema = constroi_sistema(entrada["adapter"], entrada)
+    qs = carrega_queries(Path(entrada["queries"]))
+    if cliente is not None:
+        from .tenancy import confere_limites
+        confere_limites(entrada, cliente, len(qs), 0, 0)
+
+    ok = reg(CP.snapshot_tem_hash(Path(sistema.snapshot_dir))).estado is Estado.PASS
+    if ok and qs:
+        rk = sistema.consulta(qs[0]["query"], prot.top_k)
+        ok = reg(CR.veio_do_retriever(rk)).estado is Estado.PASS
+
+    barreiras = [v["nome"] for v in verificado if v["estado"] != "PASS"]
+    return {
+        "modo": "check",
+        "status": "READY" if not barreiras else "BLOCKED",
+        "protocolo": prot.identidade,
+        "n_queries": len(qs),
+        "verificado": verificado,
+        "barreiras": barreiras,
+        "NAO_VERIFICADO": [
+            "cardinalidade do ranking em todas as queries",
+            "estratos e controle negativo",
+            "pre-condicoes estatisticas",
+        ],
+        "nota": ("dry-run: nenhum corpus copiado, nenhuma medicao calculada, "
+                 "nenhum relatorio gravado, nenhum julgador executado"),
+    }
+
+
 def status_do_job(resultado: dict[str, Any]) -> str:
     """
     Estado do JOB derivado do estado da AUDITORIA — nunca escrito a mao.

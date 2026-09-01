@@ -100,6 +100,32 @@ class Clientes:
         return client_id in self._dados
 
 
+def _id_seguro(valor: str) -> bool:
+    return bool(valor) and all(c.isalnum() or c in "-_" for c in valor)
+
+
+def exige_audit_id(audit_id: str) -> str:
+    """
+    VULNERABILIDADE CORRIGIDA 01/09.
+
+    `Registro._arq` montava `<raiz>/<audit_id>/job.json` sem validar o id. Com
+    `audit_id="../globex/segredo123"`, o registro do cliente `acme` LIA o job
+    do cliente `globex` — medido e reproduzido.
+
+    O HTTP nao vazava, mas por acidente: o roteador do Starlette nao casa
+    barra dentro de parametro de caminho. Isso e protecao incidental de uma
+    biblioteca, nao defesa do servico — e o CLI (`status`, `report`) nao tinha
+    nem isso.
+
+    O isolamento deste servico e POR CAMINHO. Um identificador que compoe o
+    caminho e entrada nao confiavel, e precisa ser validado como tal — os dois,
+    `client_id` e `audit_id`, e nao so o primeiro.
+    """
+    if not _id_seguro(audit_id):
+        raise NaoAutorizado(f"audit_id invalido: {audit_id!r}")
+    return audit_id
+
+
 def raiz_do_cliente(base: Path, client_id: str) -> Path:
     """
     `<base>/<client_id>`, com o id validado.
@@ -107,7 +133,7 @@ def raiz_do_cliente(base: Path, client_id: str) -> Path:
     Um `client_id` como `../outro` transformaria isolamento em travessia de
     diretorio — a defesa e recusar o id, nao normalizar o caminho depois.
     """
-    if not client_id or not all(c.isalnum() or c in "-_" for c in client_id):
+    if not _id_seguro(client_id):
         raise NaoAutorizado(f"client_id invalido: {client_id!r}")
     return Path(base) / client_id
 

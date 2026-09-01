@@ -44,6 +44,8 @@ class Workspace:
 
     @classmethod
     def cria(cls, raiz_servico: Path, audit_id: str) -> "Workspace":
+        from .tenancy import exige_audit_id
+        audit_id = exige_audit_id(audit_id)
         r = Path(raiz_servico) / audit_id
         # A grandeza certa e o que o diretorio CONTEM, nao se ele existe
         # (NORTE §4.15). O registro de jobs grava `job.json` aqui ANTES de a

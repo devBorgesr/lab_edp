@@ -139,15 +139,22 @@ def _imprime(r: dict) -> None:
 
 
 def cmd_check(a) -> int:
-    """Dry-run: READY ou BLOCKED, sem julgador e sem metrica de protocolo."""
-    r = _roda(a, so_check=True)
-    _imprime(r)
-    pronto = not r["barreiras"]
-    print("\n" + ("READY — a infraestrutura sustenta este protocolo"
-                  if pronto else "BLOCKED — ver motivos acima"))
-    print("(dry-run: nenhum julgador executado, nenhuma metrica de protocolo "
-          "calculada, nenhum relatorio gravado)")
-    return _codigo(r)
+    """Dry-run REAL: nao copia corpus, nao mede, nao grava."""
+    from .servico import verifica_integracao
+    r = verifica_integracao(_entrada(a), PROTOCOLOS)
+    print(f"\nprotocolo .... {r['protocolo']}")
+    print(f"queries ...... {r['n_queries']}")
+    for v in r["verificado"]:
+        marca = "ok   " if v["estado"] == "PASS" else "BARRA"
+        print(f"  {marca} {v['nome']}")
+        if v["motivo"]:
+            print(f"        {v['motivo']}")
+    print("\n" + ("READY — a integracao sustenta este protocolo"
+                  if r["status"] == "READY" else "BLOCKED — ver motivos acima"))
+    print(f"\nNAO verificado por este check: "
+          f"{'; '.join(r['NAO_VERIFICADO'])}.")
+    print(f"({r['nota']})")
+    return EXIT["COMPLETE"] if r["status"] == "READY" else EXIT["BLOCKED"]
 
 
 def cmd_run(a) -> int:
@@ -203,6 +210,38 @@ def cmd_report(a) -> int:
     return EXIT["COMPLETE"]
 
 
+def cmd_expirar(a) -> int:
+    """
+    Aplica a politica de retencao. NAO roda sozinho.
+
+    DEFEITO CORRIGIDO 01/09: `PRIVACY.md` prometia "input 7 dias, relatorios
+    90, manifesto 365" e NADA no servico chamava `Workspace.expira`. Uma
+    garantia de retencao sem mecanismo e uma garantia que nao existe.
+
+    Continua nao rodando automaticamente — apagar material de cliente por
+    conta propria, dentro de um processo que atende requisicao, e pior que
+    nao apagar. O operador agenda este comando, e a doc diz isso.
+    """
+    from .workspace import Workspace
+    raiz = Path(a.output)
+    fora = []
+    for cliente in sorted(p for p in raiz.iterdir() if p.is_dir()) \
+            if raiz.exists() else []:
+        fora += [{**x, "client_id": cliente.name}
+                 for x in Workspace.expira(cliente, executar=a.executar)]
+    if not fora:
+        print(f"nada fora do prazo em {raiz}")
+        return EXIT["COMPLETE"]
+    print(f"{'client_id':<14}{'audit_id':<14}{'classe':<12}{'idade':>7}"
+          f"{'limite':>8}  {'REMOVIDO' if a.executar else 'so listado'}")
+    for x in fora:
+        print(f"{x['client_id']:<14}{x['audit_id']:<14}{x['classe']:<12}"
+              f"{x['idade_dias']:>7}{x['limite']:>8}")
+    if not a.executar:
+        print("\nmodo lista. Use --executar para apagar de verdade.")
+    return EXIT["COMPLETE"]
+
+
 def main(argv=None) -> int:
     import argparse
     from . import __version__
@@ -238,6 +277,11 @@ def main(argv=None) -> int:
     st.add_argument("audit_id", nargs="?")
     st.add_argument("--output", default=".auditorias", help="raiz do servico")
 
+    ex = sub.add_parser("expirar", help="aplica a politica de retencao")
+    ex.add_argument("--output", default=".auditorias", help="raiz do servico")
+    ex.add_argument("--executar", action="store_true",
+                    help="apaga de verdade. Sem isto, apenas lista.")
+
     rp = sub.add_parser("report", help="imprime um relatorio ja gerado")
     rp.add_argument("audit_id")
     rp.add_argument("--tipo", default="executive",
@@ -246,8 +290,8 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
 
     try:
-        return {"check": cmd_check, "run": cmd_run,
-                "status": cmd_status, "report": cmd_report}[a.cmd](a)
+        return {"check": cmd_check, "run": cmd_run, "status": cmd_status,
+                "report": cmd_report, "expirar": cmd_expirar}[a.cmd](a)
     except EntradaInvalida as e:
         print(f"\nENTRADA INVALIDA ({ENTRADA_VERSAO}): {e}", file=sys.stderr)
         return EXIT["INVALID"]
