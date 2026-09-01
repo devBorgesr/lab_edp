@@ -111,7 +111,7 @@ def test_cada_auditoria_tem_workspace_proprio(tmp_path, q):
     for r in (a, b):
         w = Path(r["workspace"])
         assert {p.name for p in w.iterdir()} == {
-            "input", "artifacts", "reports", "manifest.json"}
+            "input", "artifacts", "reports", "manifest.json", "job.json"}
 
 
 def test_reaproveitar_diretorio_e_recusado(tmp_path):

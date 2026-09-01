@@ -431,3 +431,95 @@ conformidade. Com a frase que separa as duas coisas:
 Há teste que reprova o relatório se qualquer uma dessas ressalvas sumir.
 
 **283 testes.** `REL-001` segue bloqueado; `DECISAO_RANKING.md` segue em branco.
+
+---
+
+# MVP-1D — integração e primeiro fluxo de cliente
+
+**01/09/2026.** Escopo científico do `DIAGNOSTICO v1` intacto. `REL-001`
+bloqueado. Nenhum dashboard, nenhum Question Mining.
+
+## O job passou a existir de verdade
+
+Antes, o job vivia num dicionário em memória dentro do `api.py`. Duas
+consequências: o CLI não conseguia responder `status` nem `report` — o processo
+já tinha morrido — e o HTTP perdia tudo ao reiniciar. **Um serviço que esquece o
+que executou não é auditável.**
+
+Agora o registro fica em `<raiz>/<audit_id>/job.json`, e CLI e HTTP leem o
+mesmo. A idempotência por `request_id` passou a sobreviver a reinício: em
+memória, um retry depois de restart criaria uma segunda auditoria, e o cliente
+pagaria duas vezes por dois manifestos do mesmo sistema.
+
+`auditor status` e `auditor report` existem, e `report` **não recalcula nada** —
+lê o que foi gerado.
+
+## Clientes externos simulados, como dados
+
+`fixtures/customer_{a,b,c}/` são `corpus.json`, `queries.json` e `config.json`
+em disco — não classes do próprio pacote. Uma fixture que é código interno
+testa o serviço contra si mesmo.
+
+**O EDP não foi usado**: ele é o nosso sistema, e usá-lo como cliente externo
+seria medir a integração contra a única integração que já existia.
+
+## O instrumento recupera o defeito injetado
+
+| | `customer_a` | `customer_b` | injetado em B |
+|---|---|---|---|
+| documentos distintos por query | 50 | **22** | — |
+| duplicação intra-query por id | 0,00 | **0,56** | **0,55** |
+
+O gerador do `customer_b` não conhece o código de medição, e a medição devolveu
+0,56 para 0,55 injetado. **O instrumento detecta o defeito que afirma
+detectar** — o mais perto de validação que dá para chegar sem dado externo.
+
+Não substitui dado externo: escrevi o gerador e o medidor, e é exatamente esse
+viés que um piloto real elimina.
+
+## A incompatibilidade C1, ponta a ponta
+
+| `customer_c` | `check` | `run` | status | medições |
+|---|---|---|---|---|
+| distância crua | 0,17 s | 0,19 s | **`BLOCKED`** | **0** |
+| com conversão declarada | 1,74 s | 1,80 s | `COMPLETE` | 5 |
+
+O caso bloqueado é **10× mais rápido** — a propriedade funcionando: ele para na
+primeira etapa, antes de qualquer trabalho.
+
+O serviço **nunca** aplica a conversão sozinho. Fazer isso seria adivinhar a
+semântica do score do cliente.
+
+## Terceiro falso positivo da trava de claims, e a regra que faltava
+
+A trava reprovou a página `O_QUE_NAO_FAZEMOS.md` — na frase que existe **para
+proibir** a frase: *"dizemos … e nunca "26% do seu contexto é desperdiçado""*.
+O guard de negação olha 40 caracteres atrás; o `nunca` estava a 50, do outro
+lado da citação. (E a citação ainda atravessava quebra de linha.)
+
+Alargar a janela seria remendo. A regra que cobre os três casos é mais simples:
+**o documento afirma com as próprias palavras e cita com aspas.**
+
+Limite aceito conscientemente: isso abre um falso negativo — um claim entre
+aspas passa. É aceitável porque os relatórios são gerados por código e nunca
+põem afirmação entre aspas, e porque o erro oposto já se mostrou pior: um
+linter que reprova a ressalva força a apagá-la.
+
+## Produto: *diagnóstico*, não *auditoria*
+
+`docs/auditor/produto/` traz **Como funciona**, **O que você recebe** e **O que
+não fazemos** — a última coerente com `CLAIMS.md`, com teste que roda a trava
+sobre as três páginas.
+
+O título é **Diagnóstico de Retrieval**, e há teste que reprova se virar
+"auditoria": a palavra promete qualidade, conformidade e certificação, e tem
+que caber no que a medição sustenta.
+
+## O que continua `NAO_MEDIDO`
+
+```
+satisfação · utilidade percebida · disposição de pagar
+intenção de renovação · tempo humano de integração · dificuldade percebida
+```
+
+Todos exigem usuário real. **318 testes.**

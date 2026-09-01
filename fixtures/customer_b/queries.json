@@ -1,0 +1,204 @@
+{
+ "queries": [
+  {
+   "id": "bq000",
+   "query": "como resolver indexacao de banco no caso 0?",
+   "dominio": "indexacao de banco"
+  },
+  {
+   "id": "bq001",
+   "query": "como resolver acustica de sala no caso 1?",
+   "dominio": "acustica de sala"
+  },
+  {
+   "id": "bq002",
+   "query": "como resolver arquitetura de servicos no caso 2?",
+   "dominio": "arquitetura de servicos"
+  },
+  {
+   "id": "bq003",
+   "query": "como resolver politica de retencao no caso 3?",
+   "dominio": "politica de retencao"
+  },
+  {
+   "id": "bq004",
+   "query": "como resolver modelos de embedding no caso 4?",
+   "dominio": "modelos de embedding"
+  },
+  {
+   "id": "bq005",
+   "query": "como resolver custo de nuvem no caso 5?",
+   "dominio": "custo de nuvem"
+  },
+  {
+   "id": "bq006",
+   "query": "como resolver observabilidade no caso 6?",
+   "dominio": "observabilidade"
+  },
+  {
+   "id": "bq007",
+   "query": "como resolver seguranca de api no caso 7?",
+   "dominio": "seguranca de api"
+  },
+  {
+   "id": "bq008",
+   "query": "como resolver indexacao de banco no caso 8?",
+   "dominio": "indexacao de banco"
+  },
+  {
+   "id": "bq009",
+   "query": "como resolver acustica de sala no caso 9?",
+   "dominio": "acustica de sala"
+  },
+  {
+   "id": "bq010",
+   "query": "como resolver arquitetura de servicos no caso 10?",
+   "dominio": "arquitetura de servicos"
+  },
+  {
+   "id": "bq011",
+   "query": "como resolver politica de retencao no caso 11?",
+   "dominio": "politica de retencao"
+  },
+  {
+   "id": "bq012",
+   "query": "como resolver modelos de embedding no caso 12?",
+   "dominio": "modelos de embedding"
+  },
+  {
+   "id": "bq013",
+   "query": "como resolver custo de nuvem no caso 13?",
+   "dominio": "custo de nuvem"
+  },
+  {
+   "id": "bq014",
+   "query": "como resolver observabilidade no caso 14?",
+   "dominio": "observabilidade"
+  },
+  {
+   "id": "bq015",
+   "query": "como resolver seguranca de api no caso 15?",
+   "dominio": "seguranca de api"
+  },
+  {
+   "id": "bq016",
+   "query": "como resolver indexacao de banco no caso 16?",
+   "dominio": "indexacao de banco"
+  },
+  {
+   "id": "bq017",
+   "query": "como resolver acustica de sala no caso 17?",
+   "dominio": "acustica de sala"
+  },
+  {
+   "id": "bq018",
+   "query": "como resolver arquitetura de servicos no caso 18?",
+   "dominio": "arquitetura de servicos"
+  },
+  {
+   "id": "bq019",
+   "query": "como resolver politica de retencao no caso 19?",
+   "dominio": "politica de retencao"
+  },
+  {
+   "id": "bq020",
+   "query": "como resolver modelos de embedding no caso 20?",
+   "dominio": "modelos de embedding"
+  },
+  {
+   "id": "bq021",
+   "query": "como resolver custo de nuvem no caso 21?",
+   "dominio": "custo de nuvem"
+  },
+  {
+   "id": "bq022",
+   "query": "como resolver observabilidade no caso 22?",
+   "dominio": "observabilidade"
+  },
+  {
+   "id": "bq023",
+   "query": "como resolver seguranca de api no caso 23?",
+   "dominio": "seguranca de api"
+  },
+  {
+   "id": "bq024",
+   "query": "como resolver indexacao de banco no caso 24?",
+   "dominio": "indexacao de banco"
+  },
+  {
+   "id": "bq025",
+   "query": "como resolver acustica de sala no caso 25?",
+   "dominio": "acustica de sala"
+  },
+  {
+   "id": "bq026",
+   "query": "como resolver arquitetura de servicos no caso 26?",
+   "dominio": "arquitetura de servicos"
+  },
+  {
+   "id": "bq027",
+   "query": "como resolver politica de retencao no caso 27?",
+   "dominio": "politica de retencao"
+  },
+  {
+   "id": "bq028",
+   "query": "como resolver modelos de embedding no caso 28?",
+   "dominio": "modelos de embedding"
+  },
+  {
+   "id": "bq029",
+   "query": "como resolver custo de nuvem no caso 29?",
+   "dominio": "custo de nuvem"
+  },
+  {
+   "id": "bq030",
+   "query": "como resolver observabilidade no caso 30?",
+   "dominio": "observabilidade"
+  },
+  {
+   "id": "bq031",
+   "query": "como resolver seguranca de api no caso 31?",
+   "dominio": "seguranca de api"
+  },
+  {
+   "id": "bq032",
+   "query": "como resolver indexacao de banco no caso 32?",
+   "dominio": "indexacao de banco"
+  },
+  {
+   "id": "bq033",
+   "query": "como resolver acustica de sala no caso 33?",
+   "dominio": "acustica de sala"
+  },
+  {
+   "id": "bq034",
+   "query": "como resolver arquitetura de servicos no caso 34?",
+   "dominio": "arquitetura de servicos"
+  },
+  {
+   "id": "bq035",
+   "query": "como resolver politica de retencao no caso 35?",
+   "dominio": "politica de retencao"
+  },
+  {
+   "id": "bq036",
+   "query": "como resolver modelos de embedding no caso 36?",
+   "dominio": "modelos de embedding"
+  },
+  {
+   "id": "bq037",
+   "query": "como resolver custo de nuvem no caso 37?",
+   "dominio": "custo de nuvem"
+  },
+  {
+   "id": "bq038",
+   "query": "como resolver observabilidade no caso 38?",
+   "dominio": "observabilidade"
+  },
+  {
+   "id": "bq039",
+   "query": "como resolver seguranca de api no caso 39?",
+   "dominio": "seguranca de api"
+  }
+ ]
+}

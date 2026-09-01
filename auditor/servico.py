@@ -17,10 +17,12 @@ from pathlib import Path
 from typing import Any
 
 from . import claims, relatorio
+from . import jobs as J
 from .esquemas import RESULTADO_VERSAO, valida_entrada
 from .estados import Estado, StatusAuditoria
 from .pipeline import Auditoria
 from .redacao import Politica, varre_segredos
+from .registro import conhecidos, constroi
 from .workspace import Workspace
 
 # Estados do JOB. Coincidem com os da auditoria por construcao (item 11): um
@@ -29,21 +31,12 @@ QUEUED, RUNNING = "QUEUED", "RUNNING"
 
 
 def _adaptadores() -> dict[str, Any]:
-    return {"edp": "auditor.adaptadores.edp:EDPAuditavel",
-            "sintetico": "auditor.fixtures:ClienteSintetico"}
+    """Um lugar so onde se descobre o que existe — ver `auditor.registro`."""
+    return conhecidos()
 
 
 def constroi_sistema(nome: str, entrada: dict) -> Any:
-    op = entrada.get("options") or {}
-    if nome == "edp":
-        from .adaptadores.edp import EDPAuditavel
-        return EDPAuditavel(Path(entrada["snapshot"]),
-                            Path(op["dominios"]) if op.get("dominios") else None)
-    if nome == "sintetico":
-        from .fixtures import ClienteSintetico
-        return ClienteSintetico(Path(entrada["snapshot"]),
-                                taxa_duplicacao=float(op.get("taxa_duplicacao", 0.0)))
-    raise ValueError(f"adaptador desconhecido: {nome}")
+    return constroi(nome, entrada)
 
 
 def executa(entrada: dict[str, Any], raiz_servico: Path,
@@ -70,6 +63,15 @@ def executa(entrada: dict[str, Any], raiz_servico: Path,
                     modo=(entrada.get("options") or {}).get("mode", "AUDIT"),
                     politica=pol, audit_id=aid)
     aud.origem_do_dataset = Path(entrada["queries"]).name
+
+    # O job nasce ANTES da execucao. Se o processo morrer no meio, fica o
+    # registro de que a auditoria comecou — um servico que esquece o que
+    # executou nao e auditavel.
+    reg = J.Registro(Path(raiz_servico))
+    job = reg.grava(J.Job(audit_id=aid, status=J.RUNNING,
+                          request_id=entrada.get("request_id"),
+                          protocol=entrada["protocol"],
+                          adapter=entrada["adapter"]))
     m = aud.roda()
 
     ws.grava_json("input", "audit_input.json",
@@ -94,6 +96,10 @@ def executa(entrada: dict[str, Any], raiz_servico: Path,
             claims.exige_limpo(txt, escopo, f"relatorio {nome}")
             ws.grava("reports", nome, txt)
 
+    reg.grava(J.de_resultado(job, {"schema": RESULTADO_VERSAO, **d,
+                                   "audit_id": aid, "workspace": str(ws.raiz),
+                                   "invalido": any(c.estado is Estado.INVALID
+                                                   for c in m.checks)}))
     return {
         "schema":      RESULTADO_VERSAO,
         **d,
@@ -117,6 +123,4 @@ def status_do_job(resultado: dict[str, Any]) -> str:
     Se fossem independentes, um job poderia dizer COMPLETE sobre uma auditoria
     BLOCKED, e o cliente leria "terminou bem" onde nao houve metrica.
     """
-    if resultado.get("invalido"):
-        return StatusAuditoria.BLOCKED.value if False else "INVALID"
-    return resultado["status"]
+    return J.INVALID if resultado.get("invalido") else resultado["status"]

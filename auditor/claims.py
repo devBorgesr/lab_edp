@@ -84,6 +84,35 @@ def _esta_negado(texto: str, inicio: int) -> bool:
     return bool(_NEGADO.search(texto[max(0, inicio - 40):inicio]))
 
 
+# Texto entre aspas e CITACAO, nao afirmacao do documento.
+# Aspas podem atravessar quebra de linha — markdown quebra frase no meio da
+# citacao. O limite de 200 caracteres impede que uma aspa orfa engula o
+# documento inteiro e apague violacoes reais junto.
+_CITACAO = re.compile(r'["“”][^"“”]{1,200}["“”]')
+
+
+def _tira_citacoes(texto: str) -> str:
+    """
+    Remove trechos entre aspas antes de procurar violacao.
+
+    TERCEIRA vez que citacao virou falso positivo — primeiro a ressalva em item
+    de lista, depois a negacao inline, agora a frase que existe PARA PROIBIR a
+    frase: `dizemos "...id repetido", e nunca "26% do contexto e desperdicado"`.
+    O guard de negacao olha 40 caracteres atras, e o `nunca` estava a 50, do
+    outro lado da citacao.
+
+    Alargar a janela seria remendo. A regra que cobre os tres casos e mais
+    simples: o documento afirma com as proprias palavras, e cita com aspas.
+
+    LIMITE ACEITO CONSCIENTEMENTE: isto abre um falso negativo — um claim
+    escrito entre aspas passa. E aceitavel porque nossos relatorios sao
+    gerados por codigo e nunca poem afirmacao entre aspas, e porque o erro
+    oposto ja se mostrou pior: um linter que reprova a ressalva forca a
+    apaga-la, piorando exatamente o texto que deveria proteger.
+    """
+    return _CITACAO.sub(" [citacao] ", texto)
+
+
 class ClaimProibido(RuntimeError):
     """Texto entregue afirma mais do que foi medido."""
 
@@ -125,7 +154,7 @@ def _ignora_errata(texto: str) -> str:
 
 def verifica(texto: str, escopo: str = "diagnostico") -> list[dict[str, Any]]:
     """Violacoes no texto ENTREGUE. Lista vazia = pode sair."""
-    alvo = _ignora_errata(texto)
+    alvo = _tira_citacoes(_ignora_errata(texto))
     faltas: list[dict[str, Any]] = []
 
     def trecho(m):

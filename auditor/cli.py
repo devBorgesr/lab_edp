@@ -30,9 +30,13 @@ from . import relatorio
 from .estados import Estado, StatusAuditoria
 from .pipeline import Auditoria, Protocolo
 from .esquemas import ENTRADA_VERSAO, EntradaInvalida
+from . import jobs as J
 from .redacao import Politica
+from .registro import conhecidos
 
 EXIT = {"COMPLETE": 0, "BLOCKED": 2, "INVALID": 3, "ERRO": 4}
+
+ADAPTADORES = sorted(conhecidos())
 
 PROTOCOLOS = {
     "REL-001": Protocolo(
@@ -150,6 +154,50 @@ def cmd_run(a) -> int:
     return _codigo(r)
 
 
+def cmd_status(a) -> int:
+    """Le o registro em disco — o mesmo que a API le. Uma fonte, duas portas."""
+    reg = J.Registro(Path(a.output))
+    if a.audit_id:
+        job = reg.ver(a.audit_id)
+        if job is None:
+            print(f"auditoria {a.audit_id} nao encontrada em {a.output}",
+                  file=sys.stderr)
+            return EXIT["INVALID"]
+        for k, v in job.to_dict().items():
+            if v not in (None, "", {}, []):
+                print(f"{k:<18} {v}")
+        return EXIT["COMPLETE"] if job.status == J.COMPLETE else (
+            EXIT["BLOCKED"] if job.status == J.BLOCKED else
+            EXIT["INVALID"] if job.status == J.INVALID else EXIT["ERRO"])
+    jobs = reg.lista()
+    if not jobs:
+        print(f"nenhuma auditoria em {a.output}")
+        return EXIT["COMPLETE"]
+    print(f"{'audit_id':<14}{'status':<10}{'protocolo':<16}"
+          f"{'adaptador':<12}quando")
+    for j in sorted(jobs, key=lambda x: x.created_at):
+        prot = f"{j.protocol} v{j.protocol_version or '?'}"
+        print(f"{j.audit_id:<14}{j.status:<10}{prot[:15]:<16}"
+              f"{j.adapter[:11]:<12}{j.created_at}")
+    return EXIT["COMPLETE"]
+
+
+def cmd_report(a) -> int:
+    """Devolve um relatorio ja gerado. Nao recalcula nada."""
+    job = J.Registro(Path(a.output)).ver(a.audit_id)
+    if job is None:
+        print(f"auditoria {a.audit_id} nao encontrada", file=sys.stderr)
+        return EXIT["INVALID"]
+    caminho = job.reports.get(a.tipo)
+    if not caminho or not Path(caminho).exists():
+        print(f"relatorio `{a.tipo}` nao existe para {a.audit_id} "
+              f"(status {job.status}; um dry-run nao grava relatorio)",
+              file=sys.stderr)
+        return EXIT["BLOCKED"]
+    print(Path(caminho).read_text(encoding="utf-8"))
+    return EXIT["COMPLETE"]
+
+
 def main(argv=None) -> int:
     import argparse
     ap = argparse.ArgumentParser("audit", description="servico de auditoria (MVP-1)")
@@ -159,8 +207,7 @@ def main(argv=None) -> int:
         p.add_argument("--input",    required=True, help="snapshot do sistema")
         p.add_argument("--protocol", required=True, choices=sorted(PROTOCOLOS))
         p.add_argument("--queries",  required=True)
-        p.add_argument("--adaptador", default="edp",
-                       choices=["edp", "sintetico"])
+        p.add_argument("--adaptador", default="edp", choices=ADAPTADORES)
         p.add_argument("--taxa-duplicacao", type=float, default=None,
                        dest="taxa_duplicacao",
                        help="so para o adaptador sintetico (demonstracao)")
@@ -176,10 +223,21 @@ def main(argv=None) -> int:
 
     comum(sub.add_parser("check", help="dry-run: READY ou BLOCKED"), False)
     comum(sub.add_parser("run", help="auditoria completa"), True)
+
+    st = sub.add_parser("status", help="estado de uma auditoria, ou de todas")
+    st.add_argument("audit_id", nargs="?")
+    st.add_argument("--output", default=".auditorias", help="raiz do servico")
+
+    rp = sub.add_parser("report", help="imprime um relatorio ja gerado")
+    rp.add_argument("audit_id")
+    rp.add_argument("--tipo", default="executive",
+                    choices=["executive", "technical"])
+    rp.add_argument("--output", default=".auditorias", help="raiz do servico")
     a = ap.parse_args(argv)
 
     try:
-        return cmd_check(a) if a.cmd == "check" else cmd_run(a)
+        return {"check": cmd_check, "run": cmd_run,
+                "status": cmd_status, "report": cmd_report}[a.cmd](a)
     except EntradaInvalida as e:
         print(f"\nENTRADA INVALIDA ({ENTRADA_VERSAO}): {e}", file=sys.stderr)
         return EXIT["INVALID"]
