@@ -21,21 +21,48 @@ relatório, não da sua leitura.
 As **6 e 7** só valem depois da **4**: quem não achou o relatório útil não tem
 como dizer se pagaria.
 
-## Registro de integração — preenchido durante, não depois
+## Registro de integração — preenchido DURANTE, não depois
+
+O relatório pode ser excelente e o produto ainda falhar aqui. Se o cliente
+levar seis horas para conectar, o problema não está no diagnóstico — está no
+onboarding, e é isto que mede.
+
+### O RAG
 
 ```
-data ............................. ____________
-stack de retrieval ............... ____________
-retriever expõe score? ........... ____________
+framework ........................ ____________
+vector DB ........................ ____________
+retriever ........................ ____________
+reranker ......................... ____________  (proprietário? sim/não)
+score exposto .................... sim / não
 tipo de score .................... similaridade / distância / nenhum
-precisou converter? qual? ........ ____________
-tempo até o primeiro `check` ..... ____________
-linhas do adaptador .............. ____________
-quem escreveu o adaptador ........ cliente / nós
-erros encontrados ................ ____________
-intervenções nossas .............. ____________
-status final ..................... ____________
+conversão necessária ............. ____________
+ids estáveis ..................... sim / não
+snapshot reproduzível ............ sim / não
 ```
+
+### Tempo — quatro marcos, em relógio
+
+```
+primeiro contato  -> `check` READY ......... ____________
+primeiro contato  -> `check` BLOCKED ....... ____________
+adaptador escrito -> `check` READY ......... ____________
+adaptador escrito -> `run` COMPLETE ........ ____________
+```
+
+### Intervenção
+
+```
+linhas de código do adaptador .............. ____________
+alterações feitas pelo CLIENTE ............. ____________
+alterações feitas por NÓS .................. ____________
+bloqueios encontrados ...................... ____________
+perguntas que o cliente fez ................ ____________
+```
+
+Toda intervenção nossa é registrada **no momento em que acontece**. Consertar
+durante o piloto sem anotar transforma um problema de onboarding em um
+problema invisível.
 
 ## Preço
 
