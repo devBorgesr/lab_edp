@@ -11,35 +11,79 @@ real de linhas, cruzamento com testes e flags. Onde não medi, digo que não med
 | `lab_edp_novo` (privado) | **21.752** | 25 arquivos | 126 | experimentos + serviço de diagnóstico |
 | `sf_exportador` | **6.255** (JS) | — | não é repo git | extensão Chrome + copiloto |
 
-`Synapse-Forge` está **vazio**.
+`Synapse-Forge` **não está vazio, mas não tem conteúdo de projeto**: medido — `.vscode/extensions.json`, 512 bytes, nada mais. *(Fase 1 dizia "vazio"; corrigido na Fase 3, item 0.1 — a frase original não tinha medição por trás, o comando que tocaria esse caminho estourou timeout antes de chegar lá.)*
 
 Total ≈ **74 mil linhas**. O número sozinho não diz nada — o que segue é a
 separação entre o que está vivo, o que está desligado e o que está morto.
 
 ---
 
-## 1. `edp_v5` — 49 módulos de topo, 38.179 linhas em `edp/`
+## 1. `edp_v5` — 49 unidades de topo, 38.179 linhas em `edp/`
 
-Medido por AST (importador real, não menção em docstring):
+> **ERRATA (Fase 3, 01/09/2026).** Esta seção continha um erro de método: a
+> primeira varredura só cobria `edp/` + `tests/`, e uma segunda tentativa de
+> reproduzi-la incluiu ou excluiu os 19 scripts da raiz de forma inconsistente
+> entre uma rodada e outra — o mesmo algoritmo dando números diferentes em dias
+> diferentes é exatamente o tipo de falha que este projeto existe para pegar.
+> A Fase 3 refez a medição com a metodologia do **próprio repositório**
+> (`tests/test_catalogo_de_modulos_mortos.py`, `os.walk` do repo inteiro) e
+> corrigiu os números abaixo. O texto original (16/27/6) fica registrado logo
+> depois, por `NORTE §4.4`.
 
-| estado | módulos | leitura |
+`edp/` tem duas populações distintas, e confundi-las foi o erro:
+
+- **40 arquivos `.py` soltos** em `edp/` — a população que o README e
+  `test_catalogo_de_modulos_mortos.py` já cobrem, e que passa **hoje**
+  (6/6 testes daquele arquivo, `pytest -v`);
+- **9 subpacotes** (diretórios com `__init__.py`): `api`, `ingest`, `lab`,
+  `llm`, `memory`, `observability`, `profiles`, `runtime`, `tools`. Não cobertos
+  pelo gate do README, que só faz `EDP.glob("*.py")`.
+
+Medido com a mesma regra do gate canônico (AST, `os.walk` do repositório
+inteiro — não só `edp/`+`tests/`) aplicada às duas populações:
+
+| estado | unidades | leitura |
 |---|---|---|
-| **vivo** (importado + testado) | **16** | 33% |
-| **sem teste** (importado, não testado) | **27** | 55% |
-| **sem importador** | **6** | 12% |
+| **vivo** (importador real + teste) | **19** | 39% |
+| **com importador, sem teste** | **28** | 57% |
+| **sem importador em todo o repo** | **2** | 4% |
 
-Os 6 sem importador: `api`, `profiles`, `types`, `analytics`, `reranker`,
-`failsafe`. **`api` e `profiles` são pontos de entrada** — carregados por
-uvicorn e por registro, não por `import` — então "sem importador" ali não
-significa morto. `analytics`, `reranker`, `types` e `failsafe` precisam de
-verificação caso a caso antes de qualquer afirmação.
+**Os 2 mortos são exatamente os que o gate do README já aponta: `analytics` e
+`reranker`.** Os 9 subpacotes têm **todos** importador real fora de `edp/`
+(`run.py`, `benchmark_edp.py`, `scripts/`, `audit/`, ou outro módulo de
+`edp/api/`) — nenhum está morto.
 
-> O repositório **já tem** `tests/test_catalogo_de_modulos_mortos.py`, que
-> força por AST a lista de mortos do README. A lista já errou nas duas direções
-> antes de existir esse teste. Este inventário é consistente com ele.
+**57% sem teste** (28 de 49) é o número que mais limita reaproveitamento — e é
+pior, não melhor, que a estimativa original. Um módulo sem teste pode ser
+acoplado, mas não pode ser chamado de pronto.
 
-**55% sem teste é o número que mais limita reaproveitamento.** Um módulo sem
-teste pode ser acoplado — mas não pode ser chamado de "pronto".
+<details>
+<summary>Texto original desta seção (errado), preservado por §4.4</summary>
+
+> ## 1. `edp_v5` — 49 módulos de topo, 38.179 linhas em `edp/`
+>
+> Medido por AST (importador real, não menção em docstring):
+>
+> | estado | módulos | leitura |
+> |---|---|---|
+> | **vivo** (importado + testado) | **16** | 33% |
+> | **sem teste** (importado, não testado) | **27** | 55% |
+> | **sem importador** | **6** | 12% |
+>
+> Os 6 sem importador: `api`, `profiles`, `types`, `analytics`, `reranker`,
+> `failsafe`. **`api` e `profiles` são pontos de entrada** — carregados por
+> uvicorn e por registro, não por `import` — então "sem importador" ali não
+> significa morto. `analytics`, `reranker`, `types` e `failsafe` precisam de
+> verificação caso a caso antes de qualquer afirmação.
+>
+> **55% sem teste é o número que mais limita reaproveitamento.**
+
+`api` e `profiles` **eram subpacotes, não módulos "sem importador"** — a
+frase original tratava as duas populações como uma só. `types` e `failsafe`
+tinham importador real que a varredura original não alcançava (fora de
+`edp/`+`tests/`).
+
+</details>
 
 ---
 
@@ -218,6 +262,10 @@ Se o objetivo é **serviço novo**: a Bancada é a base mais substancial que
 existe — mas 3.000 linhas com 2 arquivos de teste não é fundação, é dívida com
 forma de fundação.
 
-E vale dizer o que o inventário mostrou de desconfortável: **55% dos módulos do
-kernel não têm teste, e 12 flags de engenharia testada estão desligadas há
-meses.** O ecossistema tem mais coisa construída do que decidida.
+E vale dizer o que o inventário mostrou de desconfortável — números corrigidos
+na Fase 3: **57% das unidades de topo do kernel têm importador real e nenhum
+teste (28 de 49), e 12 flags de engenharia — confirmada por execução, não só
+por arquivo — estão desligadas há semanas, sem registro de decisão em 8 delas
+e com decisão pendente de assinatura nas outras 3.** O ecossistema tem mais
+coisa construída do que decidida. Ver `docs/curadoria/LACUNAS_E_NAO_VERIFICADO.md`
+para a Fase 3 completa.

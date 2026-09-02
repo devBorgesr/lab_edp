@@ -4,11 +4,12 @@
 |---|---|
 | [INVENTARIO_ECOSSISTEMA.md](INVENTARIO_ECOSSISTEMA.md) | **Fase 1** — inventário estrutural: repos, módulos, LOC, mortos |
 | [MAPA_CAPACIDADES.md](MAPA_CAPACIDADES.md) | **Fase 2** — 21 capacidades com ficha e maturidade |
-| [MAPA_FLAGS.md](MAPA_FLAGS.md) | as 12 flags desligadas, uma a uma |
+| [MAPA_FLAGS.md](MAPA_FLAGS.md) | as 12 flags desligadas, uma a uma, com arqueologia de git |
 | [MAPA_PROVENIENCIA.md](MAPA_PROVENIENCIA.md) | matriz EDP × MVP, duplicação e unificação |
 | [CANDIDATOS_ACOPLAMENTO_MVP.md](CANDIDATOS_ACOPLAMENTO_MVP.md) | o que acopla, quando, e se muda a régua |
 | [CANDIDATOS_NOVOS_SERVICOS.md](CANDIDATOS_NOVOS_SERVICOS.md) | 3 serviços com capacidade concreta |
-| [LACUNAS_E_NAO_VERIFICADO.md](LACUNAS_E_NAO_VERIFICADO.md) | 7 itens não apurados, e o que mudaria |
+| [LACUNAS_E_NAO_VERIFICADO.md](LACUNAS_E_NAO_VERIFICADO.md) | **Fase 3** — os 7 itens fechados, 3 defeitos próprios corrigidos |
+| [DECISAO_ACOPLAMENTO.md](DECISAO_ACOPLAMENTO.md) | opções e consequências — decisão em branco, do pesquisador |
 
 ## Resumo executivo
 
@@ -19,8 +20,15 @@ ACOPLÁVEIS DEPOIS DO PILOTO ....  4
 PRECISAM DE TESTE ..............  6
 PRECISAM DE EXPERIMENTO ........  2
 NOVOS SERVIÇOS CANDIDATOS ......  3
-NÃO VERIFICADAS ................  7
+NÃO VERIFICADAS ................  0   (Fase 3 fechou os 7; ver ACHADOS_FORA_DE_ESCOPO)
 ```
+
+**Fase 3 (01/09/2026) corrigiu três defeitos da própria curadoria** — uma
+afirmação sem medida (`Synapse-Forge`), uma maturidade `TESTADO` nunca
+confirmada por execução, e uma contagem de módulos mortos que estava errada
+por 4× (6 declarados, 2 reais). Ambas as suítes de teste rodaram por inteiro:
+`edp_v5` 448 passed / 0 failed, `lab_edp_novo` 408 passed / 0 failed. Detalhe
+completo em `LACUNAS_E_NAO_VERIFICADO.md`.
 
 ## A regra que estrutura tudo
 

@@ -86,14 +86,21 @@ quanto do núcleo existe ... a CAPTURA existe, para tráfego de navegador
 o que falta ............... tudo o resto. O EDP captura conversa do claude.ai;
                             um RAG de cliente não roda no navegador dele.
                             A técnica é transferível; o código, NAO_VERIFICADO.
-evidência ................. os dois arquivos existem e somam 817 linhas;
-                            NÃO abri o conteúdo nem verifiquei testes
-risco ..................... MUITO ALTO. Interceptar tráfego de sistema de
-                            terceiro é questão jurídica e de consentimento,
-                            não só técnica. E um score reconstruído de
-                            tráfego não é o score do retriever — seria
-                            inferência apresentada como medida, que é
-                            exatamente o que o CLAIMS.md proíbe.
+evidência ................. os dois arquivos existem e somam 817 linhas.
+                            Fechado na Fase 3 (item 1.6): não há
+                            package.json, nem jest/vitest/mocha, nem
+                            __tests__, nem *.test.js/*.spec.js em lugar
+                            nenhum do sf_exportador. ZERO infraestrutura de
+                            teste no repositório inteiro (6.255 linhas JS).
+risco ..................... MUITO ALTO, e agora com uma camada a mais: a
+                            base técnica não tem NENHUM teste automatizado
+                            em 6.255 linhas. Interceptar tráfego de sistema
+                            de terceiro é questão jurídica e de
+                            consentimento, não só técnica. E um score
+                            reconstruído de tráfego não é o score do
+                            retriever — seria inferência apresentada como
+                            medida, que é exatamente o que o CLAIMS.md
+                            proíbe.
 relação com MVP ........... NÃO recomendo. Registro porque o caso B é real e
                             porque a engenharia existe — não porque o caminho
                             seja bom.

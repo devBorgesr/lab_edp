@@ -43,15 +43,37 @@ exponha telemetria equivalente. Não é capacidade universal.
 ```
 benefício ................. o auditor lê a telemetria inteira sem tocar no
                             kernel nem no vocabulário dos dois lados
-dado novo ................. 12 tipos de evento, incluindo token_usage (custo
-                            real) e summary_write (distância até a duplicata)
+dado novo ................. 12 tipos de evento POSSÍVEIS; MEDIDO no store
+                            vivo (Fase 3, 01/09): 395 eventos reais, só 6
+                            tipos aparecem — memory_accessed (268),
+                            memory_added (110), camara_outcome (8),
+                            mode_switched (7), task_started (1),
+                            task_completed (1)
 arquivos .................. edp/runtime/pareto_store.py (FileParetoStore)
-formato ................... JSONL append-only, rotação a 10 MB
+formato ................... JSONL append-only, rotação a 10 MB —
+                            EXERCITADO EM PRODUÇÃO (não hipotético)
 mudança no contrato ....... NÃO — é um adaptador novo, não uma mudança
 mudança na régua .......... NÃO
-risco ..................... o volume em produção é NAO_MEDIDO
-maturidade ................ o formato está TESTADO; o leitor não existe
+risco ..................... MEDIDO, e é maior do que a Fase 2 registrou: os
+                            5 tipos de evento mais interessantes para
+                            diagnóstico — ranking_decision, reflection,
+                            contradiction_scan, token_usage, summary_write —
+                            NUNCA dispararam fora de teste. Estão atrás das
+                            5 flags de telemetria OFF. Um leitor construído
+                            hoje leria 395 eventos genéricos e ZERO
+                            eventos do funil de retrieval.
+maturidade ................ o FORMATO é EXECUTADO e TESTADO (não hipotético
+                            — tem dado real, com data de 18/08); os DADOS
+                            do funil de retrieval, que são o motivo de
+                            interesse, existem só em teste. O leitor não
+                            existe.
 ```
+
+**Reclassificação (Fase 3).** Este candidato depende do candidato nº 1
+(`emit_ranking_decision`) estar de fato ligado em algum ambiente de coleta —
+sem isso, o leitor teria formato pronto e nada relevante para ler. Os dois
+não são independentes: construir o nº 2 antes do nº 1 gerar dado real seria
+construir consumidor para produtor que não roda.
 
 ### 3. Padrão `test_flag_off_byte_identical`
 

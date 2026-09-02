@@ -90,7 +90,7 @@ emissores ........ memory_added, memory_accessed, mode_switched,
 efeito colateral . escrita em disco quando a flag do emissor está ON
 executado hoje ... PARCIAL — 5 emissores atrás de flags OFF
 teste ............ 5 arquivos de teste (um por flag de telemetria)
-maturidade ....... TESTADO
+maturidade ....... TESTADO — confirmado por EXECUÇÃO na Fase 3: `pytest tests/ -q` = 448 passed, 0 failed
 reutilização ..... ALTA — ver CANDIDATOS_ACOPLAMENTO_MVP.md
 ```
 
@@ -99,11 +99,25 @@ Detalhe por flag em `MAPA_FLAGS.md`.
 ### `observability/` — logger e tracing
 
 ```
-arquivos ......... edp/observability/{logger,tracing}.py (295 L no total)
-importadores ..... 2
-teste ............ NENHUM
-maturidade ....... EXISTE
-reutilização ..... NAO_VERIFICADO — não abri o conteúdo
+arquivos ......... edp/observability/{logger,tracing}.py (295 L no total:
+                   logger.py 158 L, tracing.py 123 L)
+função real ...... logger.py: logging estruturado com correlation_id via
+                   context manager (JSONFormatter, HumanFormatter,
+                   configure_logging, get_logger)
+                   tracing.py: tracing leve — Span, register_exporter, trace
+                   como context manager
+importadores ..... 4 (medido por AST no repo inteiro, não 2 — a Fase 2
+                   subcontou por escopo estreito de varredura):
+                   edp/llm_adapter.py, edp/types.py,
+                   edp/profiles/registry.py, edp/profiles/selector.py
+teste ............ NENHUM (confirmado: nenhum arquivo tests/test_*.py cita
+                   edp.observability)
+maturidade ....... EXECUTADO (importado por módulo vivo — llm_adapter),
+                   SEM TESTE PRÓPRIO
+reutilização ..... infraestrutura real, não wrapper fino nem loop aberto —
+                   tem os dois conceitos (correlation_id, Span) que um
+                   serviço de tracing de verdade precisa. Mas sem teste,
+                   não é dependência segura ainda.
 ```
 
 ### `metrics`
@@ -128,8 +142,29 @@ pareto_store                   correlation_id, hash_format_state
 api/routes/lineage.py (91 L)   exposição HTTP
 ```
 
-`EDP_WRITE_PROVENANCE` está **LIGADA** por default. Cobertura de chamada:
-`NAO_VERIFICADO`.
+`EDP_WRITE_PROVENANCE` está **LIGADA** por default.
+
+**Cobertura de chamada — fechado na Fase 3 (item 1.3).** Denominador: 3
+caminhos de escrita no kernel (`WorkingMemory.add`, `EpisodicMemory.add`,
+`MemoryStore.add`). Numerador: **1** chamador de `stamp_and_classify`
+(`edp/api/routes/websocket.py:1256`). **O próprio código já documenta a
+lacuna** — o comentário no chamador diz, literalmente:
+
+> este é o ÚNICO chamador de stamp_and_classify. O caminho que gera
+> `camara_response` não passa por aqui, e 0 de 10 dessas entradas no store
+> têm carimbo.
+
+Cobertura: 1 de 3 caminhos de escrita, e o kernel sabe disso — não é achado
+novo desta curadoria, é achado que a curadoria não tinha citado.
+
+**`LineageTracker` — fechado na Fase 3 (item 1.2).** `is_lineage_enabled()`
+lê `EDP_LINEAGE` com default `"true"` — **flag ligada**, e fora da lista de 19
+de `MAPA_FLAGS.md` porque não segue o padrão `== "1"` centralizado em
+`config.py` (ver achado de escopo em `MAPA_FLAGS.md`). Chamador único, por
+AST: `edp/api/routes/websocket.py:1326`, no mesmo bloco `finally` do caminho
+de resposta real — grava `source_entries`, modelo, `quality` e `marker` para
+todo turno com `llm_used and full_text`. **`LineageTracker` está vivo em
+produção**, não em "execução desconhecida" como a Fase 2 registrava.
 
 ---
 
@@ -278,6 +313,15 @@ maturidade ....... EXISTE
 ```
 
 Detalhe em `CANDIDATOS_NOVOS_SERVICOS.md`.
+
+---
+
+## Nota de método (Fase 3)
+
+Todos os `TESTADO` deste documento foram confirmados por **execução real**,
+não por existência de arquivo: `edp_v5` — 448 passed, 1 deselected, 0 failed;
+`lab_edp_novo` — 408 passed, 0 failed (medido 01/09/2026). Nenhuma capacidade
+aqui listada como `TESTADO` está, na verdade, quebrada.
 
 ---
 
