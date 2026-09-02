@@ -232,9 +232,29 @@ explicitamente:
 
 Isto é `NORTE §4.2`/`§4.12` funcionando como desenhado: o resultado passou, e
 a promoção a produção foi **deliberadamente separada** da constatação
-estatística, esperando assinatura. Essa assinatura é exatamente a mesma
-decisão que `docs/auditor/DECISAO_RANKING.md` (no `lab_edp_novo`) está pedindo, do
-outro lado — a mesma pergunta, dois documentos.
+estatística, esperando assinatura.
+
+**Errata (01/09, mesma fase).** A primeira versão desta linha dizia que essa
+assinatura era "exatamente a mesma decisão" que `docs/auditor/DECISAO_RANKING.md`
+pede — "a mesma pergunta, dois documentos". **Está errado, e a diferença muda
+a ordem em que as duas podem ser decididas.**
+
+`DECISAO_RANKING.md` tem três opções, e a assinatura do exp017 corresponde a
+**uma** delas:
+
+```
+DECISAO_RANKING = C (corrigir o índice de produção)  ->  a assinatura do
+                                                          exp017 É concedida
+DECISAO_RANKING = A (auditar produção como está)     ->  dedup segue OFF; a
+                                                          assinatura fica sem
+                                                          efeito prático
+DECISAO_RANKING = B (deduplicar só na auditoria)     ->  não toca produção; a
+                                                          assinatura continua
+                                                          pendente
+```
+
+`DECISAO_RANKING` **contém** a pergunta do exp017; não é igual a ela. Decidir
+uma não decide automaticamente a outra, exceto no caminho C.
 
 ### O que isto muda na curadoria
 

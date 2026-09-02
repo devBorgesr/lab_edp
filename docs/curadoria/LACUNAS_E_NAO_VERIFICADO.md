@@ -68,8 +68,10 @@ qualquer registro de decisão** — só commits de introdução/correção de bu
 nada dizendo "manter OFF porque X". **3 (o trio `exp017`) têm decisão
 registrada, mas pendente**: o commit `28e21da` fecha os critérios estatísticos
 e diz explicitamente que a promoção a produção é "etapa separada", aguardando
-"assinatura" do pesquisador — a mesma pergunta que `docs/auditor/DECISAO_RANKING.md`
-já faz do lado do lab. Detalhe completo em `MAPA_FLAGS.md`.
+"assinatura" do pesquisador. Essa assinatura corresponde à **opção C** de
+`docs/auditor/DECISAO_RANKING.md` — não à pergunta inteira daquele documento
+(errata de 01/09; a primeira redação dizia "a mesma pergunta", e não é).
+Detalhe e a tabela das três opções em `MAPA_FLAGS.md`.
 
 ---
 
