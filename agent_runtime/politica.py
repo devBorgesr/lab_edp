@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Callable
 
-from .capacidades import Nivel, busca
+from .capacidades import CapacidadeDesconhecida, Nivel, busca
 from .tarefa import Tarefa
 
 
@@ -57,7 +57,26 @@ class Politica:
     def avalia(self, tarefa: Tarefa, capacidade: str,
                parametros: dict[str, Any] | None = None) -> Decisao:
         parametros = parametros or {}
-        cap = busca(capacidade)
+        try:
+            cap = busca(capacidade)
+        except CapacidadeDesconhecida:
+            # DEFEITO CORRIGIDO 03/09: isto levantava e DERRUBAVA o loop.
+            #
+            # Um modelo alucina nome de capacidade — e o que modelos fazem. Se
+            # a alucinacao derruba o runtime, o agente fica refem da
+            # formatacao do modelo, e uma tarefa de 20 iteracoes morre na
+            # primeira palavra inventada.
+            #
+            # DECLARAR capacidade inexistente na Tarefa continua levantando
+            # (`Tarefa.__post_init__`): ali e erro de contrato do cliente, e
+            # deve falhar alto. PROPOR uma no meio do loop e alucinacao, e a
+            # resposta certa e negar.
+            d = Decisao(Veredito.NEGA, capacidade,
+                        "capacidade inexistente no catalogo (proposta invalida)")
+            self.trilha.append({"tarefa": tarefa.id, "iteracao": tarefa.iteracao,
+                                "capacidade": capacidade,
+                                "veredito": d.veredito.value, "motivo": d.motivo})
+            return d
 
         if capacidade in self.negadas:
             d = Decisao(Veredito.NEGA, capacidade,

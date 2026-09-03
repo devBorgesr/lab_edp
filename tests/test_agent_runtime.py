@@ -235,3 +235,277 @@ def test_investigacao_403_ponta_a_ponta(har):
     assert r.concluida
     assert "authorization" in t.motivo_parada
     assert t.iteracao == 1        # achou na primeira, nao gastou o orcamento
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# CICLO COMPLETO — Copiloto -> Kernel -> Router -> Modelo -> Politica ->
+#                  Capability -> Observacao -> Kernel
+#
+# Nenhum destes gasta API: o modelo e `ClienteFake` com respostas
+# roteirizadas. Testar o loop com modelo real mediria o modelo, nao o loop.
+# ═══════════════════════════════════════════════════════════════════════════
+
+from agent_runtime.propositor import (ClienteFake, PropositorLLM)   # noqa: E402
+from agent_runtime.requisicao import (EXEMPLO, RequisicaoInvalida,   # noqa: E402
+                                      de_arquivo, para_tarefa)
+from agent_runtime.roteador import (Escolha, RoteadorEDP,            # noqa: E402
+                                    RoteadorFixo)
+
+
+# ── o contrato de entrada (onde o Copiloto entraria) ────────────────────────
+
+def test_requisicao_vira_tarefa():
+    t = para_tarefa(dict(EXEMPLO))
+    assert t.capacidades == ["observe.network", "analyze.json"]
+    assert t.criada_por == "copiloto" and t.orcamento.max_iteracoes == 8
+
+
+def test_requisicao_recusa_L1_na_entrada():
+    """
+    Trava redundante com a Politica, de proposito: a politica decide por
+    chamada, isto recusa a tarefa inteira antes de existir.
+    """
+    d = dict(EXEMPLO); d["capacidades"] = ["act.click"]
+    with pytest.raises(RequisicaoInvalida, match="DECISAO_ATUACAO"):
+        para_tarefa(d)
+
+
+@pytest.mark.parametrize("mutacao,padrao", [
+    ({"capacidade": "x"}, "desconhecidos"),
+    ({"schema": "TarefaRequest v2"}, "desconhecido"),
+    ({"objetivo": "  "}, "nao-vazio"),
+    ({"capacidades": []}, "nao-vazia"),
+])
+def test_requisicao_recusa_cedo(mutacao, padrao):
+    d = dict(EXEMPLO); d.update(mutacao)
+    with pytest.raises(RequisicaoInvalida, match=padrao):
+        para_tarefa(d)
+
+
+def test_transporte_hoje_e_um_arquivo(tmp_path):
+    """
+    Nao ha transporte Copiloto->runtime: o sandbox e IndexedDB e o manifest
+    so tem host_permission de claude.ai. O contrato e um arquivo JSON, e quem
+    o escreve (botao novo, HTTP, ou pessoa) nao muda nada aqui.
+    """
+    p = tmp_path / "pedido.json"
+    p.write_text(json.dumps(EXEMPLO), encoding="utf-8")
+    assert de_arquivo(p).objetivo.startswith("descobrir por que")
+
+
+# ── o Router escolhe, e o modelo vira recurso substituivel ──────────────────
+
+def test_roteador_edp_real_roteia_por_complexidade():
+    r = RoteadorEDP()
+    if not r.disponivel:
+        pytest.skip(f"kernel edp_v5 indisponivel: {r.motivo_indisponivel}")
+    curta = r.escolhe("continue")
+    complexa = r.escolhe("por que a API devolve 403 e como o retry interage "
+                         "com o cache distribuido sob concorrencia?")
+    assert curta.modelo and complexa.modelo
+    assert complexa.tier >= curta.tier, "pergunta complexa nao subiu de tier"
+    assert curta.porque and complexa.porque
+
+
+def test_roteador_indisponivel_levanta_em_vez_de_cair_num_default(tmp_path):
+    """
+    Cair num modelo default faria a tarefa inteira rodar no modelo errado sem
+    ninguem notar.
+    """
+    r = RoteadorEDP(caminho_edp=tmp_path / "nao_existe")
+    assert not r.disponivel
+    with pytest.raises(RuntimeError, match="nao caio num modelo default|"
+                                           "Nao caio num modelo default"):
+        r.escolhe("x")
+
+
+def test_modelo_pode_mudar_no_meio_da_tarefa(har):
+    """
+    A propriedade mais interessante do desenho: a TAREFA continua a mesma
+    enquanto o modelo troca. O estado vive na Tarefa e nas Observacoes.
+    """
+    class RoteadorAlternado(RoteadorFixo):
+        def __init__(self): self.n = 0
+        def escolhe(self, texto, modelo_anterior=None, contexto=None):
+            self.n += 1
+            return Escolha(f"modelo-{self.n}", self.n, "alternado")
+
+    cliente = ClienteFake([
+        '{"capacidade":"observe.network","parametros":{"status":403}}',
+        '{"capacidade":"analyze.json","parametros":{"corpo":"{}"}}',
+        '{"concluir":true,"porque":"consegui com dois modelos"}',
+    ])
+    prop = PropositorLLM(cliente=cliente, roteador=RoteadorAlternado())
+    t = Tarefa(objetivo="x", capacidades=["observe.network", "analyze.json"],
+               orcamento=Orcamento(max_iteracoes=6))
+    r = Executor(Politica(), [ProvedorHAR(har)]).roda(t, prop)
+
+    assert r.concluida
+    modelos = [p["modelo"] for p in prop.trilha]
+    assert modelos == ["modelo-1", "modelo-2", "modelo-3"]
+    assert len({p["iteracao"] for p in prop.trilha}) == 3
+
+
+def test_trilha_registra_modelo_tier_e_custo(har):
+    cliente = ClienteFake(['{"concluir":true,"porque":"ok"}'])
+    prop = PropositorLLM(cliente=cliente, roteador=RoteadorFixo("m", tier=2))
+    t = Tarefa(objetivo="x", capacidades=["observe.network"],
+               orcamento=Orcamento(max_iteracoes=2))
+    Executor(Politica(), [ProvedorHAR(har)]).roda(t, prop)
+    assert prop.trilha[0]["modelo"] == "m" and prop.trilha[0]["tier"] == 2
+
+
+# ── o parse estrito ─────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("bruto", ["", "desculpe, nao consigo", "{",
+                                   '{"porque":"esqueci a capacidade"}',
+                                   '["lista"]', "texto sem json nenhum"])
+def test_saida_ilegivel_nunca_vira_concluir(bruto):
+    """
+    Se ilegivel virasse `concluir`, um modelo com problema de formatacao
+    encerraria a tarefa dizendo que atingiu o objetivo.
+    """
+    t = Tarefa(objetivo="x", capacidades=["observe.network"],
+               orcamento=Orcamento(max_iteracoes=2))
+    assert PropositorLLM.parse(bruto, t) is None
+
+
+def test_json_no_meio_de_texto_e_aceito():
+    t = Tarefa(objetivo="x", capacidades=["observe.network"],
+               orcamento=Orcamento(max_iteracoes=2))
+    i = PropositorLLM.parse('claro! {"capacidade":"observe.network"} pronto', t)
+    assert i is not None and i.capacidade == "observe.network"
+
+
+def test_ilegivel_repetido_termina_em_bloqueada_nao_concluida(har):
+    """
+    Tres respostas ilegiveis nao podem virar CONCLUIDA por desistencia. A
+    proposta vai para uma capacidade inexistente, a politica nega, e a tarefa
+    para em BLOQUEADA com motivo.
+    """
+    cliente = ClienteFake(["lixo", "mais lixo", "ainda lixo", "lixo final"])
+    prop = PropositorLLM(cliente=cliente, roteador=RoteadorFixo())
+    t = Tarefa(objetivo="x", capacidades=["observe.network"],
+               orcamento=Orcamento(max_iteracoes=4))
+    r = Executor(Politica(), [ProvedorHAR(har)]).roda(t, prop)
+
+    assert t.estado is EstadoTarefa.BLOQUEADA
+    assert t.estado is not EstadoTarefa.CONCLUIDA
+    assert all(p["ilegivel"] for p in prop.trilha)
+
+
+# ── o ciclo inteiro, ponta a ponta ──────────────────────────────────────────
+
+def test_ciclo_completo_copiloto_ate_observacao(tmp_path, har):
+    """
+    Copiloto escreve a requisicao -> kernel valida -> router escolhe modelo ->
+    modelo propoe -> politica autoriza -> provedor le o HAR -> observacao
+    volta ao kernel -> modelo conclui.
+
+    Tudo L0. A fronteira do debugger_capturer.js continua intacta.
+    """
+    pedido = tmp_path / "do_copiloto.json"
+    pedido.write_text(json.dumps({
+        "schema": "TarefaRequest v1",
+        "objetivo": "descobrir por que /search devolve 403",
+        "capacidades": ["observe.network"],
+        "max_iteracoes": 5,
+        "criada_por": "copiloto",
+    }), encoding="utf-8")
+
+    tarefa = de_arquivo(pedido)
+    assert tarefa.criada_por == "copiloto"
+
+    cliente = ClienteFake([
+        '{"capacidade":"observe.network","parametros":{"status":403},'
+        '"porque":"procurar a falha"}',
+        '{"concluir":true,"porque":"403 vem com header authorization"}',
+    ])
+    politica = Politica()
+    prop = PropositorLLM(cliente=cliente, roteador=RoteadorFixo("haiku", 1))
+
+    r = Executor(politica, [ProvedorHAR(har)]).roda(tarefa, prop)
+
+    assert r.concluida
+    assert "authorization" in tarefa.motivo_parada
+    assert any(o.dados.get("status") == 403 for o in r.observacoes)
+    # o modelo viu o prompt com as capacidades declaradas, e so elas
+    _, primeiro_prompt = cliente.chamadas[0]
+    assert "observe.network" in primeiro_prompt
+    assert "act.click" not in primeiro_prompt
+    # e a politica registrou cada decisao
+    assert politica.trilha and all(
+        d["veredito"] == "PERMITE" for d in politica.trilha)
+
+
+def test_o_modelo_nunca_recebe_o_provedor(har):
+    """
+    Garantia estrutural: o `propositor` recebe Tarefa e Observacoes. Nao
+    recebe provedor, executor nem politica — nao ha como ele executar.
+    """
+    import inspect
+    sig = inspect.signature(Executor.roda)
+    assert list(sig.parameters) == ["self", "tarefa", "propositor"]
+
+    visto = {}
+    def espiao(tarefa, obs):
+        visto["args"] = (type(tarefa).__name__, type(obs).__name__)
+        return Intencao("", {}, "fim", concluir=True)
+
+    Executor(Politica(), [ProvedorHAR(har)]).roda(
+        Tarefa(objetivo="x", capacidades=["observe.network"],
+               orcamento=Orcamento(max_iteracoes=2)), espiao)
+    assert visto["args"] == ("Tarefa", "list")
+
+
+# ── regressao: os dois defeitos achados ao ligar o ciclo (03/09) ────────────
+
+def test_capacidade_alucinada_e_negada_e_nao_derruba_o_loop(har):
+    """
+    Modelos alucinam nome de capacidade. Antes isto levantava
+    CapacidadeDesconhecida de dentro da politica e MATAVA o loop — uma tarefa
+    de 20 iteracoes morreria na primeira palavra inventada.
+
+    Negar e a resposta certa; o modelo propoe outra coisa na iteracao
+    seguinte.
+    """
+    cliente = ClienteFake([
+        '{"capacidade":"observe.telepatia","porque":"inventei"}',
+        '{"capacidade":"observe.network","parametros":{"status":403}}',
+        '{"concluir":true,"porque":"achei mesmo com o erro no meio"}',
+    ])
+    prop = PropositorLLM(cliente=cliente, roteador=RoteadorFixo())
+    t = Tarefa(objetivo="x", capacidades=["observe.network"],
+               orcamento=Orcamento(max_iteracoes=6))
+    politica = Politica()
+    r = Executor(politica, [ProvedorHAR(har)]).roda(t, prop)
+
+    assert r.concluida, "a alucinacao nao pode matar a tarefa"
+    assert "observe.telepatia" in r.negadas
+    negada = [d for d in politica.trilha if d["capacidade"] == "observe.telepatia"]
+    assert negada and "inexistente" in negada[0]["motivo"]
+
+
+def test_declarar_capacidade_inexistente_na_tarefa_ainda_levanta():
+    """
+    A distincao que a correcao preserva: DECLARAR inexistente e erro de
+    contrato do cliente e falha alto; PROPOR no meio do loop e alucinacao e e
+    negada. Se as duas virassem negacao, um cliente escreveria a tarefa
+    errada e so descobriria pelo resultado vazio.
+    """
+    with pytest.raises(CapacidadeDesconhecida):
+        Tarefa(objetivo="x", capacidades=["observe.telepatia"],
+               orcamento=Orcamento(max_iteracoes=2))
+
+
+def test_roteador_confere_o_caminho_e_nao_o_cache_de_import(tmp_path):
+    """
+    `edp` fica em sys.modules depois do primeiro import. Antes disto,
+    QUALQUER caminho passava a "funcionar" — `disponivel` dizia True
+    apontando para lugar nenhum, e o kernel usado nao era o do caminho
+    pedido.
+    """
+    RoteadorEDP()                                   # popula sys.modules
+    r = RoteadorEDP(caminho_edp=tmp_path / "vazio")
+    assert not r.disponivel
+    assert "nao existe" in r.motivo_indisponivel
