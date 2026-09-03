@@ -150,6 +150,8 @@ segundo cliente em etapa própria.
 - [ ] `docs/agent_runtime/DECISAO_ATUACAO.md` — 3 linhas em branco.
       Enquanto estiver assim, L1/L2 seguem declaradas e recusadas.
 - [x] `docs/agent_runtime/DECISAO_TRANSPORTE.md` — assinada em 03/09/2026
+- [ ] `edp_v5/docs/DECISAO_probe_por_turno.md` — **nova**, preparada em
+      03/09/2026, aguardando assinatura (dívida #56)
 
 ### 7.2 Commits não enviados
 
@@ -162,10 +164,17 @@ Nunca empurrados sem confirmação explícita. `edp_v5` é repositório **públi
 
 - [ ] **#54** — render do runtime flow com LLM real. Precondição medida (log
       de produção prova a cadeia de eventos no servidor); falta medir a tela.
-- [ ] **#55** — `avg_top` sem definição fechada. Bloqueia o gráfico de
-      tendência de retrieval, que já teria dado disponível no payload.
-- [ ] **#56** — `is_connected()` faz round-trip de rede no caminho do turno:
-      21,782 s medidos, ~44% de um turno de 49,6 s.
+- [~] **#55** — `avg_top`: **definição fechada** em
+      `edp_v5/docs/DEFINICAO_avg_top.md`. A definição *reforçou* a dívida:
+      `avg_top` mistura score com `empty_rate`, e `ranking_score` tem três
+      escalas — o `0.010` da tela é RRF (normal, teto 0,016) e seria quase
+      ortogonal se fosse cosseno. Faltam os 4 pré-requisitos do §5, e três
+      deles tocam o dashboard congelado.
+- [~] **#56** — decisão preparada em `edp_v5/docs/DECISAO_probe_por_turno.md`,
+      com bloco de assinatura. Achado novo: os **seis** chamadores de
+      `is_connected()` usam o valor como guarda, não como relatório de saúde,
+      e `health.py:25` já documenta ter recusado o probe pelo mesmo motivo.
+      Não implementado: caminho quente do kernel em repositório público.
 
 ### 7.4 Outras frentes paradas
 
