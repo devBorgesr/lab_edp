@@ -73,6 +73,8 @@ def main(argv=None) -> int:
                    help="so loopback; qualquer outro valor e recusado")
     p.add_argument("--har", default=None,
                    help="HAR real para observe.network/analyze.json")
+    p.add_argument("--raiz", default=None,
+                   help="onde as tarefas sao persistidas (default: temporario)")
     a = p.parse_args(argv)
 
     if a.propositor == "llm":
@@ -91,9 +93,11 @@ def main(argv=None) -> int:
 
     try:
         app = cria_app(Politica(nivel_maximo=Nivel.OBSERVAR), provedores,
-                       propositor, nome_propositor=propositor.nome)
+                       propositor, nome_propositor=propositor.nome,
+                       raiz=a.raiz)
         print(f"[transporte] propositor={propositor.nome} "
               f"provedor={provedores[0].nome} "
+              f"raiz={a.raiz or '(temporario)'} "
               f"http://{a.host}:{a.porta}/", file=sys.stderr)
         roda(app, host=a.host, porta=a.porta)
     except TransporteMalConfigurado as e:

@@ -71,8 +71,16 @@
 }</textarea>
     <div class="linha">
       <button id="b-post">POST /v1/tarefas</button>
+      <button id="b-est"  class="sec">GET estado</button>
+      <button id="b-res"  class="sec">GET resultado</button>
+      <button id="b-can"  class="sec">POST cancelar</button>
       <button id="b-caps" class="sec">GET /v1/capacidades</button>
-      <button id="b-hp" class="sec">GET /health</button>
+      <button id="b-hp"   class="sec">GET /health</button>
+    </div>
+    <div class="linha">
+      <label for="tid" style="margin:0;align-self:center">task_id</label>
+      <input id="tid" style="flex:1;min-width:220px" readonly
+             placeholder="preenchido pelo POST">
     </div>
   </fieldset>
 
@@ -86,10 +94,11 @@
 (function () {
   var out = document.getElementById('out');
   var st  = document.getElementById('st');
+  var tid = document.getElementById('tid');
 
   function mostra(rotulo, status, corpo) {
     var bom = status >= 200 && status < 300;
-    st.textContent = rotulo + ' → ' + status;
+    st.textContent = rotulo + ' \u2192 ' + status;
     st.className = 'st ' + (bom ? 'ok' : 'err');
     out.textContent = typeof corpo === 'string'
       ? corpo : JSON.stringify(corpo, null, 2);
@@ -103,44 +112,98 @@
     return t;
   }
 
-  function chama(rotulo, url, opcoes, precisaToken) {
-    var cab = { 'Accept': 'application/json' };
-    if (precisaToken) {
-      var t = tok(); if (!t) return;
-      cab['Authorization'] = 'Bearer ' + t;
-    }
-    opcoes = opcoes || {};
-    opcoes.headers = Object.assign(cab, opcoes.headers || {});
-    var botoes = document.querySelectorAll('button');
-    botoes.forEach(function (b) { b.disabled = true; });
-    st.textContent = rotulo + ' …'; st.className = 'st';
+  function trava(v) {
+    document.querySelectorAll('button').forEach(function (b) { b.disabled = v; });
+  }
 
-    fetch(url, opcoes)
-      .then(function (r) {
-        return r.text().then(function (txt) {
-          var corpo; try { corpo = JSON.parse(txt); } catch (e) { corpo = txt; }
-          mostra(rotulo, r.status, corpo);
-        });
-      })
-      .catch(function (e) { mostra(rotulo, 0, 'falha de rede: ' + e.message); })
-      .then(function () { botoes.forEach(function (b) { b.disabled = false; }); });
+  function pede(url, opcoes) {
+    var t = tok(); if (!t) return null;
+    opcoes = opcoes || {};
+    opcoes.headers = Object.assign(
+      { 'Accept': 'application/json', 'Authorization': 'Bearer ' + t },
+      opcoes.headers || {});
+    return fetch(url, opcoes).then(function (r) {
+      return r.text().then(function (txt) {
+        var corpo; try { corpo = JSON.parse(txt); } catch (e) { corpo = txt; }
+        return { status: r.status, corpo: corpo };
+      });
+    });
+  }
+
+  function chama(rotulo, url, opcoes) {
+    var p = pede(url, opcoes); if (!p) return;
+    trava(true); st.textContent = rotulo + ' \u2026'; st.className = 'st';
+    p.then(function (r) { mostra(rotulo, r.status, r.corpo); })
+     .catch(function (e) { mostra(rotulo, 0, 'falha de rede: ' + e.message); })
+     .then(function () { trava(false); });
+  }
+
+  function precisaId() {
+    if (!tid.value) { mostra('local', 0, 'Submeta uma tarefa primeiro.'); return null; }
+    return tid.value;
+  }
+
+  // A tarefa roda FORA da requisicao: o POST devolve 202 + task_id, e o
+  // resultado so existe depois. Por isso a pagina consulta em vez de esperar
+  // na conexao — foi exatamente a confusao entre as duas coisas que fez a
+  // primeira versao deste transporte nascer sincrona.
+  function acompanha(id, tentativas) {
+    if (tentativas <= 0) {
+      mostra('GET estado', 0, 'ainda rodando; consulte manualmente.'); trava(false); return;
+    }
+    var p = pede('/v1/tarefas/' + id); if (!p) { trava(false); return; }
+    p.then(function (r) {
+      mostra('GET /v1/tarefas/' + id, r.status, r.corpo);
+      if (r.status === 200 && r.corpo && r.corpo.terminal === false) {
+        setTimeout(function () { acompanha(id, tentativas - 1); }, 500);
+      } else {
+        trava(false);
+      }
+    }).catch(function (e) {
+      mostra('GET estado', 0, 'falha de rede: ' + e.message); trava(false);
+    });
   }
 
   document.getElementById('b-hp').onclick = function () {
-    chama('GET /health', '/health', null, false);
+    chama('GET /health', '/health');
   };
   document.getElementById('b-caps').onclick = function () {
-    chama('GET /v1/capacidades', '/v1/capacidades', null, true);
+    chama('GET /v1/capacidades', '/v1/capacidades');
+  };
+  document.getElementById('b-est').onclick = function () {
+    var id = precisaId(); if (id) chama('GET estado', '/v1/tarefas/' + id);
+  };
+  document.getElementById('b-res').onclick = function () {
+    var id = precisaId();
+    if (id) chama('GET resultado', '/v1/tarefas/' + id + '/resultado');
+  };
+  document.getElementById('b-can').onclick = function () {
+    var id = precisaId();
+    if (id) chama('POST cancelar', '/v1/tarefas/' + id + '/cancelar',
+                  { method: 'POST' });
   };
   document.getElementById('b-post').onclick = function () {
     var texto = document.getElementById('req').value;
     try { JSON.parse(texto); }
     catch (e) { mostra('local', 0, 'JSON invalido na caixa: ' + e.message); return; }
-    chama('POST /v1/tarefas', '/v1/tarefas', {
+    var p = pede('/v1/tarefas', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: texto
-    }, true);
+      headers: { 'Content-Type': 'application/json',
+                 'X-Correlation-Id': 'pagina-' + Date.now() },
+      body: texto });
+    if (!p) return;
+    trava(true); st.textContent = 'POST /v1/tarefas \u2026'; st.className = 'st';
+    p.then(function (r) {
+      mostra('POST /v1/tarefas', r.status, r.corpo);
+      if (r.status === 202 && r.corpo && r.corpo.task_id) {
+        tid.value = r.corpo.task_id;
+        acompanha(r.corpo.task_id, 20);
+      } else {
+        trava(false);
+      }
+    }).catch(function (e) {
+      mostra('POST /v1/tarefas', 0, 'falha de rede: ' + e.message); trava(false);
+    });
   };
 })();
 </script>

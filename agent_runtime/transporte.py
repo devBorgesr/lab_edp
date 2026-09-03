@@ -3,10 +3,13 @@ Transporte HTTP — opcao `A` de `docs/agent_runtime/DECISAO_TRANSPORTE.md`,
 assinada em 03/09/2026 (porta 8010, servidor em `lab_edp_novo`, cliente v1 =
 pagina separada).
 
-    GET  /                  pagina de teste (MESMA ORIGEM — ver CORS abaixo)
+    GET  /                            pagina de teste (MESMA ORIGEM — ver CORS)
     GET  /health
-    GET  /v1/capacidades    o que este runtime aceita, com nivel e teto
-    POST /v1/tarefas        TarefaRequest v1  ->  TarefaResponse v1
+    GET  /v1/capacidades              o que este runtime aceita
+    POST /v1/tarefas                  TarefaRequest v1 -> 202 + task_id
+    GET  /v1/tarefas/{id}             estado
+    GET  /v1/tarefas/{id}/resultado   resultado (409 enquanto nao terminal)
+    POST /v1/tarefas/{id}/cancelar    cancelamento
 
 TRANSPORTA. Nao decide nada sobre a tarefa: quem valida e `requisicao.valida`,
 quem recusa por nivel e `para_tarefa`, quem autoriza por chamada e `Politica`,
@@ -57,13 +60,35 @@ A pagina de teste NAO recebe o token embutido — ela tem um campo onde o
 operador cola, `type="password"`, nao persistido. Mesma disciplina do campo de
 API key do dashboard do EDP.
 
-SINCRONO, DE PROPOSITO
-----------------------
-A instrucao foi "request/response confiavel antes de streaming". Entao a
-tarefa roda dentro da requisicao, e o transporte tem teto proprio de tempo
-(`TETO_SEGUNDOS`). Um pedido com `max_segundos` acima do teto e **recusado na
-entrada**, com o motivo — em vez de aceito e cortado no meio, que devolveria
-resultado parcial parecendo resultado completo.
+ASSINCRONO — ERRATA DA PRIMEIRA VERSAO
+--------------------------------------
+A primeira versao rodava a tarefa DENTRO da requisicao e devolvia o resultado
+na mesma resposta. Isso veio de ler "primeiro faca request/response confiavel"
+como "execucao sincrona", e nao e a mesma coisa: `request/response` descreve o
+formato do transporte, nao onde a tarefa executa.
+
+O brief pedia `submit_task -> task_id`, depois `get_task` / `get_result` /
+`cancel_task` — assincrono por construcao. Sem tarefa guardada nao havia o que
+consultar, e sete itens ficaram impossiveis de uma vez.
+
+Agora `POST /v1/tarefas` devolve **202 + task_id**, `servico.TaskService`
+persiste e executa fora da requisicao, e as tres consultas existem.
+
+IDENTIFICACAO DO CLIENTE
+------------------------
+`AGENT_RUNTIME_TOKENS` mapeia `client_id:token`, separados por virgula. Sem
+ela, `AGENT_RUNTIME_TOKEN` continua valendo como o cliente `default`.
+
+O `client_id` autenticado filtra TODA leitura: `task_id` nao e segredo — e
+devolvido a quem submeteu — entao sem o filtro um cliente com o id de outro
+leria a tarefa alheia.
+
+CORRELATION ID FICA EM HEADER, NAO NO CORPO
+-------------------------------------------
+`X-Request-Id` (idempotencia) e `X-Correlation-Id` (rastreio) sao concerns do
+TRANSPORTE. Poe-los no corpo exigiria acrescenta-los a `TarefaRequest v1`, que
+recusa campo desconhecido de proposito — e o brief manda manter v1 como
+contrato logico. Header transporta; contrato nao muda.
 """
 # SEM `from __future__ import annotations` DE PROPOSITO.
 #
@@ -76,16 +101,22 @@ resultado parcial parecendo resultado completo.
 import hmac
 import json
 import os
-import time
+import re
+import tempfile
 from pathlib import Path
 from typing import Any, Callable
 
 from .capacidades import CATALOGO, Nivel
 from .contrato import Observacao, ProvedorDeCapacidade
-from .executor import Executor, Intencao
+from .executor import Intencao
 from .politica import Politica
-from .requisicao import SCHEMA, RequisicaoInvalida, para_tarefa
+from .requisicao import SCHEMA, RequisicaoInvalida
+from .servico import TaskService
 from .tarefa import Tarefa
+
+#: Mesmo formato de id do `servico._ID`: compoe caminho, entao e entrada nao
+#: confiavel.
+_ID_CLIENTE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 
 SCHEMA_RESPOSTA = "TarefaResponse v1"
 
@@ -93,16 +124,22 @@ SCHEMA_RESPOSTA = "TarefaResponse v1"
 #: duas ordens de grandeza e ainda impede que o transporte vire canal de upload.
 TETO_BYTES = 64 * 1024
 
-#: Teto de tempo do transporte. Nao e o orcamento da tarefa — e o limite do que
-#: cabe numa requisicao sincrona sem virar conexao pendurada.
-TETO_SEGUNDOS = 30.0
+#: Teto de tempo POR TAREFA. Na primeira versao era o limite do que cabia numa
+#: requisicao sincrona; agora a tarefa roda fora da requisicao, entao ele deixa
+#: de proteger a conexao e passa a proteger o pool: uma tarefa sem teto segura
+#: um worker para sempre. Continua recusado NA ENTRADA — aceitar e cortar no
+#: meio devolveria resultado parcial com cara de resultado completo.
+TETO_SEGUNDOS = 300.0
 
 LOOPBACK = {"127.0.0.1", "localhost", "::1"}
 
 #: Rotas que exigem token. `/` e `/health` ficam abertas de proposito: a pagina
 #: nao carrega segredo nenhum, e `/health` precisa responder a quem ainda nao
 #: tem token para dizer que o servidor esta de pe.
-PROTEGIDAS = {"/v1/tarefas", "/v1/capacidades"}
+#: Prefixos protegidos. `/health` e `/` ficam abertas de proposito: a pagina
+#: nao carrega segredo, e `/health` precisa responder a quem ainda nao tem
+#: token para dizer que o servidor esta de pe.
+PROTEGIDOS = ("/v1/",)
 
 Propositor = Callable[[Tarefa, list[Observacao]], Intencao]
 
@@ -141,12 +178,42 @@ def catalogo_publico(teto: Nivel = Nivel.OBSERVAR) -> list[dict[str, Any]]:
             for c in CATALOGO.values()]
 
 
+def _clientes_configurados() -> dict[str, str]:
+    """
+    `client_id -> token`. Falha FECHADO: sem nenhum token o servidor nao sobe.
+
+    `AGENT_RUNTIME_TOKENS` = "acme:tok1,globex:tok2". Sem ela, o
+    `AGENT_RUNTIME_TOKEN` de sempre vale como o cliente `default` — quem so
+    tem um cliente nao precisa aprender formato novo.
+    """
+    multi = os.environ.get("AGENT_RUNTIME_TOKENS", "").strip()
+    if multi:
+        out: dict[str, str] = {}
+        for par in multi.split(","):
+            cid, _, tok = par.strip().partition(":")
+            cid, tok = cid.strip(), tok.strip()
+            if not cid or not tok:
+                raise TransporteMalConfigurado(
+                    f"AGENT_RUNTIME_TOKENS mal formado em {par!r}; "
+                    f"esperado 'client_id:token'")
+            if len(tok) < 16:
+                raise TransporteMalConfigurado(
+                    f"token do cliente {cid!r} tem menos de 16 caracteres")
+            if not _ID_CLIENTE.match(cid):
+                raise TransporteMalConfigurado(f"client_id invalido: {cid!r}")
+            out[cid] = tok
+        return out
+    return {"default": _token_configurado()}
+
+
 def cria_app(politica: Politica,
              provedores: list[ProvedorDeCapacidade],
              propositor: Propositor,
              teto_nivel: Nivel = Nivel.OBSERVAR,
              pagina: Path | str | None = None,
-             nome_propositor: str = "?"):
+             nome_propositor: str = "?",
+             raiz: Path | str | None = None,
+             servico: "TaskService | None" = None):
     """
     `propositor` e OBRIGATORIO e injetado, como no `Executor`.
 
@@ -161,20 +228,28 @@ def cria_app(politica: Politica,
     from fastapi import FastAPI, HTTPException, Request
     from fastapi.responses import HTMLResponse, JSONResponse
 
-    token = _token_configurado()
-    executor = Executor(politica, provedores)
+    clientes = _clientes_configurados()
     html = Path(pagina) if pagina else Path(__file__).parent / "pagina_teste.html"
+    svc = servico or TaskService(
+        raiz or Path(tempfile.mkdtemp(prefix="agent_runtime_")),
+        politica, provedores, propositor, teto_nivel)
 
     app = FastAPI(title="Agent Runtime — transporte", docs_url=None, redoc_url=None)
+    app.state.servico = svc
 
-    def _autenticado(authorization):
+    def _cliente(authorization) -> str | None:
+        """Devolve o `client_id` autenticado, ou `None`."""
         prefixo = "Bearer "
         dado = authorization[len(prefixo):] if (
             authorization or "").startswith(prefixo) else ""
-        # compare_digest sempre, inclusive com string vazia: sair mais cedo
-        # quando o header falta devolve "sem token" em tempo diferente de
-        # "token errado".
-        return hmac.compare_digest(dado, token)
+        achado = None
+        # Percorre TODOS os clientes, sempre, e sempre com compare_digest.
+        # Sair no primeiro acerto faria o tempo de resposta contar quantos
+        # clientes existem antes do que acertou.
+        for cid, tok in clientes.items():
+            if hmac.compare_digest(dado, tok):
+                achado = cid
+        return achado
 
     @app.middleware("http")
     async def autentica(request, chamada):
@@ -188,11 +263,35 @@ def cria_app(politica: Politica,
         construcao, e continua garantida se alguem acrescentar parametro ao
         handler amanha.
         """
-        if request.url.path in PROTEGIDAS and not _autenticado(
-                request.headers.get("authorization")):
-            return JSONResponse({"detail": "token invalido ou ausente"},
-                                status_code=401)
+        if request.url.path.startswith(PROTEGIDOS):
+            cid = _cliente(request.headers.get("authorization"))
+            if cid is None:
+                return JSONResponse({"detail": "token invalido ou ausente"},
+                                    status_code=401)
+            request.state.client_id = cid
         return await chamada(request)
+
+    def _visao(r) -> dict[str, Any]:
+        """
+        A MESMA representacao para estado e resultado.
+
+        Nao existe um "resultado" que possa divergir do "estado": duas fontes
+        para o mesmo fato acabam discordando, e o cliente nao teria como saber
+        qual acreditar. O que muda entre os dois endpoints e QUANDO respondem,
+        nao O QUE respondem.
+        """
+        d = r.to_dict()
+        d["schema"] = SCHEMA_RESPOSTA
+        d["terminal"] = r.terminal
+        return d
+
+    def _exige(request, task_id: str):
+        r = svc.estado(task_id, request.state.client_id)
+        if r is None:
+            # 404 tambem para tarefa de OUTRO cliente. Devolver 403 diria ao
+            # cliente que aquele task_id existe em algum lugar.
+            raise HTTPException(status_code=404, detail="tarefa nao encontrada")
+        return r
 
     @app.get("/", response_class=HTMLResponse)
     def raiz() -> str:
@@ -211,7 +310,7 @@ def cria_app(politica: Politica,
                 "propositor": nome_propositor,
                 "teto_nivel": int(teto_nivel),
                 "teto_segundos": TETO_SEGUNDOS, "teto_bytes": TETO_BYTES,
-                "streaming": False}
+                "streaming": False, "assincrono": True}
 
     @app.get("/v1/capacidades")
     def capacidades():
@@ -219,7 +318,7 @@ def cria_app(politica: Politica,
                 "capacidades": catalogo_publico(teto_nivel)}
 
     @app.post("/v1/tarefas")
-    async def submete(request: Request):
+    async def submete(request: Request) -> JSONResponse:
         bruto = await request.body()
         if len(bruto) > TETO_BYTES:
             raise HTTPException(
@@ -230,39 +329,53 @@ def cria_app(politica: Politica,
         except (UnicodeDecodeError, json.JSONDecodeError) as e:
             raise HTTPException(status_code=400, detail=f"JSON invalido: {e}")
 
-        # Teto de tempo conferido ANTES de virar Tarefa: aceitar e cortar no
-        # meio devolveria resultado parcial com cara de completo.
         pedido = d.get("max_segundos")
         if pedido is not None and float(pedido) > TETO_SEGUNDOS:
             raise HTTPException(
                 status_code=422,
                 detail=(f"max_segundos={pedido} acima do teto {TETO_SEGUNDOS} "
-                        f"deste transporte. Ele e sincrono por decisao "
-                        f"(DECISAO_TRANSPORTE.md, opcao A); tarefa mais longa "
-                        f"exige a opcao B, que nao esta assinada."))
+                        f"por tarefa deste servico. Recusado na entrada: "
+                        f"aceitar e cortar no meio devolveria resultado "
+                        f"parcial com cara de resultado completo."))
         try:
-            tarefa = para_tarefa(d, teto_nivel)
+            r = svc.submete(
+                d, client_id=request.state.client_id,
+                request_id=request.headers.get("x-request-id"),
+                correlation_id=request.headers.get("x-correlation-id"))
         except RequisicaoInvalida as e:
             raise HTTPException(status_code=422, detail=str(e))
         except Exception as e:                      # CapacidadeDesconhecida etc.
             raise HTTPException(status_code=422,
                                 detail=f"{type(e).__name__}: {e}")
 
-        t0 = time.perf_counter()
-        res = executor.roda(tarefa, propositor)
-        ms = (time.perf_counter() - t0) * 1000.0
+        # 202: aceita, ainda nao terminada. 200 diria que ha resultado.
+        return JSONResponse(_visao(r), status_code=202,
+                            headers={"Location": f"/v1/tarefas/{r.task_id}"})
 
-        return JSONResponse({
-            "schema": SCHEMA_RESPOSTA,
-            "task_id": tarefa.id,
-            "estado": tarefa.estado.value,
-            "motivo_parada": tarefa.motivo_parada,
-            "iteracoes": tarefa.iteracao,
-            "concluida": res.concluida,
-            "negadas": res.negadas,
-            "observacoes": [o.to_dict() for o in res.observacoes],
-            "duracao_ms": round(ms, 2),
-        })
+    @app.get("/v1/tarefas/{task_id}")
+    def consulta(task_id: str, request: Request) -> dict[str, Any]:
+        return _visao(_exige(request, task_id))
+
+    @app.get("/v1/tarefas/{task_id}/resultado")
+    def resultado(task_id: str, request: Request) -> dict[str, Any]:
+        r = _exige(request, task_id)
+        if not r.terminal:
+            # 409, nao 200 com corpo vazio: "ainda nao ha resultado" e um fato
+            # diferente de "o resultado e vazio", e o cliente precisa
+            # distinguir os dois sem adivinhar.
+            raise HTTPException(
+                status_code=409,
+                detail=f"tarefa em {r.status}; ainda nao ha resultado")
+        return _visao(r)
+
+    @app.post("/v1/tarefas/{task_id}/cancelar")
+    def cancela(task_id: str, request: Request) -> dict[str, Any]:
+        _exige(request, task_id)
+        r = svc.cancela(task_id, request.state.client_id)
+        # Cancelar tarefa ja terminal NAO e erro: devolve o registro como
+        # esta. Tratar corrida normal como falha faria o cliente inventar
+        # retry para uma coisa que ja aconteceu.
+        return _visao(r)
 
     return app
 

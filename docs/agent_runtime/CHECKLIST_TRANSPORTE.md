@@ -6,6 +6,12 @@ teste ou medição por trás, e cada `[ ]` foi conferida como ausente no código
 
 **Estado do brief: 19 de 39 feitos, 3 parciais, 17 ausentes.**
 
+> **Atualização 03/09/2026, commit desta rodada.** §1 a §5 fechados:
+> **38 de 39**. O único aberto é §6, o critério de conclusão, que exige o
+> painel do Copiloto como cliente — adiado pela própria assinatura. Fora do
+> brief (§7), nada mudou: continuam 10 itens, e nenhum deles é meu para
+> fechar. Ver §9, no fim, para o que cada linha virou.
+
 Somando as pendências fora do brief (§7): **50 itens no total — 20 feitos,
 3 parciais, 27 abertos.** Os dois números medem coisas diferentes e por isso
 aparecem separados: 39 é a etapa de transporte; 11 é o que ficou acumulado em
@@ -34,38 +40,52 @@ tarefas, consulta de estado e consulta de resultado.
 
 ## 1. API mínima — 1 de 4
 
-- [x] `submit_task(request) -> task_id` — `POST /v1/tarefas`.
-      **Ressalva:** funde submit + run + result. Devolve `task_id`, mas
-      também já devolve o resultado, porque executa dentro da requisição.
-- [ ] `get_task(task_id) -> estado`
-- [ ] `get_result(task_id) -> resultado`
-- [ ] `cancel_task(task_id) -> estado`
+- [x] `submit_task(request) -> task_id` — `POST /v1/tarefas`, **202** +
+      `task_id` + header `Location`. Não devolve resultado: naquele instante
+      não há.
+- [x] `get_task(task_id) -> estado` — `GET /v1/tarefas/{id}`
+- [x] `get_result(task_id) -> resultado` — `GET /v1/tarefas/{id}/resultado`,
+      **409** enquanto não terminal ("ainda não há resultado" é fato
+      diferente de "o resultado é vazio")
+- [x] `cancel_task(task_id) -> estado` — `POST /v1/tarefas/{id}/cancelar`;
+      cancelar tarefa já terminal não é erro e não muda nada
 
 ## 2. TaskService com resultado persistido — 0 de 1
 
-- [ ] `TarefaRequest → validação → Tarefa → Executor → resultado persistido`.
-      Hoje o resultado é devolvido e esquecido; nada toca o disco.
-      `auditor/jobs.py` já resolveu este problema neste repositório —
-      máquina de estados (`TRANSICOES`) e escrita atômica (`tmp + os.replace`).
-      Reaproveitar o padrão, não reinventar.
+- [x] `TarefaRequest → validação → Tarefa → Executor → resultado persistido`
+      — `agent_runtime/servico.py`. Máquina de estados própria (`TRANSICOES`,
+      terminal não volta), `confere()` antes de gravar, escrita atômica
+      `tmp + os.replace`. Padrão do `auditor/jobs.py`, **reimplementado e não
+      importado**: `agent_runtime/__init__.py` declara que esta linha de
+      produto não toca no auditor, e importar criaria a dependência que
+      aquela frase existe para negar. A duplicação está anotada nos dois
+      lados.
 
 ## 3. Requisitos de segurança — 8 de 12, 2 parciais
 
 - [x] handshake / autenticação local — `Bearer` + `hmac.compare_digest`;
       servidor recusa subir sem `AGENT_RUNTIME_TOKEN`
-- [~] **identificação do cliente** — hoje é um token compartilhado único, sem
-      identidade por cliente. O brief pede identificar *quem* mandou.
+- [x] **identificação do cliente** — `AGENT_RUNTIME_TOKENS` = `id:token`
+      separados por vírgula; sem ela, `AGENT_RUNTIME_TOKEN` vale como cliente
+      `default`. O `client_id` autenticado filtra toda leitura.
 - [x] validação de `TarefaRequest v1` — `requisicao.valida`
 - [x] limite de tamanho da mensagem — `TETO_BYTES` = 64 KiB, 413
 - [x] timeout — `TETO_SEGUNDOS` = 30, recusado na entrada
 - [x] rejeição de schema desconhecido
 - [x] rejeição de campos desconhecidos
 - [x] rejeição de capacidades acima do teto L0
-- [ ] **isolamento entre tarefas** — sem estado persistido não há o que
-      isolar, e portanto também não há prova de isolamento
-- [~] **correlation / task ID** — `task_id` existe e volta na resposta;
-      `correlation_id` do cliente não existe
-- [ ] **tratamento de desconexão** — cliente que cai no meio da execução
+- [x] **isolamento entre tarefas** — tarefa de outro cliente responde
+      **404**, não 403: 403 diria que aquele `task_id` existe em algum lugar,
+      e `task_id` não é segredo. `task_id` hostil (`../outro`) é recusado
+      antes de compor caminho.
+- [x] **correlation / task ID** — `X-Correlation-Id` em header, não no
+      corpo: `TarefaRequest v1` recusa campo desconhecido de propósito, então
+      pôr no corpo obrigaria a mudar o contrato ou a devolver 422 a quem
+      mandasse rastreio.
+- [x] **tratamento de desconexão** — a execução deixou de morar dentro da
+      requisição, então o cliente sumir não leva a tarefa junto; um cliente
+      novo lê o mesmo registro, e outro `TaskService` sobre a mesma raiz lê o
+      que o primeiro gravou.
 - [x] não exposição para `0.0.0.0` — `roda()` recusa host fora de loopback,
       medido: `curl 10.0.2.15:8010` recusa, `127.0.0.1:8010` responde 200
 
@@ -78,15 +98,17 @@ tarefas, consulta de estado e consulta de resultado.
 - [x] capacidade L1 recusada
 - [x] payload acima do limite
 - [x] cliente não autenticado
-- [~] task_id / correlation_id — `task_id` é asserido no caminho feliz;
-      não há `correlation_id` nem teste dele
-- [ ] **desconexão**
-- [ ] **duas tarefas simultâneas sem mistura de estado**
-- [ ] **consulta do estado**
-- [ ] **consulta do resultado**
-- [ ] **cancelamento**
-- [ ] **idempotência / reenvio do mesmo request**
-- [ ] **transporte indisponível**
+- [x] task_id / correlation_id — volta em toda consulta, e há teste de que
+      mandá-lo no corpo dá 422
+- [x] desconexão
+- [x] duas tarefas simultâneas sem mistura de estado — 4 em paralelo,
+      objetivos e observações distintos
+- [x] consulta do estado
+- [x] consulta do resultado — 200 e 409
+- [x] cancelamento — em execução e já terminal
+- [x] idempotência / reenvio — por `X-Request-Id`, e o mesmo id de
+      clientes diferentes não colide
+- [x] transporte indisponível — porta fechada falha alto
 - [x] bridge não exposto além do necessário
 
 ## 5. Smoke test real — 2 de 5
@@ -94,13 +116,15 @@ tarefas, consulta de estado e consulta de resultado.
 - [x] iniciar o Python Runtime — `python3 -m agent_runtime --propositor eco`
 - [x] enviar `TarefaRequest v1` pelo transporte real — Firefox headless,
       mesma origem, token certo → 200, `CONCLUIDA`, observação com hash
-- [ ] **usar um Router fake primeiro** — nenhum Router foi usado.
-      `transporte.py` tem **zero** referências a `Roteador`; `PropositorEco`
-      não passa por Router nenhum.
-- [ ] **executar tarefa L0 contra HAR** — rodou com `ProvedorVazio`. A flag
-      `--har` existe e nunca foi exercitada; nenhum teste usa `ProvedorHAR`
-      pelo transporte.
-- [ ] **consultar o resultado pelo mesmo canal** — não há canal de consulta
+- [x] **usar um Router fake primeiro** — `tests/test_smoke_transporte.py`
+      monta `PropositorLLM(ClienteFake, RoteadorFixo)`. Um teste separado
+      confere a **trilha** do propositor, para que o smoke não possa passar
+      com o Router curto-circuitado.
+- [x] **executar tarefa L0 contra HAR** — `ProvedorHAR` sobre HAR real no
+      formato do Exportador. Um teste prova que o `Bearer` e o `set-cookie`
+      do HAR **não** chegam ao cliente pelo endpoint HTTP.
+- [x] **consultar o resultado pelo mesmo canal** —
+      `GET /v1/tarefas/{id}/resultado`, exercitado em teste e no navegador
 
 ## 6. Critério de conclusão — 0 de 1
 
@@ -164,3 +188,71 @@ Nunca empurrados sem confirmação explícita. `edp_v5` é repositório **públi
    mesmo canal.
 6. Só então o critério de conclusão — que exige o painel como cliente, e
    portanto uma decisão nova sobre tocar no Exportador.
+
+---
+
+## 9. O que esta rodada fechou, e com que evidência
+
+**Brief: 38 de 39.** Aberto só o §6, que não é meu para fechar.
+
+### O que mudou de arquitetura
+
+`POST /v1/tarefas` deixou de executar dentro da requisição. Agora devolve
+**202 + `task_id`**, e `agent_runtime/servico.py` persiste antes de executar,
+executa num pool fora da requisição, e responde perguntas depois. Foi essa
+única mudança que destravou os sete itens que a §0 apontava.
+
+### Decisões que ficaram no código, não só aqui
+
+- **409, não 200 vazio**, para resultado de tarefa que ainda roda. "Ainda não
+  há resultado" é fato diferente de "o resultado é vazio".
+- **404, não 403**, para tarefa de outro cliente. 403 confirmaria que aquele
+  `task_id` existe, e `task_id` não é segredo — é devolvido a quem submeteu.
+- **Cancelamento por exceção** (`Cancelada`), levantada pelo propositor
+  embrulhado. O `Executor` embrulha exceção do *provedor*, não do propositor
+  (`executor.py:117`), então cancelar por aí não exige que ele aprenda o que é
+  cancelamento. A alternativa — devolver `Intencao(concluir=True)` — marcaria
+  `CONCLUIDA` uma tarefa que o operador mandou parar.
+- **Cancelamento observado entre iterações**, nunca no meio de um provedor:
+  matar execução pela metade deixaria observação parcial no registro, que é o
+  que `Observacao` frozen existe para impedir.
+- **`X-Request-Id` e `X-Correlation-Id` em header.** `TarefaRequest v1` recusa
+  campo desconhecido de propósito; pô-los no corpo obrigaria a mudar o
+  contrato lógico, que o brief manda manter.
+- **`_id_seguro` duplicado** em vez de importado do `auditor` — ver §2.
+- **`TETO_SEGUNDOS` mudou de natureza**, de 30 s para 300 s: era o limite do
+  que cabia numa requisição síncrona; agora protege o pool, não a conexão.
+
+### Medido, não deduzido
+
+```
+suite do lab ............ 517 passed  (490 antes; +23 transporte, +4 smoke)
+tests/test_transporte.py . 50 passed
+tests/test_smoke_transporte.py .. 4 passed
+
+navegador real, fluxo assincrono completo:
+  POST -> 202, task_id T-b768b968
+  pagina consulta sozinha -> CONCLUIDA, 1 iteracao, 0 negadas
+  2 observacoes com fonte=sessao.har        (HAR real, nao fake em memoria)
+  "SEGREDO-DO-HAR" no DOM: False            (redacao antes do cliente)
+  "REDIGIDO" presente: True
+  GET resultado -> 200
+  POST cancelar em tarefa terminal -> 200   (nao e erro)
+  outra origem (8011 -> 8010) -> GET e POST BLOQUEADOS pelo navegador
+
+disco:
+  /tmp/transp/tarefas/T-b768b968/tarefa.json
+  status=CONCLUIDA client_id=default correlation_id=pagina-1788469223657
+  started_at e finished_at gravados, observacoes=2
+```
+
+### O que continua não feito, e por quê
+
+- **§6, critério de conclusão** — exige o painel do Copiloto como cliente. A
+  assinatura de 03/09 escolheu "página separada primeiro" e não autoriza
+  tocar no Exportador. Fechar isto é uma **decisão nova**, não uma tarefa
+  pendente.
+- **Segundo smoke com modelo real** — o brief o marca como opcional e
+  posterior. Exige chave de provider.
+- **§7 inteiro** — assinaturas, push de commits, execução do piloto e as três
+  dívidas. Nenhum é meu para fechar sozinho.
