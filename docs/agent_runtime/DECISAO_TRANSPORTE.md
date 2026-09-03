@@ -160,7 +160,7 @@ bidirecional ...... sim
 Maior fricção de instalação de todas, e a única que exige mudar o manifest.
 Só se justificaria se o transporte precisasse existir sem servidor HTTP.
 
-### E — arquivo manual (estado atual)
+### E — arquivo manual (era o estado atual até 03/09/2026)
 
 ```
 custo ............. zero nos dois lados
@@ -266,3 +266,29 @@ novo entrar no Exportador.
 **O que continua não decidido:** se o Runtime deve um dia falar com o EDP
 diretamente. Nada aqui muda a unidirecionalidade de
 `edp/ingest/websocket_receiver.py`, e a opção `C` segue não recomendada.
+
+
+---
+
+## Estado, antes e depois (o brief exige esta afirmação explícita)
+
+**Antes:** contrato de transporte + arquivo manual. `requisicao.de_arquivo`
+lia um JSON que alguém tinha copiado à mão; não havia canal.
+
+**Depois:** **transporte real página → Runtime.** `POST /v1/tarefas` aceita
+`TarefaRequest v1` por HTTP em `127.0.0.1:8010`, `TaskService` persiste e
+executa, e `GET /v1/tarefas/{id}` e `/resultado` respondem pelo mesmo canal.
+Provado em navegador real, com HAR real, sem copiar JSON.
+
+**NÃO é "Copiloto integrado", e a distinção não é formalidade.** O cliente é
+a página de teste servida pelo próprio Runtime. O painel do Copiloto continua
+sem falar com nada — nenhum arquivo do Exportador foi tocado, o manifest não
+mudou. O critério de conclusão do brief (`Chrome Copilot → … → Chrome
+Copilot`) segue **aberto**, e fechá-lo exige decisão nova sobre tocar no
+Exportador, além de uma escolha consciente de CORS para a origem
+`chrome-extension://<id>`.
+
+O arquivo manual (`de_arquivo`) continua funcionando e continua sendo o piso:
+os dois caminhos passam por `valida()` e `para_tarefa()`, então uma requisição
+que chega por HTTP enfrenta exatamente as mesmas recusas que uma que chega por
+disco.
