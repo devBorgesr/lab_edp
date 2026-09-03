@@ -80,6 +80,14 @@ CATALOGO: dict[str, Capacidade] = {c.nome: c for c in [
     _c("memory.write", Nivel.OBSERVAR,
        "grava conclusao/hipotese na memoria da tarefa",
        "memoria do runtime — NAO o store do EDP", True, True),
+    # `browser.inspect` e L0 e nao L1 porque so LE: url, titulo, historico de
+    # navegacao e uma arvore de DOM. Nao despacha `Input.*`, nao navega, nao
+    # recarrega, e nao avalia JS arbitrario — a expressao que ele avalia e
+    # fixa no provedor, nao vem do modelo. Se um dia passar a aceitar
+    # expressao do modelo, deixa de ser L0 no mesmo commit.
+    _c("browser.inspect", Nivel.OBSERVAR,
+       "le url, titulo, historico e DOM da aba-alvo registrada",
+       "aba do dashboard, so leitura", True, True),
 
     # ── L1 — alterar a pagina do usuario ────────────────────────────────────
     _c("act.click", Nivel.ALTERAR,

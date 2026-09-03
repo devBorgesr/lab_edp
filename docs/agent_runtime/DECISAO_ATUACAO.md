@@ -280,6 +280,31 @@ promessa de segurança já publicada no código. Isso não é motivo para não
 fazer — é motivo para que a reescrita daquele bloco entre no mesmo commit, e
 para que o escopo de aba seja teste, não comentário.
 
+## Implementação iniciada — 03/09/2026
+
+O primeiro *vertical slice* de `D` foi construído **antes** da assinatura, e
+isto não é atalho: **`browser.inspect` é L0**. Ela só lê — url, título,
+histórico e contagem de nós do DOM — e a única `Runtime.evaluate` do caminho é
+uma constante escrita no próprio controller, não expressão vinda do modelo.
+`exige_implementada()` recusa L1/L2; não recusa observação. A assinatura
+abaixo continua sendo o que libera `browser.click` e o resto.
+
+```
+agent_runtime/capacidades.py .............. browser.inspect, L0, implementada
+agent_runtime/provedores/browser.py ....... ChromeDebuggerProvider + CanalBrowser
+tests/test_browser_provider.py ............ 23 testes
+copilot/debugger_controller.js ............ o componente que atua
+copilot/debugger_capturer.js .............. cabecalho delimitado: so observacao
+copilot/panel.html ........................ carrega o controller
+```
+
+`CanalBrowser` é `Protocol`: o transporte é detalhe substituível, e Native
+Messaging vira **uma implementação de canal**, não uma decisão de arquitetura
+a tomar antes do slice.
+
+Falta para o slice fechar: a implementação de canal sobre o transporte real, e
+o smoke com o dashboard aberto de verdade.
+
 ## Registro da decisão
 
 ```
