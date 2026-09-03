@@ -121,9 +121,17 @@ Criar um custa:
 
 | caminho | custo |
 |---|---|
-| HTTP local | adicionar `host_permission` ao manifest — **mexe no Exportador** |
+| HTTP local | código novo em `panel.js` — **manifest NÃO muda** (ver errata) |
 | download | botão novo no painel do Copiloto — **mexe no Exportador** |
 | arquivo manual | operador salva o JSON e aponta o runtime — **zero mudança** |
+
+> **Errata (03/09).** A primeira versão desta tabela dizia que HTTP local
+> exigia *"adicionar `host_permission` ao manifest"*. **Está errado.** O
+> manifest tem `optional_host_permissions: ["http://*/*", "https://*/*"]`, e
+> `http://localhost:<porta>/*` pode ser concedida **em tempo de execução** —
+> padrão já implementado duas vezes na extensão (`options.js:30`,
+> `copilot/llm_adapter.js:124`). Eu olhei só `host_permissions` e concluí
+> demais. A investigação completa está em `DECISAO_TRANSPORTE.md`.
 
 `requisicao.py` implementa o terceiro e deixa os outros dois possíveis: o
 contrato é um **arquivo JSON** (`TarefaRequest v1`). Quem o escrever — botão
