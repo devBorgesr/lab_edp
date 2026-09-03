@@ -235,13 +235,34 @@ adiaria tocar no Exportador mais um passo.
 ## Registro da decisão
 
 ```
-decidido por ....... ____________________
-data ............... ____________________
-opcao .............. A / B / C / D / E
-porta .............. ____________________
-servidor vive em ... lab_edp_novo / edp_v5 / outro
-justificativa ...... ____________________
+decidido por ....... Daniel Sousa (pesquisador)
+data ............... 03/09/2026
+opcao .............. A  — HTTP request/response
+porta .............. 8010                      (8000 continua sendo do EDP)
+servidor vive em ... lab_edp_novo              (privado)
+cliente v1 ......... pagina separada           (o Exportador NAO e tocado ainda)
+justificativa ...... e o unico transporte cujo mecanismo ja esta provado
+                     neste codigo; nao muda o manifest; nao rompe nenhuma
+                     das duas fronteiras de seguranca escritas.
 ```
 
-Enquanto estas linhas estiverem em branco, o transporte segue sendo o arquivo
-manual de `requisicao.py`, e nenhum código do Exportador é alterado.
+## O que a assinatura autoriza, e o que não autoriza
+
+**Autoriza:** servidor HTTP em `lab_edp_novo`, bind `127.0.0.1:8010`,
+request/response, sem streaming. Cliente da primeira versão é uma **página de
+teste separada** — o transporte é provado fim-a-fim antes de qualquer código
+novo entrar no Exportador.
+
+**Não autoriza:**
+
+- tocar em `copilot/panel.js`, no manifest, ou em qualquer arquivo do
+  Exportador. O painel vira o **segundo** cliente, em etapa própria;
+- bind em `0.0.0.0` — a decisão é `127.0.0.1` e o teste tem de provar isso;
+- streaming, push, ou conexão persistente (isso é a opção `B`, e o gatilho
+  para reabrir a escolha é o aparecimento de progresso incremental);
+- subir o teto de capacidade. O transporte carrega `Tarefa` como ela já é:
+  `L0 OBSERVAR`, e `para_tarefa(teto_nivel)` continua sendo quem recusa.
+
+**O que continua não decidido:** se o Runtime deve um dia falar com o EDP
+diretamente. Nada aqui muda a unidirecionalidade de
+`edp/ingest/websocket_receiver.py`, e a opção `C` segue não recomendada.

@@ -22,6 +22,26 @@ contrato e um ARQUIVO JSON. Quem escrever esse arquivo — Copiloto com um
 botao novo, um servidor HTTP, ou uma pessoa — nao muda nada aqui.
 
 Nao escolhi o transporte. Registrei que a escolha existe.
+
+ERRATA (03/09/2026) — a linha "HTTP local -> MEXER no Exportador" esta ERRADA
+----------------------------------------------------------------------------
+O texto acima fica como estava, porque apagar erro registrado apaga tambem a
+chance de descobrir por que ele foi cometido. Mas ele afirma coisa falsa.
+
+`manifest.json` tem `optional_host_permissions: ["http://*/*", "https://*/*"]`.
+Uma origem `http://localhost:<porta>/*` pode ser concedida em TEMPO DE
+EXECUCAO, sem tocar no manifest — e o padrao ja esta implementado duas vezes na
+propria extensao (`options.js:30`, `copilot/llm_adapter.js:124`). Eu tinha
+olhado so `host_permissions` e concluido demais.
+
+O transporte foi decidido em 03/09/2026: **opcao A, HTTP request/response**,
+servidor em `lab_edp_novo`, porta 8010, cliente v1 = pagina separada. Ver
+`docs/agent_runtime/DECISAO_TRANSPORTE.md` e `agent_runtime/transporte.py`.
+
+O arquivo JSON continua valendo, e continua sendo o piso: `de_arquivo()` nao
+mudou, e o transporte HTTP usa exatamente `valida()` e `para_tarefa()`. Uma
+requisicao que chega por HTTP passa pelas mesmas recusas que uma que chega por
+disco — se nao passasse, haveria duas definicoes do que e uma tarefa valida.
 """
 from __future__ import annotations
 

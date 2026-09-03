@@ -1,0 +1,146 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Agent Runtime — transporte</title>
+<!--
+  Cliente v1 do transporte (DECISAO_TRANSPORTE.md, opcao A).
+
+  Servida PELO PROPRIO servidor, em GET /. Isso e o que dispensa CORS: mesma
+  origem que POST /v1/tarefas. Enquanto este for o unico cliente, nenhuma
+  outra origem consegue falar com o runtime.
+
+  O token NAO vem embutido nem e persistido: campo type=password, sem
+  localStorage, sem sessionStorage. Mesma disciplina do campo de API key do
+  dashboard do EDP.
+
+  Esta pagina NAO faz parte do Exportador. A assinatura de 03/09 nao autoriza
+  tocar em copilot/panel.js — o painel vira o segundo cliente em etapa propria.
+-->
+<style>
+  :root { color-scheme: dark }
+  * { box-sizing: border-box }
+  body { margin: 0; background: #0d1117; color: #e6edf3;
+         font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace }
+  header { padding: 14px 20px; border-bottom: 1px solid #21262d;
+           display: flex; align-items: baseline; gap: 12px }
+  h1 { margin: 0; font-size: 14px; letter-spacing: .08em; text-transform: uppercase }
+  .sub { color: #7d8590; font-size: 11px }
+  main { padding: 20px; max-width: 900px }
+  fieldset { border: 1px solid #21262d; border-radius: 6px; padding: 14px;
+             margin: 0 0 16px }
+  legend { color: #7d8590; font-size: 11px; letter-spacing: .08em;
+           text-transform: uppercase; padding: 0 6px }
+  label { display: block; color: #7d8590; font-size: 11px; margin: 0 0 4px }
+  input, textarea { width: 100%; background: #010409; color: #e6edf3;
+                    border: 1px solid #30363d; border-radius: 5px;
+                    padding: 8px 10px; font: inherit }
+  textarea { min-height: 150px; resize: vertical }
+  .linha { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px }
+  button { background: #7c5cff; color: #fff; border: 0; border-radius: 5px;
+           padding: 8px 14px; font: inherit; cursor: pointer }
+  button.sec { background: #21262d; color: #e6edf3 }
+  button:disabled { opacity: .5; cursor: default }
+  pre { background: #010409; border: 1px solid #21262d; border-radius: 6px;
+        padding: 12px; overflow: auto; max-height: 460px; margin: 0 }
+  .st { margin-left: auto; font-size: 11px; color: #7d8590 }
+  .ok { color: #3fb950 } .err { color: #f85149 }
+</style>
+
+<header>
+  <h1>Agent Runtime — transporte</h1>
+  <span class="sub">opcao A · request/response · sem streaming · 127.0.0.1</span>
+  <span class="st" id="st">—</span>
+</header>
+
+<main>
+  <fieldset>
+    <legend>Autenticacao</legend>
+    <label for="tok">AGENT_RUNTIME_TOKEN (nao e salvo em lugar nenhum)</label>
+    <input id="tok" type="password" autocomplete="off" spellcheck="false"
+           placeholder="cole o token com que o servidor subiu">
+  </fieldset>
+
+  <fieldset>
+    <legend>TarefaRequest v1</legend>
+    <textarea id="req" spellcheck="false">{
+  "schema": "TarefaRequest v1",
+  "objetivo": "provar o transporte fim-a-fim",
+  "capacidades": ["analyze.json"],
+  "max_iteracoes": 3,
+  "max_segundos": 10,
+  "criada_por": "pagina_teste"
+}</textarea>
+    <div class="linha">
+      <button id="b-post">POST /v1/tarefas</button>
+      <button id="b-caps" class="sec">GET /v1/capacidades</button>
+      <button id="b-hp" class="sec">GET /health</button>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Resposta</legend>
+    <pre id="out">—</pre>
+  </fieldset>
+</main>
+
+<script>
+(function () {
+  var out = document.getElementById('out');
+  var st  = document.getElementById('st');
+
+  function mostra(rotulo, status, corpo) {
+    var bom = status >= 200 && status < 300;
+    st.textContent = rotulo + ' → ' + status;
+    st.className = 'st ' + (bom ? 'ok' : 'err');
+    out.textContent = typeof corpo === 'string'
+      ? corpo : JSON.stringify(corpo, null, 2);
+  }
+
+  function tok() {
+    var t = document.getElementById('tok').value.trim();
+    // Sem token o servidor devolveria 401 e a pagina culparia o servidor por
+    // um erro do operador. Melhor dizer aqui de quem e a falta.
+    if (!t) { mostra('local', 0, 'Cole o token antes de enviar.'); return null; }
+    return t;
+  }
+
+  function chama(rotulo, url, opcoes, precisaToken) {
+    var cab = { 'Accept': 'application/json' };
+    if (precisaToken) {
+      var t = tok(); if (!t) return;
+      cab['Authorization'] = 'Bearer ' + t;
+    }
+    opcoes = opcoes || {};
+    opcoes.headers = Object.assign(cab, opcoes.headers || {});
+    var botoes = document.querySelectorAll('button');
+    botoes.forEach(function (b) { b.disabled = true; });
+    st.textContent = rotulo + ' …'; st.className = 'st';
+
+    fetch(url, opcoes)
+      .then(function (r) {
+        return r.text().then(function (txt) {
+          var corpo; try { corpo = JSON.parse(txt); } catch (e) { corpo = txt; }
+          mostra(rotulo, r.status, corpo);
+        });
+      })
+      .catch(function (e) { mostra(rotulo, 0, 'falha de rede: ' + e.message); })
+      .then(function () { botoes.forEach(function (b) { b.disabled = false; }); });
+  }
+
+  document.getElementById('b-hp').onclick = function () {
+    chama('GET /health', '/health', null, false);
+  };
+  document.getElementById('b-caps').onclick = function () {
+    chama('GET /v1/capacidades', '/v1/capacidades', null, true);
+  };
+  document.getElementById('b-post').onclick = function () {
+    var texto = document.getElementById('req').value;
+    try { JSON.parse(texto); }
+    catch (e) { mostra('local', 0, 'JSON invalido na caixa: ' + e.message); return; }
+    chama('POST /v1/tarefas', '/v1/tarefas', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: texto
+    }, true);
+  };
+})();
+</script>
