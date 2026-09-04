@@ -35,22 +35,55 @@ abaixo mede.
 
 ---
 
+## Antes de começar: este smoke roda no Windows
+
+A máquina que tem Chrome é o host Windows, e lá o shell é PowerShell. **`curl`
+no PowerShell é alias de `Invoke-WebRequest`, que não aceita `-H`** — use
+`curl.exe` (existe no Windows 10+) ou `Invoke-RestMethod`. Variável de
+ambiente é `$env:NOME`, não `$NOME`.
+
+Os comandos abaixo vêm nas duas formas. Erre isto e o sintoma é
+`Não é possível associar o parâmetro 'Headers'` — que é erro de shell, não do
+Runtime.
+
 ## Procedimento
 
 ### 1. Suba o Runtime com o provedor de navegador
+
+**PowerShell** (no diretório do `lab_edp_novo`):
+
+```powershell
+$env:AGENT_RUNTIME_TOKEN = (python -c "import secrets;print(secrets.token_urlsafe(32))")
+$env:AGENT_RUNTIME_TOKEN     # anote: o painel vai pedir
+python -m agent_runtime --propositor eco --porta 8010 --raiz .\tarefas_smoke
+```
+
+**bash:**
 
 ```bash
 export AGENT_RUNTIME_TOKEN="$(python3 -c 'import secrets;print(secrets.token_urlsafe(32))')"
 python3 -m agent_runtime --propositor eco --porta 8010 --raiz ./tarefas_smoke
 ```
 
-Guarde o token: o painel vai pedi-lo.
+O Runtime ocupa o terminal. Abra **outro** para os passos seguintes — e nele
+defina `$env:AGENT_RUNTIME_TOKEN` de novo com o mesmo valor, porque variável de
+ambiente não atravessa terminais.
 
 ### 2. Suba o dashboard do EDP
 
-```bash
-python3 -m edp.serve      # http://127.0.0.1:8000/dashboard
+```powershell
+python -m edp.serve      # http://127.0.0.1:8000/dashboard
 ```
+
+### 2b. Confira que os dois estão de pé
+
+```powershell
+curl.exe -s http://127.0.0.1:8010/health
+curl.exe -s -o NUL -w "dashboard %{http_code}`n" http://127.0.0.1:8000/dashboard
+```
+
+`/health` não exige token — se ele não responder, o Runtime não subiu, e nada
+adiante vai funcionar.
 
 ### 3. Carregue a extensão e abra o painel
 
@@ -90,10 +123,17 @@ este navegador" sobre a aba do dashboard.
 
 Confira pelo Runtime:
 
-```bash
-curl -s http://127.0.0.1:8010/v1/browser/alvo \
-  -H "Authorization: Bearer $AGENT_RUNTIME_TOKEN"
+```powershell
+curl.exe -s http://127.0.0.1:8010/v1/browser/alvo `
+  -H "Authorization: Bearer $env:AGENT_RUNTIME_TOKEN"
 # {"estado":"ANEXADO","operacional":true}
+```
+
+Ou nativo, que já formata a saída:
+
+```powershell
+$h = @{ Authorization = "Bearer $env:AGENT_RUNTIME_TOKEN" }
+Invoke-RestMethod http://127.0.0.1:8010/v1/browser/alvo -Headers $h | ConvertTo-Json
 ```
 
 **Se `operacional` for `false`, pare aqui.** Uma tarefa submetida antes disso
@@ -101,17 +141,45 @@ não conclui — e é esse o comportamento correto.
 
 ### 6. Submeta a tarefa
 
+**PowerShell** — nativo, porque escapar JSON em `curl.exe` no PowerShell é
+fonte garantida de erro:
+
+```powershell
+$h = @{ Authorization = "Bearer $env:AGENT_RUNTIME_TOKEN"
+        'Content-Type' = 'application/json' }
+$body = @{ objetivo = "inspecionar o dashboard do EDP"
+           capacidades = @("browser.inspect")
+           max_iteracoes = 3 } | ConvertTo-Json
+
+$r = Invoke-RestMethod http://127.0.0.1:8010/v1/tarefas -Method Post `
+       -Headers $h -Body $body
+$r.task_id
+```
+
+Depois, o resultado:
+
+```powershell
+Invoke-RestMethod "http://127.0.0.1:8010/v1/tarefas/$($r.task_id)/resultado" `
+  -Headers $h | ConvertTo-Json -Depth 6
+```
+
+Enquanto a tarefa não terminar, esse endpoint devolve **409** — é o esperado, e
+o PowerShell mostra isso como erro. Para acompanhar sem susto:
+
+```powershell
+Invoke-RestMethod "http://127.0.0.1:8010/v1/tarefas/$($r.task_id)" `
+  -Headers $h | Select-Object status, terminal, iteracoes
+```
+
+**bash:**
+
 ```bash
 curl -s -X POST http://127.0.0.1:8010/v1/tarefas \
   -H "Authorization: Bearer $AGENT_RUNTIME_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"objetivo":"inspecionar o dashboard do EDP",
        "capacidades":["browser.inspect"],"max_iteracoes":3}'
-```
 
-Depois consulte com o `task_id` devolvido:
-
-```bash
 curl -s http://127.0.0.1:8010/v1/tarefas/<TASK_ID>/resultado \
   -H "Authorization: Bearer $AGENT_RUNTIME_TOKEN" | python3 -m json.tool
 ```
