@@ -26,8 +26,8 @@ sys.path.insert(0, str(RAIZ))
 
 from agent_runtime.canal import CanalMesa, MesaDeSolicitacoes            # noqa: E402
 from agent_runtime.provedores.browser import (                           # noqa: E402
-    PROTOCOLO, AlvoInvalido, CanalIndisponivel, ChromeDebuggerProvider,
-    registra_alvo)
+    PROTOCOLO, AlvoFixo, AlvoInvalido, CanalIndisponivel,
+    ChromeDebuggerProvider, canal_fixo, registra_alvo)
 
 TAB, ORIGEM = 42, "http://127.0.0.1:8000"
 
@@ -223,7 +223,8 @@ def test_resposta_citando_outro_request_id_nao_vira_observacao():
 
 def test_provedor_sobre_a_mesa_produz_observacao():
     mesa = MesaDeSolicitacoes()
-    prov = ChromeDebuggerProvider(CanalMesa(mesa, "acme"), alvo(), timeout_s=5)
+    prov = ChromeDebuggerProvider(canal_fixo(CanalMesa(mesa, "acme")),
+                                      AlvoFixo(alvo()), timeout_s=5)
     saida = {}
 
     def roda():
@@ -242,7 +243,8 @@ def test_provedor_sobre_a_mesa_produz_observacao():
 
 def test_provedor_recusa_resposta_com_alvo_trocado_mesmo_vindo_da_mesa():
     mesa = MesaDeSolicitacoes()
-    prov = ChromeDebuggerProvider(CanalMesa(mesa, "acme"), alvo(), timeout_s=5)
+    prov = ChromeDebuggerProvider(canal_fixo(CanalMesa(mesa, "acme")),
+                                      AlvoFixo(alvo()), timeout_s=5)
     out = {}
 
     def roda():

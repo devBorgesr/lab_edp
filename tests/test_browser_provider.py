@@ -31,7 +31,7 @@ from agent_runtime.capacidades import busca                          # noqa: E40
 from agent_runtime.propositor import ClienteFake, PropositorLLM      # noqa: E402
 from agent_runtime.provedores.browser import (                       # noqa: E402
     CAMPOS_OBS, COMANDOS_INSPECT, PROTOCOLO, AlvoInvalido,
-    CanalIndisponivel, ChromeDebuggerProvider, registra_alvo)
+    CanalIndisponivel, ChromeDebuggerProvider, AlvoFixo, canal_fixo, registra_alvo)
 from agent_runtime.roteador import RoteadorFixo                      # noqa: E402
 
 TAB, ORIGEM = 42, "http://127.0.0.1:8000"
@@ -105,7 +105,7 @@ def test_o_alvo_nao_vem_dos_parametros_da_intencao(  ):
     O modelo propoe parametros. Se ele mandar outro `tab_id`, isso e recusa —
     nunca substituicao do alvo registrado.
     """
-    p = ChromeDebuggerProvider(CanalFake(), alvo())
+    p = ChromeDebuggerProvider(canal_fixo(CanalFake()), AlvoFixo(alvo()))
     with pytest.raises(AlvoInvalido):
         p.executa("browser.inspect", {"tab_id": 999}, "T-1", 0)
     with pytest.raises(AlvoInvalido):
@@ -118,14 +118,14 @@ def test_alvo_e_conferido_tambem_na_volta():
     usuario trocando de aba. Conferir so na ida deixaria isso passar.
     """
     canal = CanalFake(resposta_boa(tab_id=777))
-    p = ChromeDebuggerProvider(canal, alvo())
+    p = ChromeDebuggerProvider(canal_fixo(canal), AlvoFixo(alvo()))
     with pytest.raises(AlvoInvalido):
         p.executa("browser.inspect", {}, "T-1", 0)
 
 
 def test_solicitacao_leva_alvo_e_lista_de_comandos():
     canal = CanalFake()
-    ChromeDebuggerProvider(canal, alvo()).executa("browser.inspect", {}, "T-1", 0)
+    ChromeDebuggerProvider(canal_fixo(canal), AlvoFixo(alvo())).executa("browser.inspect", {}, "T-1", 0)
     s = canal.pedidos[0]
     assert s["protocol"] == PROTOCOLO
     assert s["capability"] == "browser.inspect"
@@ -148,7 +148,7 @@ def test_observacao_normalizada_descarta_campo_desconhecido():
     r = resposta_boa()
     r["observations"][0]["cookies"] = "sess=SEGREDO"
     r["observations"][0]["__proto__"] = {"x": 1}
-    obs = ChromeDebuggerProvider(CanalFake(r), alvo()).executa(
+    obs = ChromeDebuggerProvider(canal_fixo(CanalFake(r)), AlvoFixo(alvo())).executa(
         "browser.inspect", {}, "T-1", 0)
     todos = {k for o in obs for k in o.dados}
     assert todos <= CAMPOS_OBS, todos
@@ -157,7 +157,7 @@ def test_observacao_normalizada_descarta_campo_desconhecido():
 
 
 def test_observacao_carrega_a_fonte_e_o_hash():
-    obs = ChromeDebuggerProvider(CanalFake(), alvo()).executa(
+    obs = ChromeDebuggerProvider(canal_fixo(CanalFake()), AlvoFixo(alvo())).executa(
         "browser.inspect", {}, "T-7", 3)
     assert len(obs) == 2
     assert all(o.tarefa_id == "T-7" and o.iteracao == 3 for o in obs)
@@ -172,14 +172,14 @@ def test_observacao_carrega_a_fonte_e_o_hash():
     {"protocol": PROTOCOLO, "kind": "outra.coisa", "type": "browser.observation"},
 ])
 def test_resposta_malformada_e_falha_de_canal_e_nao_observacao(ruim):
-    p = ChromeDebuggerProvider(CanalFake(ruim), alvo())
+    p = ChromeDebuggerProvider(canal_fixo(CanalFake(ruim)), AlvoFixo(alvo()))
     with pytest.raises((CanalIndisponivel, AlvoInvalido)):
         p.executa("browser.inspect", {}, "T-1", 0)
 
 
 def test_zero_observacoes_vira_fato_registrado_e_nao_silencio():
     r = resposta_boa(); r["observations"] = []
-    obs = ChromeDebuggerProvider(CanalFake(r), alvo()).executa(
+    obs = ChromeDebuggerProvider(canal_fixo(CanalFake(r)), AlvoFixo(alvo())).executa(
         "browser.inspect", {}, "T-1", 0)
     assert len(obs) == 1
     assert "0 observacoes" in obs[0].dados["erro"]
@@ -190,13 +190,13 @@ def test_canal_fora_do_ar_nao_vira_veredito_sobre_a_pagina():
     Falha de transporte e falha de transporte. Devolver observacao vazia aqui
     diria ao modelo que a pagina nao tem nada — que e outra coisa.
     """
-    p = ChromeDebuggerProvider(CanalFake(erro=TimeoutError("sem resposta")), alvo())
+    p = ChromeDebuggerProvider(canal_fixo(CanalFake(erro=TimeoutError("sem resposta"))), AlvoFixo(alvo()))
     with pytest.raises(CanalIndisponivel):
         p.executa("browser.inspect", {}, "T-1", 0)
 
 
 def test_outra_capacidade_e_recusada_por_este_provedor():
-    p = ChromeDebuggerProvider(CanalFake(), alvo())
+    p = ChromeDebuggerProvider(canal_fixo(CanalFake()), AlvoFixo(alvo()))
     for cap in ("act.click", "browser.evaluate", "observe.network"):
         with pytest.raises(AlvoInvalido):
             p.executa(cap, {}, "T-1", 0)
@@ -210,7 +210,7 @@ def test_slice_completo_ate_concluida():
     -> provedor -> Observacao -> CONCLUIDA.
     """
     canal = CanalFake()
-    provedor = ChromeDebuggerProvider(canal, alvo())
+    provedor = ChromeDebuggerProvider(canal_fixo(canal), AlvoFixo(alvo()))
     propositor = PropositorLLM(
         cliente=ClienteFake([
             '{"capacidade":"browser.inspect","parametros":{},'

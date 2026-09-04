@@ -77,8 +77,27 @@ CopilotBrowserBridge.start('http://127.0.0.1:8010', 'SEU_TOKEN');
 await CopilotBrowserBridge.registrarAlvo(<TAB_ID>);
 ```
 
-Esperado: `chrome://extensions` mostra a faixa "está depurando este navegador"
-sobre a aba do dashboard, e `[bridge] alvo.registrado` no console.
+O ciclo é explícito, e o Runtime só considera o alvo operacional no fim dele:
+
+```
+REGISTRADO  ->  ANEXANDO  ->  ANEXADO
+                       \->  FALHOU   (remove o alvo)
+```
+
+Esperado no console: `[bridge] alvo.registrado` e depois `[bridge] alvo.anexado`
+com `operacional: true`. E `chrome://extensions` mostra a faixa "está depurando
+este navegador" sobre a aba do dashboard.
+
+Confira pelo Runtime:
+
+```bash
+curl -s http://127.0.0.1:8010/v1/browser/alvo \
+  -H "Authorization: Bearer $AGENT_RUNTIME_TOKEN"
+# {"estado":"ANEXADO","operacional":true}
+```
+
+**Se `operacional` for `false`, pare aqui.** Uma tarefa submetida antes disso
+não conclui — e é esse o comportamento correto.
 
 ### 6. Submeta a tarefa
 

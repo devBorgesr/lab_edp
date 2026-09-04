@@ -33,6 +33,7 @@ que responde "a aba que estiver na frente" e nao "a aba que foi autorizada".
 from __future__ import annotations
 
 import re
+import threading
 from dataclasses import dataclass
 from typing import Any, Protocol, runtime_checkable
 
@@ -54,8 +55,33 @@ COMANDOS_INSPECT = ("Page.getNavigationHistory", "DOM.getDocument",
 CAMPOS_OBS = {"kind", "url", "title", "dom_nodes", "history_len", "erro"}
 
 
+#: Ciclo de vida do alvo. `REGISTRADO` NAO e operacional: o Runtime pode ter
+#: aceitado a aba enquanto `chrome.debugger.attach` ainda vai falhar. Tratar os
+#: dois como a mesma coisa deixaria o Runtime afirmando "alvo pronto" sobre uma
+#: aba a que ninguem esta anexado.
+REGISTRADO, ANEXANDO, ANEXADO, FALHOU = ("REGISTRADO", "ANEXANDO", "ANEXADO",
+                                         "FALHOU")
+OPERACIONAL = (ANEXADO,)
+
+TRANSICOES_ALVO: dict[str, tuple[str, ...]] = {
+    REGISTRADO: (ANEXANDO, FALHOU),
+    ANEXANDO:   (ANEXADO, FALHOU),
+    ANEXADO:    (FALHOU,),      # detach/aba fechada derrubam; nao "voltam"
+    FALHOU:     (),             # some do registro; nao se recupera no lugar
+}
+
+
 class AlvoInvalido(RuntimeError):
     """O alvo pedido nao e o alvo registrado. Nunca e aviso: recusa."""
+
+
+class AlvoNaoOperacional(RuntimeError):
+    """
+    Ha alvo registrado, mas o debugger ainda nao esta anexado a ele.
+
+    Erro proprio, e nao `AlvoInvalido`: "voce pediu a aba errada" e "a aba
+    certa ainda nao esta pronta" pedem coisas diferentes de quem chamou.
+    """
 
 
 class CanalIndisponivel(RuntimeError):
@@ -120,6 +146,90 @@ def registra_alvo(tab_id: int, origin: str, session_id: str,
                          registrado_em=registrado_em)
 
 
+class RegistroDeAlvos:
+    """
+    `client_id -> (alvo, estado)`. Compartilhado entre os endpoints HTTP (que
+    escrevem) e o provedor (que le na hora de executar).
+
+    Existir era o buraco: `POST /v1/browser/alvo` guardava o alvo, e o
+    provedor da tarefa usava outro, montado na construcao do app. As duas
+    metades estavam certas e nao se falavam.
+    """
+
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._por_cliente: dict[str, tuple[AlvoDashboard, str]] = {}
+
+    def define(self, client_id: str, alvo: "AlvoDashboard") -> str:
+        with self._lock:
+            self._por_cliente[client_id] = (alvo, REGISTRADO)
+        return REGISTRADO
+
+    def transita(self, client_id: str, novo: str) -> str:
+        with self._lock:
+            atual = self._por_cliente.get(client_id)
+            if atual is None:
+                raise AlvoInvalido(f"nenhum alvo registrado para {client_id!r}")
+            alvo, estado = atual
+            if novo == estado:
+                return estado
+            if novo not in TRANSICOES_ALVO.get(estado, ()):
+                raise AlvoInvalido(
+                    f"{estado} -> {novo} nao e transicao de alvo valida")
+            if novo == FALHOU:
+                # FALHOU nao fica no registro: um alvo que falhou o attach nao
+                # e um alvo em estado ruim, e a ausencia de alvo.
+                self._por_cliente.pop(client_id, None)
+                return FALHOU
+            self._por_cliente[client_id] = (alvo, novo)
+            return novo
+
+    def estado(self, client_id: str) -> str | None:
+        with self._lock:
+            a = self._por_cliente.get(client_id)
+            return a[1] if a else None
+
+    def para(self, client_id: str) -> "AlvoDashboard":
+        """
+        So devolve alvo OPERACIONAL. Registrado-mas-nao-anexado levanta —
+        executar assim faria o comando morrer no controller, e o modelo leria
+        o erro como fato sobre a pagina.
+        """
+        with self._lock:
+            a = self._por_cliente.get(client_id)
+        if a is None:
+            raise AlvoNaoOperacional(
+                f"nenhum alvo registrado para {client_id!r}. O painel precisa "
+                f"chamar POST /v1/browser/alvo e anexar antes.")
+        alvo, estado = a
+        if estado not in OPERACIONAL:
+            raise AlvoNaoOperacional(
+                f"alvo em {estado}; o debugger ainda nao esta anexado")
+        return alvo
+
+    def esquece(self, client_id: str) -> None:
+        with self._lock:
+            self._por_cliente.pop(client_id, None)
+
+
+class AlvoFixo:
+    """Um alvo so, para teste unitario. Ignora `client_id` de proposito."""
+
+    def __init__(self, alvo: "AlvoDashboard"):
+        self._alvo = alvo
+
+    def para(self, client_id: str) -> "AlvoDashboard":
+        return self._alvo
+
+    def estado(self, client_id: str) -> str:
+        return ANEXADO
+
+
+def canal_fixo(canal: CanalBrowser):
+    """`canal_de` de um canal so, para teste unitario."""
+    return lambda _client_id: canal
+
+
 class ChromeDebuggerProvider(ProvedorDeCapacidade):
     """
     Traduz capacidade em solicitacao; normaliza a resposta em `Observacao`.
@@ -131,10 +241,21 @@ class ChromeDebuggerProvider(ProvedorDeCapacidade):
     """
     nome = "chrome_debugger"
 
-    def __init__(self, canal: CanalBrowser, alvo: AlvoDashboard,
+    def __init__(self, canal_de, alvos, dono_da_tarefa=None,
                  timeout_s: float = 10.0):
-        self.canal = canal
-        self.alvo = alvo
+        """
+        `canal_de(client_id) -> CanalBrowser` e `alvos.para(client_id)`.
+
+        O alvo e resolvido NA HORA DE EXECUTAR, e nao na construcao. Fixa-lo
+        aqui foi o defeito da primeira versao: o endpoint que registrava a aba
+        e o provedor que executava a tarefa guardavam alvos diferentes.
+
+        `dono_da_tarefa(tarefa_id) -> client_id` diz em nome de quem o provedor
+        age. Sem isso, uma tarefa de um cliente usaria a aba de outro.
+        """
+        self.canal_de = canal_de
+        self.alvos = alvos
+        self.dono_da_tarefa = dono_da_tarefa or (lambda _tid: "default")
         self.timeout_s = timeout_s
 
     def capacidades(self) -> set[str]:
@@ -148,31 +269,36 @@ class ChromeDebuggerProvider(ProvedorDeCapacidade):
             raise AlvoInvalido(
                 f"'{capacidade}' nao e implementada por este provedor")
 
+        client_id = self.dono_da_tarefa(tarefa_id) or "default"
+        alvo = self.alvos.para(client_id)      # levanta se nao operacional
+
         # O alvo NAO vem do modelo. Se `parametros` trouxer tab_id/origin, eles
         # sao conferidos contra o registro e recusados se divergirem — nunca
         # usados no lugar dele.
-        self.alvo.confere(parametros.get("tab_id", self.alvo.tab_id),
-                          parametros.get("origin", self.alvo.origin))
+        alvo.confere(parametros.get("tab_id", alvo.tab_id),
+                     parametros.get("origin", alvo.origin))
 
         solicitacao = {
             "protocol": PROTOCOLO,
             "kind": "capability.request",
             "capability": "browser.inspect",
-            "target": {"tab_id": self.alvo.tab_id, "origin": self.alvo.origin,
-                       "session_id": self.alvo.session_id},
+            "target": {"tab_id": alvo.tab_id, "origin": alvo.origin,
+                       "session_id": alvo.session_id},
             "parameters": {},          # esta capacidade nao recebe parametro
         }
         try:
-            bruto = self.canal.pede(solicitacao, self.timeout_s)
-        except AlvoInvalido:
+            bruto = self.canal_de(client_id).pede(solicitacao, self.timeout_s)
+        except (AlvoInvalido, AlvoNaoOperacional):
+            raise
+        except CanalIndisponivel:
             raise
         except Exception as e:
             raise CanalIndisponivel(f"{type(e).__name__}: {e}") from e
 
-        return self._normaliza(bruto, tarefa_id, iteracao)
+        return self._normaliza(bruto, tarefa_id, iteracao, alvo)
 
     def _normaliza(self, bruto: dict[str, Any], tarefa_id: str,
-                   iteracao: int) -> list[Observacao]:
+                   iteracao: int, alvo: AlvoDashboard) -> list[Observacao]:
         """
         Objeto Chrome cru nao atravessa esta fronteira.
 
@@ -190,10 +316,10 @@ class ChromeDebuggerProvider(ProvedorDeCapacidade):
         if bruto.get("type") != "browser.observation":
             raise CanalIndisponivel(f"type inesperado: {bruto.get('type')!r}")
 
-        alvo = bruto.get("target") or {}
+        vindo = bruto.get("target") or {}
         # Confere o alvo NA VOLTA tambem: a extensao pode ter anexado noutra
         # aba, por defeito ou por corrida com o usuario trocando de aba.
-        self.alvo.confere(alvo.get("tab_id"), alvo.get("origin"))
+        alvo.confere(vindo.get("tab_id"), vindo.get("origin"))
 
         obs: list[Observacao] = []
         for item in (bruto.get("observations") or []):
@@ -205,7 +331,7 @@ class ChromeDebuggerProvider(ProvedorDeCapacidade):
             obs.append(Observacao(
                 capacidade="browser.inspect", tarefa_id=tarefa_id,
                 iteracao=iteracao, dados=dados,
-                fonte=f"chrome.debugger tab={self.alvo.tab_id}"))
+                fonte=f"chrome.debugger tab={alvo.tab_id}"))
         if not obs:
             # Lista vazia e observacao valida ("nao achei nada"), e o contrato
             # de ProvedorDeCapacidade diz isso. Mas devolver [] silenciosamente
@@ -214,5 +340,5 @@ class ChromeDebuggerProvider(ProvedorDeCapacidade):
                 capacidade="browser.inspect", tarefa_id=tarefa_id,
                 iteracao=iteracao,
                 dados={"kind": "page", "erro": "extensao devolveu 0 observacoes"},
-                fonte=f"chrome.debugger tab={self.alvo.tab_id}"))
+                fonte=f"chrome.debugger tab={alvo.tab_id}"))
         return obs

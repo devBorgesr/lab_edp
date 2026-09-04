@@ -7,7 +7,8 @@ pagina separada).
     GET  /health
     GET  /v1/capacidades              o que este runtime aceita
     POST /v1/tarefas                  TarefaRequest v1 -> 202 + task_id
-    POST /v1/browser/alvo             painel registra a aba do dashboard
+    POST /v1/browser/alvo             painel registra a aba (REGISTRADO)
+    POST /v1/browser/alvo/estado      painel reporta ANEXANDO/ANEXADO/FALHOU
     GET  /v1/browser/solicitacoes     painel busca a proxima capacidade
     POST /v1/browser/resultados       painel devolve a observacao
     GET  /v1/tarefas/{id}             estado
@@ -114,7 +115,8 @@ from .contrato import Observacao, ProvedorDeCapacidade
 from .executor import Intencao
 from .politica import Politica
 from .canal import MesaDeSolicitacoes
-from .provedores.browser import AlvoInvalido, registra_alvo
+from .provedores.browser import (ANEXADO, ANEXANDO, FALHOU, AlvoInvalido,
+                                 RegistroDeAlvos, registra_alvo)
 from .requisicao import SCHEMA, RequisicaoInvalida
 from .servico import TaskService
 from .tarefa import Tarefa
@@ -219,7 +221,8 @@ def cria_app(politica: Politica,
              nome_propositor: str = "?",
              raiz: Path | str | None = None,
              servico: "TaskService | None" = None,
-             mesa: "MesaDeSolicitacoes | None" = None):
+             mesa: "MesaDeSolicitacoes | None" = None,
+             alvos: "RegistroDeAlvos | None" = None):
     """
     `propositor` e OBRIGATORIO e injetado, como no `Executor`.
 
@@ -241,12 +244,24 @@ def cria_app(politica: Politica,
         politica, provedores, propositor, teto_nivel)
 
     mesa = mesa if mesa is not None else MesaDeSolicitacoes()
-    alvos: dict[str, Any] = {}          # client_id -> AlvoDashboard
+    alvos = alvos if alvos is not None else RegistroDeAlvos()
 
     app = FastAPI(title="Agent Runtime — transporte", docs_url=None, redoc_url=None)
     app.state.servico = svc
     app.state.mesa = mesa
     app.state.alvos = alvos
+
+    # O provedor precisa saber em nome de QUEM age. Sem isto, uma tarefa de um
+    # cliente usaria a aba de outro. A funcao le o dono do registro persistido,
+    # que e a mesma verdade que `estado`/`resultado` consultam.
+    def dono_da_tarefa(tarefa_id: str):
+        r = svc.registro.ver(tarefa_id)
+        return r.client_id if r else None
+
+    app.state.dono_da_tarefa = dono_da_tarefa
+    for prov in provedores:
+        if hasattr(prov, "dono_da_tarefa") and hasattr(prov, "alvos"):
+            prov.dono_da_tarefa = dono_da_tarefa
 
     def _cliente(authorization) -> str | None:
         """Devolve o `client_id` autenticado, ou `None`."""
@@ -399,12 +414,43 @@ def cria_app(politica: Politica,
                 registrado_em=str(d.get("registrado_em", "")))
         except (AlvoInvalido, ValueError, TypeError) as e:
             raise HTTPException(status_code=422, detail=f"alvo recusado: {e}")
-        alvos[request.state.client_id] = alvo
-        return {"ok": True, "tab_id": alvo.tab_id, "origin": alvo.origin}
+        estado = alvos.define(request.state.client_id, alvo)
+        # REGISTRADO NAO e operacional. O painel ainda vai tentar o attach, e
+        # ele pode falhar — o alvo so passa a valer quando ANEXADO voltar.
+        return {"ok": True, "tab_id": alvo.tab_id, "origin": alvo.origin,
+                "estado": estado, "operacional": False}
+
+    @app.post("/v1/browser/alvo/estado")
+    async def estado_do_alvo(request: Request) -> dict[str, Any]:
+        """
+        O painel reporta o que aconteceu com `chrome.debugger.attach`.
+
+        Sem isto o Runtime afirmaria "alvo pronto" sobre uma aba a que ninguem
+        esta anexado: as duas metades do estado ficariam divergentes e so a
+        primeira falha revelaria.
+        """
+        d = json.loads((await request.body()).decode("utf-8") or "{}")
+        novo = str(d.get("estado", ""))
+        if novo not in (ANEXANDO, ANEXADO, FALHOU):
+            raise HTTPException(
+                status_code=422,
+                detail=f"estado {novo!r} desconhecido; use "
+                       f"{ANEXANDO}, {ANEXADO} ou {FALHOU}")
+        try:
+            estado = alvos.transita(request.state.client_id, novo)
+        except AlvoInvalido as e:
+            raise HTTPException(status_code=409, detail=str(e))
+        return {"ok": True, "estado": estado,
+                "operacional": estado == ANEXADO}
+
+    @app.get("/v1/browser/alvo")
+    def ve_alvo(request: Request) -> dict[str, Any]:
+        estado = alvos.estado(request.state.client_id)
+        return {"estado": estado, "operacional": estado == ANEXADO}
 
     @app.delete("/v1/browser/alvo")
     def esquece_alvo(request: Request) -> dict[str, Any]:
-        alvos.pop(request.state.client_id, None)
+        alvos.esquece(request.state.client_id)
         return {"ok": True}
 
     @app.get("/v1/browser/solicitacoes")
