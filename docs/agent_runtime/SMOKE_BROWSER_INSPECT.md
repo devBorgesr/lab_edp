@@ -62,7 +62,7 @@ python -m agent_runtime --propositor eco --porta 8010 --raiz .\tarefas_smoke
 
 ```bash
 export AGENT_RUNTIME_TOKEN="$(python3 -c 'import secrets;print(secrets.token_urlsafe(32))')"
-python3 -m agent_runtime --propositor eco --porta 8010 --raiz ./tarefas_smoke
+python3 -m agent_runtime --propositor eco --porta 8010 --browser --raiz ./tarefas_smoke
 ```
 
 O Runtime ocupa o terminal. Abra **outro** para os passos seguintes — e nele
@@ -185,6 +185,33 @@ curl -s http://127.0.0.1:8010/v1/tarefas/<TASK_ID>/resultado \
 ```
 
 ---
+
+## Onde ler o motivo de uma falha
+
+`erro` e `motivo_parada` são campos diferentes de propósito:
+
+```
+erro ............ o SERVICO quebrou (excecao que escapou do executor)
+motivo_parada ... a TAREFA parou por um motivo (alvo ausente, orcamento,
+                  politica negou)
+```
+
+Uma tarefa `FALHA` por falta de alvo traz `erro: null` e a explicação em
+`motivo_parada`. Olhar só `erro` faz parecer que falhou sem razão — eu mesmo
+caí nisso ao testar a flag. Verificação rápida:
+
+```powershell
+$t = Invoke-RestMethod "http://127.0.0.1:8010/v1/tarefas/$($r.task_id)" -Headers $h
+$t | Select-Object status, motivo_parada, erro
+```
+
+Sem alvo registrado, o esperado é exatamente:
+
+```
+status        : FALHA
+motivo_parada : AlvoNaoOperacional: nenhum alvo registrado para 'default'...
+erro          :
+```
 
 ## Critério de aceite
 

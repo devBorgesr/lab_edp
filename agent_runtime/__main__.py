@@ -14,10 +14,12 @@ tambem devolve o nome do propositor em uso.
 import argparse
 import sys
 
+from .canal import CanalMesa, MesaDeSolicitacoes
 from .capacidades import Nivel
 from .contrato import Observacao, ProvedorDeCapacidade
 from .executor import Intencao
 from .politica import Politica
+from .provedores.browser import ChromeDebuggerProvider, RegistroDeAlvos
 from .transporte import TransporteMalConfigurado, cria_app, roda
 
 
@@ -75,6 +77,11 @@ def main(argv=None) -> int:
                    help="HAR real para observe.network/analyze.json")
     p.add_argument("--raiz", default=None,
                    help="onde as tarefas sao persistidas (default: temporario)")
+    p.add_argument("--browser", action="store_true",
+                   help="liga browser.inspect via chrome.debugger. Exige que o "
+                        "painel do Copiloto registre a aba-alvo e anexe antes "
+                        "de qualquer tarefa — ver docs/agent_runtime/"
+                        "SMOKE_BROWSER_INSPECT.md")
     a = p.parse_args(argv)
 
     if a.propositor == "llm":
@@ -85,20 +92,35 @@ def main(argv=None) -> int:
         return 2
 
     propositor = PropositorEco()
+    provedores = []
     if a.har:
         from .provedores.har import ProvedorHAR
-        provedores = [ProvedorHAR(a.har)]
-    else:
-        provedores = [ProvedorVazio()]
+        provedores.append(ProvedorHAR(a.har))
+
+    # Mesa e registro de alvos sao COMPARTILHADOS entre o provedor (que le) e
+    # os endpoints (que escrevem). Construi-los aqui e passar aos dois e o que
+    # faz o alvo registrado por POST /v1/browser/alvo chegar a tarefa.
+    mesa = MesaDeSolicitacoes()
+    alvos = RegistroDeAlvos()
+    if a.browser:
+        provedores.append(ChromeDebuggerProvider(
+            canal_de=lambda cid: CanalMesa(mesa, cid), alvos=alvos))
+
+    if not provedores:
+        provedores.append(ProvedorVazio())
 
     try:
         app = cria_app(Politica(nivel_maximo=Nivel.OBSERVAR), provedores,
                        propositor, nome_propositor=propositor.nome,
-                       raiz=a.raiz)
+                       raiz=a.raiz, mesa=mesa, alvos=alvos)
         print(f"[transporte] propositor={propositor.nome} "
-              f"provedor={provedores[0].nome} "
+              f"provedores={[p.nome for p in provedores]} "
               f"raiz={a.raiz or '(temporario)'} "
               f"http://{a.host}:{a.porta}/", file=sys.stderr)
+        if a.browser:
+            print("[transporte] browser.inspect LIGADO — nenhuma tarefa de "
+                  "navegador roda ate o painel registrar a aba e anexar "
+                  "(estado ANEXADO em GET /v1/browser/alvo)", file=sys.stderr)
         roda(app, host=a.host, porta=a.porta)
     except TransporteMalConfigurado as e:
         print(f"[transporte] recusa de subir: {e}", file=sys.stderr)
