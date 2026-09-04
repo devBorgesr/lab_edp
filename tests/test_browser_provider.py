@@ -43,7 +43,8 @@ def alvo():
 
 def resposta_boa(tab_id=TAB, origin=ORIGEM):
     return {
-        "protocol": PROTOCOLO, "type": "browser.observation",
+        "protocol": PROTOCOLO, "kind": "capability.result",
+        "type": "browser.observation",
         "target": {"tab_id": tab_id, "origin": origin},
         "observations": [
             {"kind": "page", "url": f"{ORIGEM}/dashboard", "title": "EDP Runtime"},
@@ -128,8 +129,11 @@ def test_solicitacao_leva_alvo_e_lista_de_comandos():
     s = canal.pedidos[0]
     assert s["protocol"] == PROTOCOLO
     assert s["capability"] == "browser.inspect"
+    assert s["kind"] == "capability.request"
     assert s["target"] == {"tab_id": TAB, "origin": ORIGEM, "session_id": "sessao-1"}
-    assert s["comandos"] == list(COMANDOS_INSPECT)
+    # A lista de comandos NAO viaja: o controller tem a dele. Mandar a lista
+    # criaria superficie para influenciar quais comandos rodam.
+    assert "comandos" not in s
     # A capacidade nao recebe parametro do modelo: nada dele viaja.
     assert s["parameters"] == {}
 
@@ -163,8 +167,9 @@ def test_observacao_carrega_a_fonte_e_o_hash():
 
 @pytest.mark.parametrize("ruim", [
     "isto nao e objeto", 42, [],
-    {"protocol": "outro", "type": "browser.observation"},
-    {"protocol": PROTOCOLO, "type": "qualquer.coisa"},
+    {"protocol": "outro", "kind": "capability.result", "type": "browser.observation"},
+    {"protocol": PROTOCOLO, "kind": "capability.result", "type": "qualquer.coisa"},
+    {"protocol": PROTOCOLO, "kind": "outra.coisa", "type": "browser.observation"},
 ])
 def test_resposta_malformada_e_falha_de_canal_e_nao_observacao(ruim):
     p = ChromeDebuggerProvider(CanalFake(ruim), alvo())

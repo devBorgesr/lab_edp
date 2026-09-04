@@ -7,6 +7,9 @@ pagina separada).
     GET  /health
     GET  /v1/capacidades              o que este runtime aceita
     POST /v1/tarefas                  TarefaRequest v1 -> 202 + task_id
+    POST /v1/browser/alvo             painel registra a aba do dashboard
+    GET  /v1/browser/solicitacoes     painel busca a proxima capacidade
+    POST /v1/browser/resultados       painel devolve a observacao
     GET  /v1/tarefas/{id}             estado
     GET  /v1/tarefas/{id}/resultado   resultado (409 enquanto nao terminal)
     POST /v1/tarefas/{id}/cancelar    cancelamento
@@ -110,6 +113,8 @@ from .capacidades import CATALOGO, Nivel
 from .contrato import Observacao, ProvedorDeCapacidade
 from .executor import Intencao
 from .politica import Politica
+from .canal import MesaDeSolicitacoes
+from .provedores.browser import AlvoInvalido, registra_alvo
 from .requisicao import SCHEMA, RequisicaoInvalida
 from .servico import TaskService
 from .tarefa import Tarefa
@@ -213,7 +218,8 @@ def cria_app(politica: Politica,
              pagina: Path | str | None = None,
              nome_propositor: str = "?",
              raiz: Path | str | None = None,
-             servico: "TaskService | None" = None):
+             servico: "TaskService | None" = None,
+             mesa: "MesaDeSolicitacoes | None" = None):
     """
     `propositor` e OBRIGATORIO e injetado, como no `Executor`.
 
@@ -234,8 +240,13 @@ def cria_app(politica: Politica,
         raiz or Path(tempfile.mkdtemp(prefix="agent_runtime_")),
         politica, provedores, propositor, teto_nivel)
 
+    mesa = mesa if mesa is not None else MesaDeSolicitacoes()
+    alvos: dict[str, Any] = {}          # client_id -> AlvoDashboard
+
     app = FastAPI(title="Agent Runtime — transporte", docs_url=None, redoc_url=None)
     app.state.servico = svc
+    app.state.mesa = mesa
+    app.state.alvos = alvos
 
     def _cliente(authorization) -> str | None:
         """Devolve o `client_id` autenticado, ou `None`."""
@@ -367,6 +378,58 @@ def cria_app(politica: Politica,
                 status_code=409,
                 detail=f"tarefa em {r.status}; ainda nao ha resultado")
         return _visao(r)
+
+    # ── canal do navegador ──────────────────────────────────────────────
+    #
+    # A direcao se inverte na implementacao, nao na arquitetura: o provedor
+    # continua "pedindo", e o painel e quem busca — porque nenhum processo
+    # externo consegue iniciar nada para dentro de uma extensao.
+
+    @app.post("/v1/browser/alvo")
+    async def registra_alvo_do_painel(request: Request) -> dict[str, Any]:
+        """
+        O painel declara qual aba e o dashboard. O Runtime NAO descobre isso
+        sozinho: nao ha como, e "a aba ativa" nao e "a aba autorizada".
+        """
+        d = json.loads((await request.body()).decode("utf-8") or "{}")
+        try:
+            alvo = registra_alvo(
+                tab_id=int(d.get("tab_id", -1)), origin=str(d.get("origin", "")),
+                session_id=str(d.get("session_id", "")),
+                registrado_em=str(d.get("registrado_em", "")))
+        except (AlvoInvalido, ValueError, TypeError) as e:
+            raise HTTPException(status_code=422, detail=f"alvo recusado: {e}")
+        alvos[request.state.client_id] = alvo
+        return {"ok": True, "tab_id": alvo.tab_id, "origin": alvo.origin}
+
+    @app.delete("/v1/browser/alvo")
+    def esquece_alvo(request: Request) -> dict[str, Any]:
+        alvos.pop(request.state.client_id, None)
+        return {"ok": True}
+
+    @app.get("/v1/browser/solicitacoes")
+    def proxima_solicitacao(request: Request) -> JSONResponse:
+        """
+        204 quando nao ha nada. Devolver `{}` com 200 obrigaria o painel a
+        distinguir "vazio" de "erro" pelo conteudo, e ele erraria uma hora.
+        """
+        s = mesa.proxima(request.state.client_id)
+        if s is None:
+            return JSONResponse(None, status_code=204)
+        return JSONResponse(s)
+
+    @app.post("/v1/browser/resultados")
+    async def recebe_resultado(request: Request) -> dict[str, Any]:
+        d = json.loads((await request.body()).decode("utf-8") or "{}")
+        aceito = mesa.responde(d, request.state.client_id)
+        if not aceito:
+            # 409, nao 404: o pedido pode ter existido e expirado. O painel
+            # precisa saber que a resposta foi DESCARTADA, e nao presumir que
+            # o trabalho dele contou.
+            raise HTTPException(
+                status_code=409,
+                detail="resposta sem pedido vivo correspondente; descartada")
+        return {"ok": True}
 
     @app.post("/v1/tarefas/{task_id}/cancelar")
     def cancela(task_id: str, request: Request) -> dict[str, Any]:

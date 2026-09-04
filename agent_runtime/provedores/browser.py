@@ -40,9 +40,12 @@ from ..contrato import Observacao, ProvedorDeCapacidade
 
 PROTOCOLO = "edp.browser.v1"
 
-#: Comandos CDP que `browser.inspect` pode significar. Lista fechada: a
-#: extensao recusa o que nao estiver aqui, e o Python tambem. Duas travas para
-#: a mesma regra, porque so uma delas roda no navegador.
+#: Comandos CDP que `browser.inspect` significa. Esta lista NAO VIAJA pelo
+#: canal: o controller tem a dele e nao consulta esta. Mandar a lista pelo fio
+#: criaria uma superficie onde alguem poderia tentar influenciar quais comandos
+#: rodam — e "capacidade" deixaria de ser a fronteira. Ela fica aqui como
+#: documentacao verificavel do que a capacidade custa, e como teste de que
+#: nada de escrita entrou.
 COMANDOS_INSPECT = ("Page.getNavigationHistory", "DOM.getDocument",
                     "Runtime.evaluate")
 
@@ -153,10 +156,10 @@ class ChromeDebuggerProvider(ProvedorDeCapacidade):
 
         solicitacao = {
             "protocol": PROTOCOLO,
+            "kind": "capability.request",
             "capability": "browser.inspect",
             "target": {"tab_id": self.alvo.tab_id, "origin": self.alvo.origin,
                        "session_id": self.alvo.session_id},
-            "comandos": list(COMANDOS_INSPECT),
             "parameters": {},          # esta capacidade nao recebe parametro
         }
         try:
@@ -182,6 +185,8 @@ class ChromeDebuggerProvider(ProvedorDeCapacidade):
         if bruto.get("protocol") != PROTOCOLO:
             raise CanalIndisponivel(
                 f"protocolo {bruto.get('protocol')!r}; este provedor fala {PROTOCOLO!r}")
+        if bruto.get("kind") != "capability.result":
+            raise CanalIndisponivel(f"kind inesperado: {bruto.get('kind')!r}")
         if bruto.get("type") != "browser.observation":
             raise CanalIndisponivel(f"type inesperado: {bruto.get('type')!r}")
 
