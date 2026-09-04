@@ -35,6 +35,22 @@ abaixo mede.
 
 ---
 
+## Antes de começar: desligue a captura de tráfego
+
+O painel tem uma opção **"gravar Authorization/Cookie/tokens sem redigir"**. Se
+ela estiver ligada e a captura apontada para a aba do Runtime
+(`http://127.0.0.1:8010/`), o HAR grava o `Authorization: Bearer <token>` em
+claro dentro do IndexedDB da extensão.
+
+```
+[ ] captura parada, OU redação de headers LIGADA
+[ ] a captura não está apontada para a aba do Runtime
+```
+
+Isso já aconteceu uma vez neste projeto (04/09/2026): a captura ficou 294 s
+sobre `127.0.0.1:8010` com redação desligada. Se acontecer, pare a captura,
+apague a sessão, e **troque o token do Runtime** — ele está no HAR.
+
 ## Antes de começar: este smoke roda no Windows
 
 A máquina que tem Chrome é o host Windows, e lá o shell é PowerShell. **`curl`
@@ -104,9 +120,22 @@ segurança. Quem autoriza é o registro explícito do passo 5.
 
 ### 5. Registre o alvo e ligue a ponte
 
+**Onde colar:** no **console do DevTools** da aba do painel (`F12` → Console).
+NÃO no campo de chat do Copiloto — o Copiloto é um LLM, não executa JavaScript,
+e o que você colar lá vira texto guardado no log dele.
+
+**Qual token:** o `AGENT_RUNTIME_TOKEN` que o passo 1 gerou — uma string de
+`secrets.token_urlsafe(32)`, sem prefixo. **NÃO é a chave da Anthropic.** A
+chave do provedor (`sk-ant-...`) não tem nenhuma relação com este transporte:
+ela fica em `chrome.storage.local` para o Copiloto falar com o modelo, e o
+Runtime nunca a vê nem a pede.
+
+Se você colar uma chave `sk-ant-` aqui, ela não vai funcionar — e vai ter sido
+exposta à toa.
+
 ```js
 CopilotBrowserBridge.onEvento((e, d) => console.log('[bridge]', e, d));
-CopilotBrowserBridge.start('http://127.0.0.1:8010', 'SEU_TOKEN');
+CopilotBrowserBridge.start('http://127.0.0.1:8010', 'COLE_O_AGENT_RUNTIME_TOKEN');
 await CopilotBrowserBridge.registrarAlvo(<TAB_ID>);
 ```
 
