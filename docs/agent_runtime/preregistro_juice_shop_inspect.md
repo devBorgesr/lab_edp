@@ -33,6 +33,35 @@ docker ....... AUSENTE     -> instalar do fonte
 npm .......... 9.2.0       -> disponivel
 ```
 
+### ERRATA 05/09/2026 — a nota de ambiente acima estava incompleta
+
+O texto original fica como estava. Ele sugeria que `npm` presente bastava, e
+duas coisas faltavam:
+
+```
+npm i juice-shop   NAO FUNCIONA. O pacote foi DESPUBLICADO do npm em
+                   15/01/2019. A unica via e o fonte:
+                   git clone https://github.com/juice-shop/juice-shop.git
+
+node               juice-shop 20.2.0 exige "engines": {"node": "22 - 26"}.
+                   Esta maquina tem node v20.19.0 — FORA da faixa.
+                   A maquina que roda o smoke (Windows, com Chrome) precisa
+                   de Node 22+; conferir com `node --version` ANTES de clonar.
+
+start              `node build/app` — ha etapa de build, nao e so `npm install`
+deps               63 diretas; a arvore instalada e grande
+```
+
+**Nada do desenho muda.** Hipótese, condições, controle cruzado nos dois
+sentidos e critério de decisão continuam como congelados. O que mudou foi o
+custo de armar, e ele agora está escrito em vez de ser descoberto no meio.
+
+**Se Node 22+ não estiver disponível na máquina com Chrome**, isso não
+autoriza trocar o alvo por outro servidor local mais leve. O alvo é nomeado no
+§4, e trocá-lo é um pré-registro novo — não uma adaptação deste. A razão é a
+mesma de sempre: um alvo escolhido depois de saber qual é fácil de instalar
+não é o alvo que o desenho previu.
+
 ---
 
 ## 2. Hipótese e predições
