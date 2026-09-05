@@ -108,8 +108,8 @@ Confirmação de que subiu:
 ### 2b. Confira que os dois estão de pé
 
 ```powershell
-curl.exe -s http://127.0.0.1:8010/health
-curl.exe -s -o NUL -w "dashboard %{http_code}`n" http://127.0.0.1:8000/dashboard
+Invoke-RestMethod http://127.0.0.1:8010/health
+(Invoke-WebRequest http://127.0.0.1:8000/dashboard).StatusCode
 ```
 
 `/health` não exige token — se ele não responder, o Runtime não subiu, e nada
@@ -167,17 +167,20 @@ este navegador" sobre a aba do dashboard.
 Confira pelo Runtime:
 
 ```powershell
-curl.exe -s http://127.0.0.1:8010/v1/browser/alvo `
-  -H "Authorization: Bearer $env:AGENT_RUNTIME_TOKEN"
-# {"estado":"ANEXADO","operacional":true}
+$h = @{ Authorization = "Bearer $env:AGENT_RUNTIME_TOKEN"
+        'Content-Type' = 'application/json' }
+Invoke-RestMethod http://127.0.0.1:8010/v1/browser/alvo -Headers $h
 ```
 
-Ou nativo, que já formata a saída:
-
-```powershell
-$h = @{ Authorization = "Bearer $env:AGENT_RUNTIME_TOKEN" }
-Invoke-RestMethod http://127.0.0.1:8010/v1/browser/alvo -Headers $h | ConvertTo-Json
 ```
+estado  operacional
+------  -----------
+ANEXADO        True
+```
+
+Antes do passo 5 o esperado é `estado` vazio e `operacional: False` — isso
+confirma que o Runtime está de pé e o token está certo, porque token errado
+daria 401 em vez de resposta.
 
 **Se `operacional` for `false`, pare aqui.** Uma tarefa submetida antes disso
 não conclui — e é esse o comportamento correto.
