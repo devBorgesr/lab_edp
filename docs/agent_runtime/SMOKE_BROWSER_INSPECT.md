@@ -53,14 +53,23 @@ apague a sessão, e **troque o token do Runtime** — ele está no HAR.
 
 ## Antes de começar: este smoke roda no Windows
 
-A máquina que tem Chrome é o host Windows, e lá o shell é PowerShell. **`curl`
-no PowerShell é alias de `Invoke-WebRequest`, que não aceita `-H`** — use
-`curl.exe` (existe no Windows 10+) ou `Invoke-RestMethod`. Variável de
-ambiente é `$env:NOME`, não `$NOME`.
+A máquina que tem Chrome é o host Windows, e lá o shell é PowerShell.
 
-Os comandos abaixo vêm nas duas formas. Erre isto e o sintoma é
-`Não é possível associar o parâmetro 'Headers'` — que é erro de shell, não do
-Runtime.
+**Use `Invoke-RestMethod` em tudo.** Dois motivos, os dois medidos em
+05/09/2026:
+
+```
+curl      no PowerShell e alias de Invoke-WebRequest, que NAO aceita -H
+          sintoma: "Nao e possivel associar o parametro 'Headers'"
+curl.exe  pode NAO EXISTIR — so acompanha o Windows 10 1803+ e nem sempre
+          esta no PATH
+          sintoma: "o termo 'curl.exe' nao e reconhecido"
+```
+
+`Invoke-RestMethod` é nativo, existe em qualquer PowerShell, e já devolve
+objeto em vez de texto. Variável de ambiente é `$env:NOME`, não `$NOME`.
+
+Os dois sintomas acima são erro de shell, não do Runtime.
 
 ## Procedimento
 
@@ -187,8 +196,9 @@ não conclui — e é esse o comportamento correto.
 
 ### 6. Submeta a tarefa
 
-**PowerShell** — nativo, porque escapar JSON em `curl.exe` no PowerShell é
-fonte garantida de erro:
+**PowerShell** — escapar JSON com aspas dentro de um cliente de linha de
+comando no PowerShell é fonte garantida de erro; o nativo monta o corpo com
+`ConvertTo-Json` e não tem esse problema:
 
 ```powershell
 $h = @{ Authorization = "Bearer $env:AGENT_RUNTIME_TOKEN"
