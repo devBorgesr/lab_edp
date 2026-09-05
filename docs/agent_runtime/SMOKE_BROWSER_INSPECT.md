@@ -80,8 +80,21 @@ Os dois sintomas acima são erro de shell, não do Runtime.
 ```powershell
 $env:AGENT_RUNTIME_TOKEN = (python -c "import secrets;print(secrets.token_urlsafe(32))")
 $env:AGENT_RUNTIME_TOKEN     # anote: o painel vai pedir
-python -m agent_runtime --propositor eco --porta 8010 --raiz .\tarefas_smoke
+python -m agent_runtime --propositor eco --porta 8010 --browser --raiz .\tarefas_smoke
 ```
+
+> **ERRATA 05/09/2026 — esta linha estava sem `--browser`.** A versão bash
+> abaixo sempre teve; a do PowerShell não. Sem a flag, `browser.inspect` não
+> liga, e o sintoma não aparece aqui: aparece lá no passo 5, como um alvo que
+> nunca fica operacional. Corrigido acima.
+>
+> **Falta ainda `--origem-extensao chrome-extension://<id>`**, que passou a ser
+> obrigatória com a decisão de CORS de 05/09 (965085f) — o painel é uma origem
+> `chrome-extension://` e sem ela o preflight morre. Como a flag exige o ID da
+> extensão, que só existe depois de carregá-la, **a ordem dos passos 1 e 3
+> inverte**. O procedimento já corrigido está em
+> [`SMOKE_JUICE_SHOP.md`](SMOKE_JUICE_SHOP.md) §§3-4; quem for repetir o Bloco A
+> deve seguir aquela ordem.
 
 **bash:**
 

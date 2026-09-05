@@ -129,9 +129,17 @@ capacidade nova.** É a mesma capacidade L0 apontada para outra aba. O que muda
 é o alvo — e é justamente aí que a restrição de escopo é testada contra uma
 aplicação com DOM, rotas, formulários e erros de verdade.
 
+Procedimento pronto para executar:
+[`SMOKE_JUICE_SHOP.md`](SMOKE_JUICE_SHOP.md) — inclui as tres correcoes que o
+documento do Bloco A nao tinha (`--browser` no PowerShell, `--origem-extensao`,
+e a inversao da ordem extensao/Runtime que o CORS obriga).
+
 ```
+[x] node --version na maquina com Chrome -> v22.14.0   (exigido "22 - 26")
+    PRE-CONDICAO DO §1 ATENDIDA, medida em 05/09/2026
 [ ] Juice Shop rodando em 127.0.0.1:3000
-    (docker AUSENTE nesta maquina; npm 9.2.0 presente -> instalar do fonte)
+    (docker AUSENTE; `npm i juice-shop` NAO existe -> git clone do fonte,
+     tag v20.2.0; o postinstall ja faz o build)
 [ ] registrar a aba do Juice Shop como alvo
 [ ] browser.inspect -> 3 observacoes, page.url do Juice Shop
 [ ] NEGATIVO: com o Juice Shop registrado, pedir inspect na aba do dashboard
