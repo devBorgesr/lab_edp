@@ -77,3 +77,11 @@ edi_out/
 corpus_extraido/
 *_features.csv
 *_predicoes.csv
+
+# ── Alvo de teste de terceiro, clonado/baixado local (05/09/2026) ────────────
+# O OWASP Juice Shop e o alvo do Bloco B. Nao e codigo deste projeto, tem
+# ~850 pacotes de node_modules, e nao pode entrar no repo por acidente.
+# O procedimento manda instala-lo FORA da arvore do lab; isto e a rede de
+# seguranca para quando o `cd` for esquecido — que foi o que aconteceu.
+juice-shop/
+juice-shop-*/

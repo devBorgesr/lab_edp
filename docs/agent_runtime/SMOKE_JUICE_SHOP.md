@@ -68,21 +68,84 @@ apareceu no transcrito morre por não ser mais usado.
 
 ## Procedimento
 
+> **UM PASSO POR VEZ, CADA UM NO SEU TERMINAL.** Os passos 1, 2 e 4 sobem
+> processos que ocupam o terminal; nenhum deles devolve o prompt. Colar os
+> quatro de uma vez faz o `npm start` rodar antes de o build existir, e o
+> `run.py serve` e o `agent_runtime` rodarem no diretório errado — foi
+> exatamente o que aconteceu em 05/09. Cada passo tem seu `cd`, e ele importa.
+
 ### 1. Juice Shop de pé, ANTES de tudo
 
-`npm i juice-shop` não funciona — o pacote foi despublicado em 15/01/2019. Só
-do fonte:
+**FORA da árvore do lab.** Um clone do Juice Shop tem ~850 pacotes em
+`node_modules`; dentro do repo ele vira 850 pastas não rastreadas. Já aconteceu
+em 05/09 (o `cd` foi esquecido num bloco colado de uma vez) e está coberto por
+`juice-shop/` no `.gitignore` do lab — mas a rede de segurança não substitui
+instalar no lugar certo.
+
+#### Via oficial: pacote pronto (RECOMENDADA)
+
+Não precisa de build, de npm, nem de compilador. A OWASP publica o binário
+empacotado por plataforma e por versão de Node:
+
+```powershell
+cd C:\Users\central\Downloads
+$u = "https://github.com/juice-shop/juice-shop/releases/download/v20.2.0"
+Invoke-WebRequest "$u/juice-shop-20.2.0_node22_win32_x64.zip"     -OutFile js.zip
+Invoke-WebRequest "$u/juice-shop-20.2.0_node22_win32_x64.zip.md5" -OutFile js.zip.md5
+
+# confira o md5 ANTES de descompactar
+(Get-FileHash js.zip -Algorithm MD5).Hash.ToLower()
+Get-Content js.zip.md5
+
+Expand-Archive js.zip -DestinationPath .
+cd juice-shop_20.2.0
+npm start
+```
+
+`node22_win32_x64` casa exatamente com esta máquina (Node v22.14.0, Windows
+x64). São 120 MB.
+
+**Por que esta via é melhor aqui, e não só mais fácil:** o repositório do Juice
+Shop traz `.npmrc` com `package-lock=false`, na raiz **e** no `frontend`. Sem
+lockfile, cada `npm install` resolve a árvore de dependências do zero — duas
+instalações da mesma tag podem produzir alvos diferentes. O pacote da release é
+um artefato fixo, com md5 publicado. Para um experimento pré-registrado, o
+artefato verificável é a escolha certa.
+
+#### Via do fonte (fallback, e o que ela custou)
 
 ```powershell
 cd C:\Users\central\Downloads
 git clone --depth 1 --branch v20.2.0 https://github.com/juice-shop/juice-shop.git
 cd juice-shop
-npm install        # o postinstall JA faz o build (frontend + tsc). Demora.
-npm start          # equivale a `node build/app`
+npm install        # o postinstall roda o build do frontend + tsc
+npm start
 ```
 
-A tag `v20.2.0` está fixada de propósito: é a versão cujo `engines` foi medido
-na errata. **Anote a versão que subir de fato** — ela entra no resultado.
+Tentado em 05/09 nesta máquina e **falhou**. A instalação da raiz foi (846
+pacotes), e o `postinstall` morreu no install aninhado do frontend:
+
+```
+> cd frontend && npm install && cd .. && npm run build:frontend && ...
+npm error Cannot read properties of null (reading 'edgesOut')
+```
+
+É bug do arborist do npm (10.9.2), e o `package-lock=false` do projeto o torna
+mais provável: sem lock, a árvore é resolvida inteira a cada vez. Se for
+insistir por aqui, decomponha o `postinstall` para ver onde quebra de verdade:
+
+```powershell
+npm cache clean --force
+cd frontend; npm install; cd ..
+npm run build:frontend
+npm run build:server
+```
+
+**Sintoma derivado, para não confundir:** `npm start` depois de um install
+falho dá `Cannot find module '...\build\app'`. Não é outro defeito — é a
+ausência do build, consequência do erro acima.
+
+**Anote a versão que subir de fato** — ela entra no resultado.
 
 Confirme antes de seguir:
 

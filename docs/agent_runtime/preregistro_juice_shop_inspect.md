@@ -52,6 +52,34 @@ start              `node build/app` — ha etapa de build, nao e so `npm install
 deps               63 diretas; a arvore instalada e grande
 ```
 
+### ERRATA 2 — 05/09/2026: "a única via é o fonte" também estava errado
+
+A errata acima afirmou que, morto o `npm i`, **a única via é o fonte**. Não é.
+A OWASP publica o Juice Shop **empacotado** nas releases do GitHub, por
+plataforma e por versão de Node:
+
+```
+juice-shop-20.2.0_node22_win32_x64.zip     120 MB, com .md5 publicado ao lado
+```
+
+Descoberto depois de a via do fonte falhar nesta máquina: `npm install` morreu
+no `postinstall`, no install aninhado do frontend, com
+`Cannot read properties of null (reading 'edgesOut')` — bug do arborist do npm
+10.9.2.
+
+**E o pacote não é só mais fácil: é metodologicamente melhor.** O repositório
+traz `.npmrc` com `package-lock=false`, na raiz e no `frontend`. Sem lockfile,
+cada `npm install` resolve a árvore do zero, e duas instalações da mesma tag
+podem produzir alvos diferentes. O artefato da release é fixo e verificável por
+md5.
+
+**Isto NÃO é troca de alvo.** O §4 nomeia *OWASP Juice Shop em
+`http://127.0.0.1:3000`, rota `/#/`* — e continua sendo exatamente isso, na
+mesma versão 20.2.0. O que muda é o meio de entrega, e muda para o **oficial**.
+A regra que este pré-registro impõe é contra escolher o alvo depois de saber
+qual é fácil de instalar; aqui o alvo não mudou, e nenhuma constante da §8 foi
+tocada.
+
 **Nada do desenho muda.** Hipótese, condições, controle cruzado nos dois
 sentidos e critério de decisão continuam como congelados. O que mudou foi o
 custo de armar, e ele agora está escrito em vez de ser descoberto no meio.
