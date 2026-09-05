@@ -95,6 +95,62 @@ falhou em `#T1`.
 
 ---
 
+## #T4 — a assinatura ainda não é autoridade em runtime
+
+**Status:** ABERTA. É decisão, não tarefa — e tem uma tensão de desenho que
+precisa ser resolvida antes, não durante.
+
+### O que existe hoje
+`tests/test_governanca_capacidades.py` (7 testes, 05/09/2026) liga a
+assinatura de `DECISAO_ATUACAO.md` ao catálogo: enquanto houver linha em
+branco, nenhuma capacidade acima de L0 pode estar `implementada=True`.
+Verificado por mutação — com `act.click` marcado implementado, o teste falha.
+
+**Mas isso é guard rail de suíte, não barreira de runtime.** Alguém pode
+editar `capacidades.py`, não rodar a suíte, e executar. O que existe é uma
+condição objetiva para *detectar* a violação quando os testes rodarem.
+
+### A tensão que a solução óbvia cria
+O caminho direto — `exige_implementada()` lê `DECISAO_ATUACAO.md` no import e
+recusa L1/L2 se a assinatura estiver em branco — **acopla o runtime a um
+arquivo de `docs/`**. E isso colide com uma propriedade que o projeto já
+declara em `pyproject.toml`:
+
+```
+packages = ["auditor", "auditor.checks", "auditor.adaptadores"]
+# fixtures/ e examples/ NAO entram: [...] O pacote instalado precisa
+# funcionar sem eles.
+```
+
+`agent_runtime` nem sequer está na lista de pacotes instaláveis hoje, mas o
+princípio já está escrito: **o runtime funciona sem o material do
+laboratório.** Um runtime que se recusa a subir porque não achou um `.md` é um
+runtime que não pode ser distribuído sem os documentos — e isso é uma
+consequência de empacotamento, não uma decisão de segurança.
+
+### As formas de resolver, com o custo de cada uma
+
+**T4a — o runtime lê o `.md`.** Mais simples, uma fonte só de verdade.
+Custo: acopla runtime a `docs/`, e a ausência do arquivo passa a ser
+indistinguível de "não assinado" — o que é o default seguro, mas quebra
+qualquer distribuição sem docs.
+
+**T4b — a assinatura gera um artefato legível por máquina** (uma linha em
+config, um `.json` versionado dentro do pacote). O `.md` continua sendo o
+registro humano; o artefato é a autoridade. Custo: duas coisas para manter em
+sincronia, e um teste que prove que não divergiram.
+
+**T4c — a autoridade vira configuração explícita de quem sobe o serviço**
+(`AGENT_RUNTIME_TETO_NIVEL`, default `0`). Custo: tira a assinatura do caminho
+e a substitui por quem opera — o que pode ser certo ou errado dependendo de
+quem se quer que decida, e é exatamente isso que a decisão precisa dizer.
+
+Nenhuma é obviamente melhor. A escolha depende de uma pergunta que ainda não
+foi feita: **a assinatura autoriza o repositório, ou autoriza cada instância
+que roda?** As duas respostas são defensáveis e levam a desenhos diferentes.
+
+---
+
 ## #T3 — `browser.inspect` não foi executado contra Chrome real
 
 **Status:** ABERTA. É o único item que separa esta frente de "fechada".
