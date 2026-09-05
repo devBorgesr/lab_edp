@@ -77,6 +77,11 @@ def main(argv=None) -> int:
                    help="HAR real para observe.network/analyze.json")
     p.add_argument("--raiz", default=None,
                    help="onde as tarefas sao persistidas (default: temporario)")
+    p.add_argument("--origem-extensao", default=None, metavar="chrome-extension://ID",
+                   help="abre CORS para UMA origem exata — o painel do "
+                        "Copiloto. Sem isto nao ha CORS nenhum e so a pagina "
+                        "servida pelo proprio Runtime fala com ele. Curinga "
+                        "nao e aceito.")
     p.add_argument("--browser", action="store_true",
                    help="liga browser.inspect via chrome.debugger. Exige que o "
                         "painel do Copiloto registre a aba-alvo e anexe antes "
@@ -112,11 +117,18 @@ def main(argv=None) -> int:
     try:
         app = cria_app(Politica(nivel_maximo=Nivel.OBSERVAR), provedores,
                        propositor, nome_propositor=propositor.nome,
-                       raiz=a.raiz, mesa=mesa, alvos=alvos)
+                       raiz=a.raiz, mesa=mesa, alvos=alvos,
+                       origem_extensao=a.origem_extensao)
         print(f"[transporte] propositor={propositor.nome} "
               f"provedores={[p.nome for p in provedores]} "
               f"raiz={a.raiz or '(temporario)'} "
               f"http://{a.host}:{a.porta}/", file=sys.stderr)
+        if a.origem_extensao:
+            print(f"[transporte] CORS aberto para UMA origem: "
+                  f"{a.origem_extensao}", file=sys.stderr)
+        else:
+            print("[transporte] sem CORS — so a pagina servida por este "
+                  "Runtime (GET /) fala com ele", file=sys.stderr)
         if a.browser:
             print("[transporte] browser.inspect LIGADO — nenhuma tarefa de "
                   "navegador roda ate o painel registrar a aba e anexar "

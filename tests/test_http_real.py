@@ -236,3 +236,105 @@ def test_nenhuma_resposta_carrega_cors_por_socket(servidor):
         nomes = {k.lower() for k in headers}
         assert not any(n.startswith("access-control-") for n in nomes), \
             (caminho, nomes)
+
+
+# ── CORS para o painel: uma origem exata, ou nenhuma ────────────────────────
+#
+# `DECISAO_TRANSPORTE.md` previu que, quando o painel virasse cliente, a origem
+# passaria a ser `chrome-extension://<id>` e isso teria de ser decisao com nome
+# e escopo. Estes testes sao o escopo.
+
+EXT = "chrome-extension://" + "n" * 32
+
+
+@pytest.fixture(scope="module")
+def servidor_cors(tmp_path_factory):
+    porta = porta_livre()
+    raiz = tmp_path_factory.mktemp("http_cors")
+    env = {**os.environ, "AGENT_RUNTIME_TOKEN": TOKEN,
+           "PYTHONPATH": str(RAIZ), "PYTHONUNBUFFERED": "1"}
+    proc = subprocess.Popen(
+        [sys.executable, "-m", "agent_runtime", "--propositor", "eco",
+         "--porta", str(porta), "--browser", "--raiz", str(raiz),
+         "--origem-extensao", EXT],
+        cwd=str(RAIZ), env=env,
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    base = f"http://127.0.0.1:{porta}"
+    fim = time.time() + 25
+    while time.time() < fim:
+        if proc.poll() is not None:
+            pytest.fail("o Runtime morreu ao subir:\n" + proc.stdout.read())
+        try:
+            with urllib.request.urlopen(base + "/health", timeout=1):
+                break
+        except Exception:
+            time.sleep(0.2)
+    yield base, proc
+    proc.terminate()
+    try:
+        proc.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+
+
+def preflight(base, origem, caminho="/v1/browser/solicitacoes"):
+    r = urllib.request.Request(base + caminho, method="OPTIONS", headers={
+        "Origin": origem, "Access-Control-Request-Method": "GET",
+        "Access-Control-Request-Headers": "authorization,content-type"})
+    try:
+        with urllib.request.urlopen(r, timeout=10) as f:
+            return f.status, Headers(f.headers)
+    except urllib.error.HTTPError as e:
+        return e.code, Headers(e.headers)
+
+
+def test_preflight_do_painel_passa_sem_token(servidor_cors):
+    """
+    O navegador NUNCA manda credencial no preflight. Exigir token no OPTIONS
+    garante 401 em todo preflight — foi o que o smoke mostrou, sete seguidos.
+    Responder o preflight nao autoriza nada: a requisicao real que vem depois
+    passa pela autenticacao normalmente (o teste seguinte prova).
+    """
+    base, _ = servidor_cors
+    st, h = preflight(base, EXT)
+    assert st in (200, 204), st
+    assert h.get("Access-Control-Allow-Origin") == EXT
+    assert "authorization" in h.get("Access-Control-Allow-Headers", "").lower()
+    assert h.get("Access-Control-Max-Age")     # corta OPTIONS a cada poll
+
+
+def test_preflight_respondido_nao_dispensa_token_na_requisicao_real(servidor_cors):
+    base, _ = servidor_cors
+    st, _, _ = pede(base, "/v1/browser/solicitacoes", token="errado")
+    assert st == 401
+
+
+def test_cors_so_para_a_origem_exata(servidor_cors):
+    """Nao ha padrao, nao ha lista, nao ha `*`."""
+    base, _ = servidor_cors
+    for outra in ("chrome-extension://" + "b" * 32, "https://claude.ai",
+                  "http://127.0.0.1:8000", "null"):
+        st, h = preflight(base, outra)
+        assert h.get("Access-Control-Allow-Origin") is None, (outra, st)
+
+
+def test_nunca_curinga(servidor_cors):
+    base, _ = servidor_cors
+    for caminho in ("/health", "/v1/capacidades", "/v1/browser/alvo"):
+        _, _, h = pede(base, caminho)
+        assert h.get("Access-Control-Allow-Origin") != "*"
+    _, h = preflight(base, EXT)
+    assert h.get("Access-Control-Allow-Origin") != "*"
+
+
+def test_sem_a_flag_nao_ha_cors_nenhum(servidor):
+    """
+    O servidor do resto do arquivo sobe SEM --origem-extensao. Nele, nem
+    preflight nem resposta carregam CORS — o comportamento de antes,
+    preservado.
+    """
+    base, _ = servidor
+    st, h = preflight(base, EXT)
+    assert h.get("Access-Control-Allow-Origin") is None
+    _, _, h2 = pede(base, "/v1/capacidades")
+    assert h2.get("Access-Control-Allow-Origin") is None

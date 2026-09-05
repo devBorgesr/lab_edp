@@ -36,8 +36,16 @@ Exportador — a fronteira escrita vale mais que a fronteira lembrada.
     `edp/ingest/websocket_receiver.py` continua intacta (opcao `C`, nao
     recomendada).
 
-CORS: A AUSENCIA E A DECISAO
-----------------------------
+CORS: AUSENTE POR DEFAULT, E ABERTO SO PARA UMA ORIGEM EXATA
+-------------------------------------------------------------
+Ver tambem a secao seguinte. Por default NAO ha CORS nenhum, e nesse modo so a
+pagina servida pelo proprio Runtime (`GET /`) consegue falar com ele.
+
+`--origem-extensao chrome-extension://<id>` liga o unico caso previsto: o
+painel do Copiloto. E uma origem EXATA, comparada por igualdade, nunca `*` e
+nunca padrao. Sem a flag, o comportamento e identico ao de antes.
+
+
 Qualquer pagina aberta no navegador pode **enviar** um POST para
 `127.0.0.1:8010`. O que ela nao pode e **ler a resposta** sem
 `Access-Control-Allow-Origin`, e nao pode nem enviar com `Authorization` +
@@ -148,6 +156,19 @@ LOOPBACK = {"127.0.0.1", "localhost", "::1"}
 #: token para dizer que o servidor esta de pe.
 PROTEGIDOS = ("/v1/",)
 
+#: Headers que o preflight do painel pede. Lista fechada: um `*` aqui deixaria
+#: qualquer header atravessar, inclusive os que o navegador normalmente segura.
+CORS_HEADERS = "authorization, content-type, x-request-id, x-correlation-id"
+
+#: Metodos que o painel usa. GET/POST/DELETE, nada alem.
+CORS_METODOS = "GET, POST, DELETE, OPTIONS"
+
+#: Quanto tempo o navegador pode guardar o preflight. 10 min corta o
+#: `OPTIONS` a cada poll — que era o que enchia o log.
+CORS_MAX_AGE = "600"
+
+_ORIGEM_EXT = re.compile(r"^chrome-extension://[a-p]{32}$")
+
 Propositor = Callable[[Tarefa, list[Observacao]], Intencao]
 
 
@@ -222,7 +243,8 @@ def cria_app(politica: Politica,
              raiz: Path | str | None = None,
              servico: "TaskService | None" = None,
              mesa: "MesaDeSolicitacoes | None" = None,
-             alvos: "RegistroDeAlvos | None" = None):
+             alvos: "RegistroDeAlvos | None" = None,
+             origem_extensao: str | None = None):
     """
     `propositor` e OBRIGATORIO e injetado, como no `Executor`.
 
@@ -242,6 +264,21 @@ def cria_app(politica: Politica,
     svc = servico or TaskService(
         raiz or Path(tempfile.mkdtemp(prefix="agent_runtime_")),
         politica, provedores, propositor, teto_nivel)
+
+    # ── CORS: exatamente uma origem, ou nenhuma ─────────────────────────
+    #
+    # `DECISAO_TRANSPORTE.md` previu isto e mandou que fosse decisao com nome e
+    # escopo, e nao um `*` herdado. Entao: default None (sem CORS nenhum, so a
+    # pagina do proprio Runtime fala), e quando ligada e uma origem EXATA,
+    # comparada por igualdade. Nao ha padrao, nao ha lista, nao ha `*`.
+    if origem_extensao is not None:
+        origem_extensao = origem_extensao.strip().rstrip("/")
+        if not _ORIGEM_EXT.match(origem_extensao):
+            raise TransporteMalConfigurado(
+                f"origem {origem_extensao!r} recusada. Esperado "
+                f"'chrome-extension://<32 letras a-p>' — o id que aparece em "
+                f"chrome://extensions. Curinga nao e aceito: a decisao e "
+                f"abrir para UMA extensao, nao para a categoria.")
 
     mesa = mesa if mesa is not None else MesaDeSolicitacoes()
     alvos = alvos if alvos is not None else RegistroDeAlvos()
@@ -277,6 +314,13 @@ def cria_app(politica: Politica,
                 achado = cid
         return achado
 
+    def _cors(resp, origem):
+        """So emite se a origem BATE EXATAMENTE com a configurada."""
+        if origem_extensao and origem == origem_extensao:
+            resp.headers["Access-Control-Allow-Origin"] = origem_extensao
+            resp.headers["Vary"] = "Origin"
+        return resp
+
     @app.middleware("http")
     async def autentica(request, chamada):
         """
@@ -289,13 +333,29 @@ def cria_app(politica: Politica,
         construcao, e continua garantida se alguem acrescentar parametro ao
         handler amanha.
         """
+        origem = request.headers.get("origin")
+
+        # PREFLIGHT ANTES DA AUTENTICACAO, e isso nao e furo.
+        #
+        # O navegador NUNCA manda credencial no preflight (fetch spec). Exigir
+        # token no OPTIONS garante 401 em todo preflight — foi o que o log do
+        # smoke mostrou, sete OPTIONS 401 seguidos. Responder o preflight nao
+        # autoriza nada: a requisicao REAL que vem depois passa pela
+        # autenticacao normalmente.
+        if request.method == "OPTIONS" and origem_extensao and origem == origem_extensao:
+            r = Response(status_code=204)
+            r.headers["Access-Control-Allow-Methods"] = CORS_METODOS
+            r.headers["Access-Control-Allow-Headers"] = CORS_HEADERS
+            r.headers["Access-Control-Max-Age"] = CORS_MAX_AGE
+            return _cors(r, origem)
+
         if request.url.path.startswith(PROTEGIDOS):
             cid = _cliente(request.headers.get("authorization"))
             if cid is None:
-                return JSONResponse({"detail": "token invalido ou ausente"},
-                                    status_code=401)
+                return _cors(JSONResponse({"detail": "token invalido ou ausente"},
+                                          status_code=401), origem)
             request.state.client_id = cid
-        return await chamada(request)
+        return _cors(await chamada(request), origem)
 
     def _visao(r) -> dict[str, Any]:
         """
@@ -336,7 +396,8 @@ def cria_app(politica: Politica,
                 "propositor": nome_propositor,
                 "teto_nivel": int(teto_nivel),
                 "teto_segundos": TETO_SEGUNDOS, "teto_bytes": TETO_BYTES,
-                "streaming": False, "assincrono": True}
+                "streaming": False, "assincrono": True,
+                "origem_extensao": origem_extensao or None}
 
     @app.get("/v1/capacidades")
     def capacidades():

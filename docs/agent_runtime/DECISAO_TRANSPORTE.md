@@ -246,6 +246,41 @@ justificativa ...... e o unico transporte cujo mecanismo ja esta provado
                      das duas fronteiras de seguranca escritas.
 ```
 
+## Aditivo 05/09/2026 — o painel virou cliente, e o CORS foi decidido
+
+Este documento previu o caso e mandou que fosse decisão com nome e escopo:
+
+> Quando o painel do Copiloto virar cliente, a origem passa a ser
+> `chrome-extension://<id>` — e aí emitir CORS para essa origem específica
+> vira uma decisão consciente, com nome e escopo, em vez de um `*` herdado.
+
+O painel virou cliente por direção do pesquisador (03–05/09), e eu construí o
+`browser_bridge.js` lá **sem tomar essa decisão** — o smoke real quebrou em
+`No 'Access-Control-Allow-Origin' header`, com sete `OPTIONS 401` no log.
+
+**Decidido, e implementado com o escopo mais estreito que funciona:**
+
+```
+default ............. NENHUM CORS. So a pagina servida pelo proprio Runtime
+                      (GET /) fala com ele. Comportamento anterior intacto.
+--origem-extensao ... UMA origem exata, comparada por igualdade
+                      chrome-extension://<32 letras a-p>
+recusado ............ `*`, `chrome-extension://*`, qualquer padrao, http(s)
+metodos ............. GET, POST, DELETE, OPTIONS
+headers ............. lista fechada, nao `*`
+preflight ........... respondido ANTES da autenticacao
+```
+
+**Por que o preflight passa sem token, e por que isso não é furo:** o navegador
+nunca manda credencial no preflight (fetch spec). Exigir token no `OPTIONS`
+garante 401 em todo preflight. Responder o preflight não autoriza nada — a
+requisição real que vem depois passa pela autenticação normalmente, e há teste
+para isso (`test_preflight_respondido_nao_dispensa_token_na_requisicao_real`).
+
+**O que continua valendo:** nenhuma página web fala com o Runtime. A abertura é
+para uma extensão nomeada, e o id muda se a extensão for recarregada de outro
+caminho — então é configuração por instância, nunca padrão.
+
 ## O que a assinatura autoriza, e o que não autoriza
 
 **Autoriza:** servidor HTTP em `lab_edp_novo`, bind `127.0.0.1:8010`,
