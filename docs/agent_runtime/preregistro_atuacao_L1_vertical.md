@@ -1,6 +1,18 @@
-# Pré-registro — vertical slice de atuação L1 (`browser.click`)
+# PRÉ-REGISTRO PREPARADO — BLOQUEADO
+# Vertical slice de atuação L1 (`browser.click`)
 
-## BLOQUEADO
+## Estado: PREPARADO, não ARMADO
+
+A distinção não é formalidade:
+
+```
+PREPARADO   o desenho existe; ha campos em branco; NADA pode ser executado
+ARMADO      todos os campos congelados; o primeiro disparo real congela o resto
+```
+
+Um pré-registro **armado** não tem campo "a confirmar". Este tem três, e é por
+isso que ele está preparado e não armado. Ele passa a ARMADO quando a
+assinatura preencher a §6 — e só então o gatilho de congelamento vale.
 
 **Este documento não pode ser executado.** `exige_implementada()` recusa toda
 capacidade L1/L2 enquanto `docs/agent_runtime/DECISAO_ATUACAO.md` estiver com
@@ -111,7 +123,7 @@ próprio. O Registry cresce por decisão, não por conveniência.
 
 ---
 
-## 6. Constantes a congelar quando este pré-registro for armado
+## 6. Constantes — preenchê-las é o que torna este pré-registro ARMADO
 
 | constante | valor | estado |
 |---|---|---|

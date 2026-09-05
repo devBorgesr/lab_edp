@@ -248,14 +248,27 @@ Nunca enviados sem você dizer. `edp_v5` é público: antes do push, conferir
 
 ---
 
-## O que NÃO está neste checklist, e por quê
+## BLOCO J — Visão e ativos futuros
 
-A visão comercial discutida em 05/09 — Agent Runtime as a Service, marketplace
-de capacidades, observabilidade de produto inteiro, grafo de execução — **não
-gera itens aqui**. Ela descreve para onde a infraestrutura *pode* ir, e o
-checklist só registra o que tem passo a passo verificável hoje.
+**Referência:** [`VISAO_ATIVOS_E_ROADMAP.md`](VISAO_ATIVOS_E_ROADMAP.md)
 
-Transformar visão em item de checklist faria as duas coisas parecerem o mesmo
-tipo de compromisso. Não são: uma tem critério de aceite, a outra tem
-hipótese de mercado. A distinção é a mesma que o projeto mantém entre
-`medido` e `inferido`, e ela vale também para roadmap.
+**Natureza:** ROADMAP / HIPÓTESE DE PRODUTO
+
+```
+NAO sao criterios PASS/FAIL.
+NAO contam como trabalho executado.
+NAO sao evidencia de capacidade implementada.
+```
+
+São o registro explícito das direções arquiteturais e comerciais decididas ou
+discutidas nesta conversa, para que não desapareçam do histórico.
+
+A primeira redação deste checklist **removia** essa visão em vez de
+relocá-la — decisão metodologicamente defensável e, ainda assim, errada
+diante do pedido, que era preservar a conversa inteira. Separar não é
+descartar. O documento de visão existe para que a distinção
+`medido / inferido / planejado` tenha um lugar para cada termo, em vez de o
+terceiro sumir.
+
+Nenhum item do Bloco J vira tarefa sem passar antes por um pré-registro, uma
+decisão assinada, ou uma dívida registrada.
