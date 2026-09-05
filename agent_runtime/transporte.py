@@ -235,7 +235,7 @@ def cria_app(politica: Politica,
     ele, como no `auditor/api.py`.
     """
     from fastapi import FastAPI, HTTPException, Request
-    from fastapi.responses import HTMLResponse, JSONResponse
+    from fastapi.responses import HTMLResponse, JSONResponse, Response
 
     clientes = _clientes_configurados()
     html = Path(pagina) if pagina else Path(__file__).parent / "pagina_teste.html"
@@ -461,7 +461,18 @@ def cria_app(politica: Politica,
         """
         s = mesa.proxima(request.state.client_id)
         if s is None:
-            return JSONResponse(None, status_code=204)
+            # `Response` VAZIO, nao JSONResponse(None).
+            #
+            # `JSONResponse(None)` serializa o corpo `null` — 4 bytes — num
+            # status que exige corpo vazio. O uvicorn recusa com
+            # "Response content longer than Content-Length" e derruba a
+            # requisicao, e o painel ve ERR_CONNECTION_REFUSED / Failed to
+            # fetch, que aponta para o lugar errado.
+            #
+            # Os testes com TestClient nao pegavam: ele fala ASGI direto e nao
+            # passa pela camada HTTP do uvicorn. Achado no primeiro smoke em
+            # Chrome real, 05/09/2026 — ver tests/test_http_real.py.
+            return Response(status_code=204)
         return JSONResponse(s)
 
     @app.post("/v1/browser/resultados")
