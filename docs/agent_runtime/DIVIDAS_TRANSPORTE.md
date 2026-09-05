@@ -153,11 +153,16 @@ que roda?** As duas respostas são defensáveis e levam a desenhos diferentes.
 
 ## #T3 — `browser.inspect` não foi executado contra Chrome real
 
-**Status:** ABERTA. É o único item que separa esta frente de "fechada".
+**Status:** FECHADA em 05/09/2026. Veredito **H1**.
 
-Ver `SMOKE_BROWSER_INSPECT.md`. Enquanto
-`RESULTADO_SMOKE_BROWSER_INSPECT.md` não existir, a descrição correta é
-**"fechado em código e teste, aberto em Chrome real"**.
+`RESULTADO_SMOKE_BROWSER_INSPECT.md` traz os oito critérios do positivo e os
+três negativos, todos verdadeiros, contra `chrome.debugger` real. `dom_nodes:
+327` é a árvore do dashboard; N1/N2/N3 rejeitaram com motivos distintos.
+
+O smoke encontrou cinco coisas que 604 testes não tinham encontrado — `204`
+com corpo, CORS ausente para a origem do painel, sessão do debugger pendurada,
+duas guardas de usabilidade, e um falso positivo do meu próprio diagnóstico.
+Todas corrigidas, com teste. Estão listadas no resultado.
 
 Nenhuma capacidade nova entra antes disso. `browser.click` e as demais
 continuam recusadas por `exige_implementada()` e dependem da assinatura de

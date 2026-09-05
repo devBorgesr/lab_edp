@@ -19,10 +19,14 @@ decisoes em branco ... 3 (RANKING, ACOPLAMENTO, ATUACAO)
 
 ---
 
-## BLOCO A — `browser.inspect` em Chrome real
+## BLOCO A — `browser.inspect` em Chrome real ✔ FECHADO 05/09/2026
 
-O único item entre a frente do transporte e "fechada". Nada de capacidade nova
-entra antes dele. Pré-registro:
+**Veredito H1.** Evidência em
+[`RESULTADO_SMOKE_BROWSER_INSPECT.md`](RESULTADO_SMOKE_BROWSER_INSPECT.md).
+Os oito critérios do positivo e os três negativos, todos verdadeiros contra
+`chrome.debugger` real. Cinco defeitos encontrados e corrigidos no caminho.
+
+O passo a passo abaixo fica como registro do que foi executado. Pré-registro:
 [`preregistro_smoke_browser_inspect.md`](preregistro_smoke_browser_inspect.md).
 
 ### A.1 Higiene antes de armar

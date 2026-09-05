@@ -22,6 +22,7 @@ async function teste(nome, fn) {
 function mundo({ tabUrl = ORIGEM + '/dashboard', anexado = true,
                  abaExiste = true, comandos = {} } = {}) {
   const chamados = [];
+  const detaches = [];
   const chrome = {
     tabs: {
       get: async (id) => {
@@ -31,7 +32,7 @@ function mundo({ tabUrl = ORIGEM + '/dashboard', anexado = true,
     },
     debugger: {
       attach: async () => {},
-      detach: async () => {},
+      detach: async ({ tabId }) => { detaches.push(tabId); },
       getTargets: async () => (anexado
         ? [{ tabId: TAB, attached: true, type: 'page', url: tabUrl }] : []),
       sendCommand: async (alvo, nome, params) => {
@@ -56,7 +57,7 @@ function mundo({ tabUrl = ORIGEM + '/dashboard', anexado = true,
   // por JSON aqui e mais fiel que comparar o objeto do outro realm do `vm` —
   // e de quebra evita o falso negativo de deepEqual entre realms.
   const executar = async (p) => JSON.parse(JSON.stringify(await C.executar(p)));
-  return { C, executar, chamados, chrome };
+  return { C, executar, chamados, chrome, detaches };
 }
 
 function pedido(extra = {}) {
@@ -203,6 +204,45 @@ await teste('objeto Chrome cru nao vira observacao', async () => {
   const txt = JSON.stringify(r);
   assert.ok(!txt.includes('SEGREDO'), 'segredo atravessou: ' + txt.slice(0, 200));
   assert.ok(!txt.includes('exceptionDetails'));
+});
+
+// ── a sessao do debugger nao pode ficar pendurada ──────────────────────────
+//
+// Achado no smoke real de 05/09/2026: depois do N2 (origem mudou), o Chrome
+// continuava anexado e o registro seguinte falhou com "Another debugger is
+// already attached to the tab". `limparAlvo()` zerava o alvo sem desanexar, e
+// `desanexar()` retornava cedo porque o alvo ja era null.
+
+await teste('origem mudou -> invalida E DESANEXA', async () => {
+  const m = mundo();
+  await m.C.registrarAlvo(TAB, 'S-1'); await m.C.anexar(TAB);
+  m.chrome.tabs.get = async (id) => ({ id, url: 'https://example.com/x' });
+  const r = JSON.parse(JSON.stringify(await m.C.executar(pedido())));
+  assert.equal(r.type, 'browser.error');
+  assert.equal(m.C.alvoAtual(), null);
+  assert.deepEqual(m.detaches, [TAB],
+    'sessao do debugger ficou pendurada: detach nao foi chamado');
+});
+
+await teste('aba fechada -> invalida E tenta desanexar', async () => {
+  const m = mundo();
+  await m.C.registrarAlvo(TAB, 'S-1'); await m.C.anexar(TAB);
+  m.chrome.tabs.get = async () => { throw new Error('No tab with id 42'); };
+  const r = JSON.parse(JSON.stringify(await m.C.executar(pedido())));
+  assert.equal(r.type, 'browser.error');
+  assert.equal(m.C.alvoAtual(), null);
+  assert.deepEqual(m.detaches, [TAB]);
+});
+
+await teste('detach que falha nao impede a invalidacao', async () => {
+  // A aba pode ter sumido: o detach falha, e o alvo tem de cair mesmo assim.
+  const m = mundo();
+  await m.C.registrarAlvo(TAB, 'S-1'); await m.C.anexar(TAB);
+  m.chrome.debugger.detach = async () => { throw new Error('No such tab'); };
+  m.chrome.tabs.get = async (id) => ({ id, url: 'https://example.com/x' });
+  const r = JSON.parse(JSON.stringify(await m.C.executar(pedido())));
+  assert.equal(r.type, 'browser.error');
+  assert.equal(m.C.alvoAtual(), null, 'alvo sobreviveu a um detach que falhou');
 });
 
 console.log(`\n${feitos} ok, ${falhas} falha(s)`);
