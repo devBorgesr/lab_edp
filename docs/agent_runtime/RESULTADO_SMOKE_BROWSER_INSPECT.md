@@ -4,6 +4,35 @@
 compactação. Pré-registro:
 [`preregistro_smoke_browser_inspect.md`](preregistro_smoke_browser_inspect.md).
 
+## Cronologia — UMA execução, não duas
+
+Este resultado vem de **uma única sessão contínua**. Registrado explicitamente
+porque um auditor lendo cortes do transcrito leu como duas rodadas
+independentes, e concluiu que a segunda teria N2 reaberto e N3 ausente. Não
+houve segunda rodada.
+
+```
+05:58-06:04  correcoes do procedimento (run.py serve, Invoke-RestMethod)
+06:49        204 sem corpo          <- BLOQUEIO, achado tentando comecar
+07:23        CORS de origem exata   <- BLOQUEIO, idem
+             ---- so aqui o smoke pode rodar ----
+11:32 (*)    positivo T-612fc612
+11:53        N1 invalido (painel recarregado; alvo perdido)
+11:59        N1 valido      "tab_id 999999 nao e o alvo"
+12:00        N2 invalido (a aba nunca navegou)
+12:04        N2 valido      "a aba alvo mudou de origem desde o registro"
+12:08        N3 valido      "o debugger nao esta anexado ao alvo"
+08:16        #T3 fechada, este documento escrito
+
+(*) horarios 11:xx/12:xx sao do console do Windows; os 0x:xx sao dos commits
+    na VM. Fusos diferentes, mesma sessao.
+```
+
+O `204` e o CORS **não são de uma rodada posterior**: são os bloqueios que
+impediam o smoke de começar. E o ensaio com dois pollers concorrentes
+(`buscado_em` sob HTTP real) rodou **antes** do Chrome, na VM, como preparação
+— não é evidência posterior.
+
 ## Veredito: **H1**
 
 Os oito critérios do positivo e os três negativos, todos verdadeiros. Nenhuma
