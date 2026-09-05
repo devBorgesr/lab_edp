@@ -88,7 +88,21 @@ ambiente não atravessa terminais.
 ### 2. Suba o dashboard do EDP
 
 ```powershell
-python -m edp.serve      # http://127.0.0.1:8000/dashboard
+cd C:\Users\central\Downloads\edp_v5_main
+python run.py serve      # http://127.0.0.1:8000/dashboard
+```
+
+**`run.py serve`, não `-m edp.serve`.** Não existe `edp/serve.py`; o ponto de
+entrada é `run.py`, documentado na linha 5 do próprio arquivo
+(`python run.py serve → inicia API FastAPI`). `serve` é o default, então
+`python run.py` sozinho faz o mesmo.
+
+Confirmação de que subiu:
+
+```
+[serve] usando edp.api.main:app
+[serve] http://127.0.0.1:8000
+[serve] dashboard:  http://127.0.0.1:8000/dashboard
 ```
 
 ### 2b. Confira que os dois estão de pé
