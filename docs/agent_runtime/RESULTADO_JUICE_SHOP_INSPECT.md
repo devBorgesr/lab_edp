@@ -190,6 +190,15 @@ real com DOM grande, rotas e formulários; o DOM medido é 3,34× o do dashboard
 a restrição de escopo é por aba registrada, verificada nos dois sentidos entre
 duas origens loopback.
 
+**A palavra "aba" está marcada como NÃO MEDIDA.** Este documento descreve o
+raio do `chrome.debugger.attach` como sendo a aba anexada. Isso foi escrito por
+raciocínio sobre o CDP, não por medida. Se `Network.getAllCookies`,
+`Target.getTargets` ou `Target.attachToTarget` forem alcançáveis a partir de um
+attach, o raio é o **perfil**, não a aba — e esta seção precisa de errata.
+Pré-registro aberto para medir: [`preregistro_raio_do_attach.md`](preregistro_raio_do_attach.md).
+O veredito H1 do Bloco B não depende disso: o que foi exercido continua sendo
+três campos de leitura, e os dois controles cruzados continuam recusando.
+
 **Não afirma nada sobre atuação.** Nenhum clique, preenchimento, navegação ou
 execução de JS aconteceu. Nenhuma vulnerabilidade do Juice Shop foi exercitada.
 Não houve login — de propósito, pelo §4: autenticar criaria sessão e cookie, e a
