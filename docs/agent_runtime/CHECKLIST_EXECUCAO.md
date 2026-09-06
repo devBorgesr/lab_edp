@@ -119,7 +119,7 @@ correta continua sendo "fechado em código e teste, aberto em Chrome real".**
 
 ---
 
-## BLOCO B — Juice Shop com `browser.inspect` (L0, não precisa de assinatura)
+## BLOCO B — Juice Shop com `browser.inspect` → FECHADO 06/09/2026
 
 Pré-registro:
 [`preregistro_juice_shop_inspect.md`](preregistro_juice_shop_inspect.md).
@@ -136,15 +136,18 @@ e a inversao da ordem extensao/Runtime que o CORS obriga).
 
 ```
 [x] node --version na maquina com Chrome -> v22.14.0   (exigido "22 - 26")
-    PRE-CONDICAO DO §1 ATENDIDA, medida em 05/09/2026
-[ ] Juice Shop rodando em 127.0.0.1:3000
-    (docker AUSENTE; `npm i juice-shop` NAO existe -> git clone do fonte,
-     tag v20.2.0; o postinstall ja faz o build)
-[ ] registrar a aba do Juice Shop como alvo
-[ ] browser.inspect -> 3 observacoes, page.url do Juice Shop
-[ ] NEGATIVO: com o Juice Shop registrado, pedir inspect na aba do dashboard
-    -> REJEITADO (prova que o escopo e por aba, nao por "e local")
-[ ] comparar dom_nodes do Juice Shop vs dashboard (ordem de grandeza diferente)
+[x] Juice Shop 20.2.0 em 127.0.0.1:3000 — pacote OFICIAL, md5 conferido
+    (a via do fonte falhou: edgesOut do arborist + package-lock=false)
+[x] registrar a aba do Juice Shop como alvo
+[x] browser.inspect -> 3 observacoes, page.url do Juice Shop   T-0ca9e427
+[x] NEGATIVO js_cruzado ..... REJEITADO  "nao e o alvo"
+[x] NEGATIVO dash_cruzado ... REJEITADO  "nao e o alvo"   (o sentido inverso,
+    que o Bloco A nao conseguia fazer com uma aba loopback so)
+[x] dom_nodes 1091 vs 327 = razao 3,34   > 2
+
+VEREDITO H1 — [`RESULTADO_JUICE_SHOP_INSPECT.md`](RESULTADO_JUICE_SHOP_INSPECT.md)
+O escopo e por ABA REGISTRADA, nao por "e local". Verificado nos dois sentidos
+entre duas origens loopback.
 ```
 
 **O que NÃO fazer aqui:** clicar, preencher, navegar. Isso é o Bloco C.
