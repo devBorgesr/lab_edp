@@ -127,16 +127,46 @@ navegador** — o Chrome já está aberto de qualquer forma:
 `https://github.com/juice-shop/juice-shop/releases/tag/v20.2.0`, asset
 `juice-shop-20.2.0_node22_win32_x64.zip`. Depois só a conferência de md5 acima.
 
-Extrair e subir:
+Extrair. **Use `tar`, não `Expand-Archive`:**
+
+```powershell
+cd C:\Users\central\Downloads
+tar --version                       # vem no Win10 1803+, mesma ressalva do curl.exe
+mkdir juice_shop_pkg | Out-Null
+tar -xf js.zip -C juice_shop_pkg
+```
+
+O pacote traz o `node_modules` inteiro — dezenas de milhares de arquivos
+pequenos. O `Expand-Archive` do PowerShell 5.1 processa entrada por entrada com
+overhead de pipeline e leva **dezenas de minutos**; o `tar` faz o mesmo em uma
+fração disso. Medido em 05/09: a primeira tentativa foi de `Expand-Archive` e
+travou o passo.
+
+Para ver se está andando, de outro terminal:
+
+```powershell
+(Get-ChildItem C:\Users\central\Downloads\juice_shop_pkg -Recurse -File | Measure-Object).Count
+```
+
+Se `tar` não existir nesta máquina, o caminho lento funciona igual:
 
 ```powershell
 cd C:\Users\central\Downloads
 Expand-Archive js.zip -DestinationPath juice_shop_pkg -Force
+```
+
+Subir, em qualquer um dos dois casos:
+
+```powershell
+cd C:\Users\central\Downloads
 if (Test-Path juice_shop_pkg\package.json) { cd juice_shop_pkg }
 else { cd (Get-ChildItem juice_shop_pkg -Directory | Select-Object -First 1).FullName }
 Get-Location
 npm start
 ```
+
+**md5 conferido em 05/09**, contra o publicado pela OWASP:
+`1191bb6ed1ab696507bb0b50b27bb7a5`, 120,4 MB.
 
 `node22_win32_x64` casa exatamente com esta máquina (Node v22.14.0, Windows
 x64). São 120 MB.
