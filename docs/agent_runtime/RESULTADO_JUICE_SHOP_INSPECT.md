@@ -190,6 +190,28 @@ real com DOM grande, rotas e formulários; o DOM medido é 3,34× o do dashboard
 a restrição de escopo é por aba registrada, verificada nos dois sentidos entre
 duas origens loopback.
 
+### ERRATA 06/09/2026 — a palavra "aba" estava errada, e agora está medida
+
+O pré-registro foi executado no mesmo dia. **Veredito H0:** o raio de um
+`chrome.debugger.attach` **não é a aba, é o perfil**.
+`Network.getAllCookies` é aceito de uma sessão anexada a uma única aba e
+devolve o pote de cookies do perfil inteiro — medido em 3 domínios distintos
+contra 1 da aba. Ver [`RESULTADO_RAIO_DO_ATTACH.md`](RESULTADO_RAIO_DO_ATTACH.md).
+
+O Chrome **filtra** comandos de nível de navegador — `Target.getTargets` e
+`Page.setDownloadBehavior` são bloqueados com "Cannot not access browser-level
+commands". Mas `Network.getAllCookies` passa: ele devolve dado de perfil e não
+é classificado nessa categoria. A contenção existe e tem um buraco de
+categoria; não é ausência de contenção.
+
+**O veredito H1 do Bloco B não muda.** O que foi exercido continua sendo três
+campos de leitura, os dois controles cruzados continuam recusando, e
+`browser.inspect` continua L0 porque não envia esse comando. O que muda é a
+consequência de alterar esse código: do outro lado de um `EXPR_PAGINA`
+editável não está o DOM de uma aba, está o pote de cookies do perfil.
+
+O texto original abaixo fica como estava, com a marca de então.
+
 **A palavra "aba" está marcada como NÃO MEDIDA.** Este documento descreve o
 raio do `chrome.debugger.attach` como sendo a aba anexada. Isso foi escrito por
 raciocínio sobre o CDP, não por medida. Se `Network.getAllCookies`,
