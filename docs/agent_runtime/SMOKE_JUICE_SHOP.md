@@ -89,16 +89,52 @@ empacotado por plataforma e por versão de Node:
 
 ```powershell
 cd C:\Users\central\Downloads
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+$ProgressPreference = 'SilentlyContinue'
 $u = "https://github.com/juice-shop/juice-shop/releases/download/v20.2.0"
-Invoke-WebRequest "$u/juice-shop-20.2.0_node22_win32_x64.zip"     -OutFile js.zip
-Invoke-WebRequest "$u/juice-shop-20.2.0_node22_win32_x64.zip.md5" -OutFile js.zip.md5
+Invoke-WebRequest "$u/juice-shop-20.2.0_node22_win32_x64.zip"     -OutFile js.zip     -UseBasicParsing
+Invoke-WebRequest "$u/juice-shop-20.2.0_node22_win32_x64.zip.md5" -OutFile js.zip.md5 -UseBasicParsing
+```
 
-# confira o md5 ANTES de descompactar
-(Get-FileHash js.zip -Algorithm MD5).Hash.ToLower()
-Get-Content js.zip.md5
+**A linha do TLS não é supersticão.** O Windows PowerShell 5.1 usa o default do
+`ServicePointManager`, que é TLS 1.0/1.1; o GitHub recusa. Sintoma exato,
+medido em 05/09: `A solicitação foi anulada: Não foi possível criar um canal
+seguro para SSL/TLS`. `$ProgressPreference = 'SilentlyContinue'` é performance
+— com a barra de progresso ligada, o 5.1 leva minutos para baixar 120 MB.
 
-Expand-Archive js.zip -DestinationPath .
-cd juice-shop_20.2.0
+Conferência do md5, **em bloco separado**:
+
+```powershell
+if (-not (Test-Path js.zip)) {
+  "FALHOU: js.zip nao baixou"
+} else {
+  "tamanho: {0:N1} MB  (esperado ~120,4)" -f ((Get-Item js.zip).Length / 1MB)
+  $a = (Get-FileHash js.zip -Algorithm MD5).Hash.ToLower()
+  $b = ((Get-Content js.zip.md5 -Raw) -split '\s+')[0].ToLower()
+  if ($a -and $b -and $a -eq $b) { "MD5 OK  $a" }
+  else { "MD5 FALHOU  local='$a'  publicado='$b'" }
+}
+```
+
+> **Por que o `-and $a -and $b`, e não só `$a -eq $b`.** A primeira versão
+> deste bloco fazia a comparação direta. Com os dois downloads falhados, `$a` e
+> `$b` ficaram nulos, `$null -eq $null` deu verdadeiro, e a checagem **imprimiu
+> `MD5 OK` sem ter medido nada**. Gate degenerado: passa justamente quando não
+> há evidência. O `Test-Path` e os dois testes de não-vazio existem por isso.
+
+Se o TLS continuar recusando (proxy corporativo, .NET antigo), **baixe pelo
+navegador** — o Chrome já está aberto de qualquer forma:
+`https://github.com/juice-shop/juice-shop/releases/tag/v20.2.0`, asset
+`juice-shop-20.2.0_node22_win32_x64.zip`. Depois só a conferência de md5 acima.
+
+Extrair e subir:
+
+```powershell
+cd C:\Users\central\Downloads
+Expand-Archive js.zip -DestinationPath juice_shop_pkg -Force
+if (Test-Path juice_shop_pkg\package.json) { cd juice_shop_pkg }
+else { cd (Get-ChildItem juice_shop_pkg -Directory | Select-Object -First 1).FullName }
+Get-Location
 npm start
 ```
 
