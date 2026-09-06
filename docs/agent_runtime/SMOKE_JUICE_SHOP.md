@@ -312,10 +312,20 @@ texto guardado no log.
 sido exposta à toa.
 
 ```js
+var TOKEN = prompt('cole o AGENT_RUNTIME_TOKEN');
 CopilotBrowserBridge.onEvento((e, d) => console.log('[bridge]', e, d));
-CopilotBrowserBridge.start('http://127.0.0.1:8010', 'COLE_O_AGENT_RUNTIME_TOKEN');
+CopilotBrowserBridge.start('http://127.0.0.1:8010', TOKEN);
 await CopilotBrowserBridge.registrarAlvo(TAB_JS);
 ```
+
+> **O `prompt()` não é firula.** A versão anterior desta linha era
+> `CopilotBrowserBridge.start('http://127.0.0.1:8010', '<token literal>')`, e
+> foi exatamente assim que o token do Runtime vazou em 04/09: a linha, com o
+> segredo dentro, foi colada num transcrito. Com `prompt()` o token não entra
+> no histórico do console nem em nada que se copie de volta.
+
+E os `tabId` também não se digitam à mão — o passo 5 já os deixou em `TAB_JS` e
+`TAB_DASH`. Número copiado à mão foi origem de erro no Bloco A.
 
 Esperado: `[bridge] alvo.registrado` → `[bridge] alvo.anexado`, e a faixa "está
 depurando este navegador" sobre a aba do **Juice Shop**.
