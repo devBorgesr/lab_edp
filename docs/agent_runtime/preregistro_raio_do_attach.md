@@ -287,6 +287,49 @@ vez de promessa.
 
 ---
 
+## ERRATA 2 — 06/09/2026: a semente de duas portas não discrimina
+
+Encontrado montando o Passo 4, antes de qualquer comando ter sido enviado.
+
+**Cookie não distingue porta.** Para o navegador, `http://127.0.0.1:3000` e
+`http://127.0.0.1:8000` são origens diferentes. Para o pote de cookies, são o
+**mesmo domínio**: `127.0.0.1`. A §4 apoiava-se na premissa de que duas portas
+dariam dois domínios de cookie, e essa premissa é falsa.
+
+**A consequência, se não fosse corrigido:** `dominios_distintos` daria `1` mesmo
+que `Network.getAllCookies` devolvesse o pote inteiro. O §6 cairia no ramo
+indeterminado, e a leitura errada seria "a semente falhou" — quando o que falhou
+foi o desenho da semente. O experimento custaria o mesmo e não mediria nada.
+
+**A correção é aditiva, e nada frozen é removido.** `localhost` e `127.0.0.1`
+são domínios de cookie distintos, ainda que resolvam para o mesmo loopback.
+Além das duas origens já congeladas, semeia-se uma terceira página:
+
+```
+http://127.0.0.1:8000/dashboard    alvo anexado        dominio 127.0.0.1
+http://127.0.0.1:3000/#/           segunda origem      dominio 127.0.0.1  (mesmo!)
+http://localhost:3000/#/           TERCEIRA, adicionada    dominio localhost
+```
+
+Com isso o discriminador fica limpo:
+
+```
+dominios_distintos == 1   -> o attach devolveu so o dominio da aba anexada
+dominios_distintos >= 2   -> o attach alcancou alem da aba          -> H0
+```
+
+**Se `localhost:3000` não responder** — no Windows `localhost` pode resolver
+para `::1` antes de `127.0.0.1`, e um servidor preso a IPv4 não atende — tenta-se
+`http://localhost:8000/dashboard`. Se nenhum dos dois responder, a condição
+**não roda**, e o resultado é registrado como não medido. Inventar uma terceira
+origem qualquer para salvar a rodada seria escolher o dado depois de saber o que
+ele precisa mostrar.
+
+Hipótese, condições, métrica e critério continuam como congelados. Mudou a
+semente, e mudou porque a anterior era incapaz de separar as hipóteses.
+
+---
+
 ## 10. Onde o resultado vai
 
 `docs/agent_runtime/RESULTADO_RAIO_DO_ATTACH.md`, com a tabela dos oito
