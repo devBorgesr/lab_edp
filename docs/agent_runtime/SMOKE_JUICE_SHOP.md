@@ -127,20 +127,39 @@ navegador** — o Chrome já está aberto de qualquer forma:
 `https://github.com/juice-shop/juice-shop/releases/tag/v20.2.0`, asset
 `juice-shop-20.2.0_node22_win32_x64.zip`. Depois só a conferência de md5 acima.
 
-Extrair. **Use `tar`, não `Expand-Archive`:**
+Extrair. **Não use `Expand-Archive`:**
 
 ```powershell
 cd C:\Users\central\Downloads
-tar --version                       # vem no Win10 1803+, mesma ressalva do curl.exe
-mkdir juice_shop_pkg | Out-Null
-tar -xf js.zip -C juice_shop_pkg
+cmd /c rmdir /s /q juice_shop_pkg
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$sw = [Diagnostics.Stopwatch]::StartNew()
+[System.IO.Compression.ZipFile]::ExtractToDirectory("C:\Users\central\Downloads\js.zip","C:\Users\central\Downloads\juice_shop_pkg")
+"extraido em {0:N1} min" -f $sw.Elapsed.TotalMinutes
 ```
 
 O pacote traz o `node_modules` inteiro — dezenas de milhares de arquivos
-pequenos. O `Expand-Archive` do PowerShell 5.1 processa entrada por entrada com
-overhead de pipeline e leva **dezenas de minutos**; o `tar` faz o mesmo em uma
-fração disso. Medido em 05/09: a primeira tentativa foi de `Expand-Archive` e
-travou o passo.
+pequenos. `Expand-Archive` é um invólucro PowerShell em volta desta mesma
+classe .NET, e quase todo o custo está no invólucro: ele processa entrada por
+entrada com overhead de pipeline e leva **dezenas de minutos**. Chamar
+`ZipFile::ExtractToDirectory` direto evita isso. O `rmdir` vem antes porque o
+método recusa destino que já exista com conteúdo.
+
+Medido nesta máquina em 05/09:
+
+```
+Expand-Archive ......... travou o passo, abandonado
+tar -xf ................ `tar` NAO EXISTE nesta maquina (mesma classe do
+                         curl.exe: so acompanha o Win10 1803+). Por isso o
+                         `tar --version` vinha antes de usar.
+ZipFile::Extract... .... caminho adotado
+```
+
+Fallback, com o Python que a máquina já tem:
+
+```powershell
+python -c "import zipfile,time; t=time.time(); zipfile.ZipFile('js.zip').extractall('juice_shop_pkg'); print('extraido em %.1f min' % ((time.time()-t)/60))"
+```
 
 Para ver se está andando, de outro terminal:
 
