@@ -218,6 +218,75 @@ Mudou qualquer uma ⇒ é outro pré-registro.
 
 ---
 
+## ERRATA 1 — 06/09/2026, antes do primeiro comando
+
+Quatro ajustes de procedimento. **Nenhuma linha da §2, §3, §5 ou §6 muda.**
+
+### a) Attach cru, não pelo bridge — o §9 contradizia o §7
+
+O §9 passo 5 mandava "registrar 8000 como alvo pelo bridge". O §7 exige que o
+Agent Runtime não participe. O bridge **faz polling no Runtime** — as duas
+instruções não podem valer juntas.
+
+Resolvido em favor do §7, que é o requisito de isolamento:
+
+```js
+await chrome.debugger.attach({tabId}, '1.3');
+```
+
+O objeto de medida não muda: é exatamente a linha que o controller executa em
+`anexar()`. O controller não acrescenta nada ao attach — só chama essa linha,
+mais `DOM.enable` e `Page.enable`, que o procedimento repete. Tirar o bridge
+remove Runtime, token e CORS do caminho, e com eles três fontes de falha que
+não têm relação com a pergunta.
+
+### b) Semente determinística de cookie
+
+O §6 prevê o ramo indeterminado se `dominios_distintos == 1`. Sem semear, esse
+ramo é o resultado **provável**, porque um perfil recém-criado pode
+simplesmente não ter cookie das duas origens — e aí o experimento não mediu
+nada e custou o mesmo.
+
+Antes do attach, no console **de cada aba** (não no do painel):
+
+```js
+document.cookie = "probe=1; path=/"
+```
+
+É preparação de ambiente feita pelo humano no próprio navegador descartável,
+da mesma natureza que navegar até a URL. Não passa por capacidade nenhuma.
+
+### c) "Alcançável de um attach nu" e "alcançável com o domínio ligado" são
+respostas diferentes
+
+Alguns comandos CDP exigem `<Dominio>.enable` antes. Uma recusa por domínio
+desligado **não é** recusa por política, e tratar as duas como a mesma coisa
+inverteria o sentido do resultado.
+
+Por isso cada comando é tentado primeiro **sem** enable. Se o erro disser que o
+domínio precisa estar habilitado, o `enable` é tentado e o comando repetido — e
+as duas respostas entram na tabela, em colunas diferentes.
+
+### d) `Page.setDownloadBehavior` com `behavior: 'deny'`
+
+Mede se o comando é **aceito** sem escrever nada em disco. O anel D pergunta se
+o debugger alcança o sistema de arquivos, e a aceitação já responde.
+
+### e) `Target.attachToTarget` é condicional
+
+Ele exige um `targetId`, que só existe se `Target.getTargets` for aceito. Se
+`getTargets` recusar, `attachToTarget` fica `N/A` — e isso **conta como recusa**
+para o §6, porque o caminho para ele não existe.
+
+### f) A regra de "nenhum conteúdo" é imposta por código, não por disciplina
+
+A função de resumo do procedimento devolve, para qualquer comando de cookie,
+**apenas** `n=<contagem> dominios=<contagem de distintos>`. Nome de domínio e
+`value` não são acessíveis ao operador nem por engano. O §5 vira mecanismo em
+vez de promessa.
+
+---
+
 ## 10. Onde o resultado vai
 
 `docs/agent_runtime/RESULTADO_RAIO_DO_ATTACH.md`, com a tabela dos oito
