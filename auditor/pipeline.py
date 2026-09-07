@@ -140,7 +140,15 @@ class Auditoria:
         """
         import hashlib
 
-        m.snapshot = {"dir": str(getattr(self.sistema, "snapshot_dir", "?"))}
+        # `dir` e a COPIA temporaria; `origem` e de onde ela veio. O conteudo
+        # ja era inequivoco pelos dois sha256, mas a PROCEDENCIA nao: um
+        # manifesto que so mostra /tmp/auditoria_xxxx nao diz qual store foi
+        # medido. Com EDP_BASE_DIR tendo cinco defaults no kernel (relativo a
+        # cwd em quatro deles), "qual store" nao e detalhe operacional.
+        m.snapshot = {
+            "dir":    str(getattr(self.sistema, "snapshot_dir", "?")),
+            "origem": str(getattr(self.sistema, "origem", "nao informada")),
+        }
 
         m.retriever = {
             "top_k":            self.protocolo.top_k,

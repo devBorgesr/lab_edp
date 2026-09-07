@@ -157,8 +157,30 @@ class Manifesto:
             "modo":      self.modo,
             "criado_em": self.criado_em,
             "status":    self.status.value,
-            "ambiente":  {"python": platform.python_version(),
-                          "plataforma": platform.platform()},
+            "ambiente":  {
+                "python": platform.python_version(),
+                "plataforma": platform.platform(),
+                # PROCEDENCIA DO CARIMBO. Um artefato que se vende por
+                # rastreabilidade nao pode datar-se sem dizer de onde veio a
+                # data. Declarado, e nao medido, porque medir seria mentir:
+                #
+                #   `criado_em` sai de datetime.now(timezone.utc) — relogio do
+                #   host do auditor, sem verificacao NTP/HTTP.
+                #
+                #   os `ts` dos eventos do sujeito nao carregam marcador de
+                #   verificacao. O EDP tem edp.clock com modo verified /
+                #   temporal_unverified, mas o modo NAO e gravado no evento,
+                #   entao o auditor nao consegue saber sob qual relogio cada
+                #   ts foi escrito. Ler edp.clock daqui responderia sobre o
+                #   processo do AUDITOR, nao sobre o que escreveu o evento — e
+                #   ainda dispararia sincronizacao de rede.
+                "relogio": {
+                    "criado_em_fonte": "system clock do host do auditor",
+                    "criado_em_verificado": False,
+                    "ts_do_sujeito": ("sem marcador de verificacao no evento; "
+                                      "modo do relogio de escrita nao recuperavel"),
+                },
+            },
             "snapshot":  self.snapshot,
             "retriever": self.retriever,
             "dataset":   self.dataset,

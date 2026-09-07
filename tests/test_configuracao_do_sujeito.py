@@ -135,3 +135,48 @@ def test_edp_reporta_identidade_do_modulo_nos_dois_ramos():
             "a flag que motivou esta captura precisa aparecer nela")
     else:
         assert "FORMAT_STATE_FLAGS" in cfg["motivo"]
+
+
+# ── procedencia do carimbo e do snapshot (07/09/2026) ───────────────────────
+#
+# O manifesto se datava sem dizer de onde vinha a data, e mostrava a copia
+# temporaria sem dizer de qual store ela veio. Para um artefato que se vende
+# por rastreabilidade, as duas coisas sao parte da evidencia.
+
+def test_manifesto_declara_procedencia_do_carimbo(tmp_path):
+    """
+    `criado_em` sai do relogio do host, sem verificacao. Declarado, e nao
+    medido — medir seria mentir: o modo do relogio de QUEM ESCREVEU o evento
+    nao e recuperavel de dentro do auditor, e ler edp.clock daqui responderia
+    sobre o processo errado (alem de disparar sincronizacao de rede).
+    """
+    m = _roda(tmp_path)
+    rel = m.to_dict()["ambiente"]["relogio"]
+    assert rel["criado_em_verificado"] is False
+    assert "host do auditor" in rel["criado_em_fonte"]
+    assert "nao recuperavel" in rel["ts_do_sujeito"]
+
+
+def test_manifesto_registra_origem_do_snapshot(tmp_path):
+    """
+    O conteudo ja era inequivoco pelos dois sha256; a PROCEDENCIA nao era.
+    Um manifesto que so mostra /tmp/auditoria_xxxx nao diz qual store foi
+    medido — e o kernel tem cinco defaults para EDP_BASE_DIR, quatro deles
+    relativos a cwd.
+    """
+    m = _roda(tmp_path)
+    snap = m.to_dict()["snapshot"]
+    assert "origem" in snap, "manifesto sem origem do snapshot"
+    assert snap["origem"], "origem vazia"
+    assert snap["dir"], "dir vazio"
+
+
+def test_ambiente_nao_le_o_relogio_do_edp(tmp_path):
+    """
+    edp.clock.status() chama _ensure_initialized(), que tenta NTP e depois
+    HTTP. Ler isso de dentro de uma auditoria colocaria rede no caminho de um
+    instrumento que existe para rodar offline.
+    """
+    fonte = (RAIZ / "auditor/manifest.py").read_text(encoding="utf-8")
+    for proibido in ("clock.status(", "clock.is_verified(", "clock.sync_source("):
+        assert proibido not in fonte, f"{proibido} poe rede no auditor"
