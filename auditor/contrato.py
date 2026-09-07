@@ -44,6 +44,32 @@ class SistemaAuditavel(ABC):
 
     # ── opcional, com default honesto ───────────────────────────────────────
 
+    def configuracao_do_sujeito(self) -> dict[str, Any]:
+        """
+        A configuracao do SISTEMA AUDITADO no momento da medicao.
+
+        NAO confundir com `manifesto["configuracao"]`, que e a do AUDITOR
+        (modo, min_unidades, exemplos_em_claro). Sao coisas diferentes e o
+        manifesto so registrava a segunda.
+
+        Por que isto existe: duas execucoes do mesmo protocolo, sobre o mesmo
+        dataset congelado por sha256, com o sujeito configurado de formas
+        diferentes, produziam numeros diferentes e manifestos
+        INDISTINGUIVEIS. A primeira pergunta de um leitor tecnico e "medido
+        sob qual configuracao?", e a auditoria 400f691a3fa6 nao consegue
+        responder — o estado das flags dela nao e recuperavel de nenhum
+        artefato.
+
+        O default e a recusa honesta: um adaptador que nao sabe reportar diz
+        que nao sabe. Silencio seria indistinguivel de "nao havia
+        configuracao".
+        """
+        return {
+            "disponivel": False,
+            "motivo": (f"{type(self).__name__} nao reporta configuracao do "
+                       f"sujeito"),
+        }
+
     def telemetria_do_ranking(self, query: str, top_k: int) -> dict[str, Any]:
         """
         Item 4: o ranking vira CONTRATO, nao convencao.

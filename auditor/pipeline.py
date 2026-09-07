@@ -155,6 +155,18 @@ class Auditoria:
             except Exception as e:
                 m.retriever["telemetria_falhou"] = str(e)
 
+        # SEMPRE escrita, mesmo indisponivel. A ausencia da chave passa a
+        # significar "manifesto anterior a esta versao"; `disponivel: false`
+        # significa "o adaptador nao sabe reportar". Sem escrever sempre, os
+        # dois casos ficam indistinguiveis — que e exatamente o defeito que
+        # esta captura existe para corrigir.
+        try:
+            m.retriever["configuracao_sujeito"] = (
+                self.sistema.configuracao_do_sujeito())
+        except Exception as e:
+            m.retriever["configuracao_sujeito"] = {
+                "disponivel": False, "motivo": f"erro ao coletar: {e}"}
+
         m.amostra = {"n_queries": len(self.queries)}
 
         # PONTO DE EXTENSAO (item 18): o dataset e entrada do protocolo, nao

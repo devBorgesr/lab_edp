@@ -63,6 +63,53 @@ class EDPAuditavel(SistemaAuditavel):
     def texto(self, doc_id: str) -> str:
         return self._txt.get(doc_id, "")
 
+    def configuracao_do_sujeito(self) -> dict:
+        """
+        Fotografa `edp.config.FORMAT_STATE_FLAGS` — a lista que o proprio EDP
+        mantem para "tudo que altera a composicao do prompt", travada por
+        `tests/test_token_telemetry.py`, que falha se uma flag nova nao for
+        classificada.
+
+        NAO invento lista. Se uma flag nova entrar la, ela aparece aqui
+        sozinha — e a decisao sobre incluir ou nao ja foi tomada no lugar
+        certo, uma vez, em vez de aqui de novo.
+
+        `EDP_RETRIEVE_DEDUP` esta nessa tupla, com o comentario "muda o
+        conjunto recuperado". Sem esta captura, uma duplicacao de ID medida
+        pela auditoria e indistinguivel entre defeito do retriever e flag
+        desligada por default.
+        """
+        import edp
+        import edp.config as cfg
+
+        # A IDENTIDADE vai nos dois ramos. Medido em 07/09/2026: a partir do
+        # lab, `import edp` resolve para a copia INSTALADA em
+        # site-packages, nao para o repositorio. Ela e mais antiga — tem
+        # EDP_RETRIEVE_DEDUP e NAO tem FORMAT_STATE_FLAGS. Sem registrar de
+        # onde o modulo veio, o manifesto afirma ter medido "o EDP" sem dizer
+        # qual, e duas auditorias de safras diferentes ficam identicas no
+        # papel.
+        identidade = {
+            "modulo": getattr(edp, "__file__", "?"),
+            "versao": getattr(edp, "__version__", None),
+        }
+
+        nomes = getattr(cfg, "FORMAT_STATE_FLAGS", None)
+        if not nomes:
+            return {
+                "disponivel": False,
+                "identidade": identidade,
+                "motivo": ("edp.config sem FORMAT_STATE_FLAGS — o edp "
+                           "importado e anterior a lista canonica de flags "
+                           "de formato"),
+            }
+        return {
+            "disponivel": True,
+            "identidade": identidade,
+            "fonte": "edp.config.FORMAT_STATE_FLAGS",
+            "flags": {n: getattr(cfg, n, None) for n in nomes},
+        }
+
     def controle_para(self, q: dict) -> list[str]:
         """Documentos de outro dominio — o controle negativo pre-registrado."""
         alvo = (q.get("dominio") or "").strip().lower()
