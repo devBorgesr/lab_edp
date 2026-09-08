@@ -150,8 +150,21 @@ class Auditoria:
             "origem": str(getattr(self.sistema, "origem", "nao informada")),
         }
 
+        # DE ONDE VEIO A JANELA. O protocolo impoe `top_k` em consulta(); se o
+        # sistema roda com outra, o numero descreve a regua e nao o sistema.
+        # A regra e que o auditor se adapta ao sistema — enquanto o protocolo
+        # nao negociar a janela, a divergencia fica pelo menos VISIVEL.
+        try:
+            _k_nativo = self.sistema.top_k_nativo()
+        except Exception:
+            _k_nativo = None
+
         m.retriever = {
             "top_k":            self.protocolo.top_k,
+            "top_k_origem":     "protocolo",
+            "top_k_nativo_do_sistema": _k_nativo,
+            "top_k_divergente": (_k_nativo is not None
+                                 and _k_nativo != self.protocolo.top_k),
             "origem":           type(self.sistema).__name__,
             "adaptador":        type(self.sistema).__name__,
             "versao_adaptador": getattr(self.sistema, "VERSAO", "?"),

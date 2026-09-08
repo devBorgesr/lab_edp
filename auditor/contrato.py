@@ -44,6 +44,27 @@ class SistemaAuditavel(ABC):
 
     # ── opcional, com default honesto ───────────────────────────────────────
 
+    def top_k_nativo(self) -> int | None:
+        """
+        A janela que o sistema auditado USA de verdade, se ele souber dizer.
+
+        REGRA: a capacidade do auditor nao e a capacidade do sistema auditado.
+        O auditor se adapta ao sistema, nunca o contrario.
+
+        O protocolo carrega um `top_k` proprio (DIAGNOSTICO usa 50) e o impoe
+        em `consulta(query, top_k)`. Se o sistema roda com uma janela menor —
+        um reranker com topK=6, por exemplo — medir em 50 descreve uma janela
+        que os usuarios dele nunca veem; e medir em 50 um sistema que roda em
+        6 pode inflar a diversidade observada. Nos dois sentidos o numero deixa
+        de ser sobre o sistema e passa a ser sobre a regua.
+
+        Declarar aqui NAO muda a medicao — muda o que o manifesto informa. A
+        divergencia fica visivel em vez de silenciosa.
+
+        `None` significa "nao declarado", e e o default honesto.
+        """
+        return None
+
     def configuracao_do_sujeito(self) -> dict[str, Any]:
         """
         A configuracao do SISTEMA AUDITADO no momento da medicao.

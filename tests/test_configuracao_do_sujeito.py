@@ -180,3 +180,44 @@ def test_ambiente_nao_le_o_relogio_do_edp(tmp_path):
     fonte = (RAIZ / "auditor/manifest.py").read_text(encoding="utf-8")
     for proibido in ("clock.status(", "clock.is_verified(", "clock.sync_source("):
         assert proibido not in fonte, f"{proibido} poe rede no auditor"
+
+
+# ── a janela medida e a do sistema, ou a da regua? (07/09/2026) ─────────────
+#
+# REGRA: capacidade do auditor != capacidade do sistema auditado. O auditor se
+# adapta ao sistema, nunca o contrario.
+#
+# O protocolo carrega top_k proprio (DIAGNOSTICO usa 50) e o impoe em
+# consulta(query, top_k) — pipeline.py:245 e :270. Um sistema que roda com
+# reranker topK=6 seria medido numa janela que seus usuarios nunca veem.
+# Enquanto o protocolo nao negociar a janela, a divergencia fica VISIVEL.
+
+def test_manifesto_diz_de_onde_veio_a_janela(tmp_path):
+    m = _roda(tmp_path)
+    r = m.to_dict()["retriever"]
+    assert r["top_k_origem"] == "protocolo", (
+        "hoje a janela vem SEMPRE do protocolo; se isso mudar, o manifesto "
+        "tem de dizer")
+    assert "top_k_nativo_do_sistema" in r
+    assert "top_k_divergente" in r
+
+
+def test_divergencia_de_janela_fica_visivel(tmp_path):
+    """Sistema que declara janela diferente da do protocolo: manifesto acusa."""
+    s = ClienteSintetico(tmp_path, taxa_duplicacao=0.0)
+    s.estatistica = lambda: {"cobertura": 0.71}
+    s.top_k_nativo = lambda: 6          # como o reranker do suchi-cancer-bot
+    m = _roda(tmp_path, sistema=s)
+    r = m.to_dict()["retriever"]
+    assert r["top_k_nativo_do_sistema"] == 6
+    assert r["top_k_divergente"] is True, (
+        "medir em k=10 um sistema que roda em k=6 e medir a regua, nao o "
+        "sistema — e o manifesto tem de dizer isso")
+
+
+def test_sem_declaracao_nao_inventa(tmp_path):
+    """`None` e o default honesto: nao declarado nao vira 'igual'."""
+    m = _roda(tmp_path)
+    r = m.to_dict()["retriever"]
+    assert r["top_k_nativo_do_sistema"] is None
+    assert r["top_k_divergente"] is False
