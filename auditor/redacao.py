@@ -94,4 +94,26 @@ class Politica:
             "n_ocorrencias": len(self.removidos),
             "nota": ("query e documento aparecem como hash; texto em claro so "
                      "com --exemplos-em-claro, e segredo e removido nos dois modos"),
+            # CAMINHOS SAO GRAVADOS LITERAIS, e isso precisa estar dito aqui.
+            #
+            # `snapshot.origem` e `retriever.configuracao_sujeito.identidade.
+            # modulo` guardam caminho absoluto. Os dois entraram em 06-07/09
+            # para responder "de qual store" e "de qual codigo" — sem eles o
+            # manifesto afirma ter medido sem dizer o que.
+            #
+            # Mas este bloco declarava hashear query e documento e nao dizia
+            # nada sobre caminho. Num manifesto de auditoria de CLIENTE, o
+            # `snapshot.origem` carrega o caminho interno DELE. Politica que
+            # protege o conteudo e cala sobre o caminho nao e politica, e
+            # omissao — e a omissao era minha.
+            #
+            # Declarado em vez de redigido: redigir o caminho destroi a
+            # procedencia que o campo existe para dar. Quem precisar de
+            # redacao decide sabendo o que o artefato carrega.
+            "caminhos": ("gravados LITERAIS em snapshot.origem e em "
+                         "retriever.configuracao_sujeito.identidade.modulo. "
+                         "Nao sao hasheados nem redigidos: eles sao a "
+                         "procedencia. Um manifesto compartilhado revela a "
+                         "estrutura de diretorios da maquina que rodou a "
+                         "auditoria"),
         }

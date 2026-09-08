@@ -221,3 +221,33 @@ def test_sem_declaracao_nao_inventa(tmp_path):
     r = m.to_dict()["retriever"]
     assert r["top_k_nativo_do_sistema"] is None
     assert r["top_k_divergente"] is False
+
+
+# ── a politica de privacidade nao pode calar sobre o que grava (08/09/2026) ──
+#
+# snapshot.origem e configuracao_sujeito.identidade.modulo guardam caminho
+# ABSOLUTO. Entraram em 06-07/09 para responder "de qual store" e "de qual
+# codigo". O bloco `privacidade` declarava hashear query e documento e nao
+# dizia nada sobre caminho — num manifesto de auditoria de CLIENTE, o
+# snapshot.origem carrega o caminho interno DELE.
+
+def test_privacidade_declara_que_grava_caminho(tmp_path):
+    m = _roda(tmp_path)
+    priv = m.to_dict()["privacidade"]
+    assert "caminhos" in priv, (
+        "a politica cala sobre caminho enquanto o manifesto grava caminho")
+    t = priv["caminhos"].lower()
+    assert "literais" in t or "literal" in t
+    assert "snapshot.origem" in priv["caminhos"]
+
+
+def test_os_campos_declarados_existem_de_fato(tmp_path):
+    """
+    A declaracao tem de casar com o manifesto. Se um dos dois campos sumir, a
+    politica passa a descrever algo que nao acontece — que e o defeito
+    espelhado do que ela veio corrigir.
+    """
+    d = _roda(tmp_path).to_dict()
+    assert "origem" in d["snapshot"]
+    assert "identidade" in d["retriever"]["configuracao_sujeito"] or \
+           d["retriever"]["configuracao_sujeito"]["disponivel"] is False
