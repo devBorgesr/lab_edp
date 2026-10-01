@@ -44,16 +44,7 @@ def _rastreados(padrao: str = "") -> list[str]:
 #
 # Cada entrada e uma decisao registrada, nao uma excecao tecnica. Acrescentar
 # aqui deveria doer um pouco.
-PERMITIDOS = {
-    "e7_sequencia.jsonl": (
-        "dataset CONGELADO do E7 — 106 queries reais com timestamp. "
-        "Reprodutibilidade exige versionamento; remover quebraria o E7 e o "
-        "NORTE §4.6 pede prova de inercia antes de deletar. Sem chave, sem "
-        "e-mail, sem gabarito (conferido em 21/08). "
-        "ESTE PRECEDENTE NAO MIGRA para o edp_engineering: la o corpus e "
-        "conversa de equipe, e o custo de vazar muda de categoria."
-    ),
-}
+PERMITIDOS: dict[str, str] = {}
 
 
 def test_jsonl_versionado_precisa_estar_na_allowlist():
@@ -130,11 +121,6 @@ def test_o_gate_morde():
     que devolve lista vazia — e um gate que nao le nada passa sempre.
     """
     assert _rastreados(), "git ls-files devolveu vazio — a checagem nao le nada"
-    assert _rastreados("*.jsonl"), (
-        "nenhum .jsonl rastreado: o teste da allowlist passaria por vacuidade. "
-        "Se isso mudar de proposito, remova PERMITIDOS junto."
-    )
-    # a allowlist realmente autoriza algo que seria barrado sem ela
-    assert {Path(f).name for f in _rastreados("*.jsonl")} & set(PERMITIDOS), (
-        "a allowlist nao cobre nenhum arquivo real — ela nao esta segurando nada"
-    )
+    # Zero JSONL rastreado e um estado valido e preferivel para o repositorio
+    # publico. Datasets reais/conversacionais ficam fora do Git; experimentos
+    # reproduziveis devem publicar hash/protocolo ou fixtures sinteticas.
